@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/attribution_service.dart';
 import 'constants.dart';
 
 class AuthController {
@@ -282,6 +283,10 @@ class AuthController {
   // ─── Sync with Shopify ────────────────────────────────────────────────────
   static Future<void> syncWithShopify(String phone) async {
     isSyncing = true;
+    
+    // AppsFlyer Event: Login
+    AttributionService.logLogin();
+
     try {
       const String baseUrl = "https://3b7f20-3.myshopify.com/admin/api/2024-10";
       Map<String, String> headers = {

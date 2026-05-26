@@ -89,6 +89,15 @@ class OrderModel {
     return false;
   }
 
+  Fulfillment? get validFulfillment {
+    for (var f in fulfillments.reversed) {
+      if (f.trackingNumber != null && f.trackingNumber!.trim().isNotEmpty) {
+        return f;
+      }
+    }
+    return fulfillments.isNotEmpty ? fulfillments.last : null;
+  }
+
   bool get isCancellable {
     return cancelledAt == null && 
            fulfillments.isEmpty && 

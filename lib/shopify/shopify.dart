@@ -262,12 +262,16 @@ class ShopifyAPI {
             statusPageUrl
             
             fulfillments(first: 10) {
-              id
-              shipmentStatus
-              trackingInfo(first: 10) {
-                number
-                url
-                company
+              nodes {
+                id
+                shipmentStatus
+                trackingNumbers
+                trackingUrls
+                trackingInfo {
+                  number
+                  url
+                  company
+                }
               }
             }
             
@@ -315,13 +319,30 @@ class ShopifyAPI {
                 phone
               }
             }
-            lineItems(first: 50) {
+            lineItems(first: 20) {
               nodes {
                 title
                 quantity
                 variantTitle
-                image { url }
-                originalUnitPriceSet { presentmentMoney { amount } }
+                originalUnitPriceSet {
+                  presentmentMoney {
+                    amount
+                  }
+                }
+                image {
+                  url
+                }
+                variant {
+                  id
+                  image {
+                    url
+                  }
+                  product {
+                    featuredImage {
+                      url
+                    }
+                  }
+                }
               }
             }
           }
@@ -331,13 +352,105 @@ class ShopifyAPI {
       final res = await _getAdminData(body: query, variables: {"id": gid});
 
       Map<String, dynamic> finalData = {};
+      var o = res['data']?['order'];
 
-      if (res['data']?['order'] != null) {
-        var o = res['data']['order'];
-        var sa = o['shippingAddress'] ?? {};
-        var ba = o['billingAddress'] ?? {};
+      // REST DATA MERGE: Merge with REST data as it's more reliable for fulfillments/tracking
+      try {
+        final numericId = gid.split('/').last;
+        final restRes = await _getData(link: "orders/$numericId");
+        if (restRes['order'] != null) {
+          var ro = restRes['order'];
+
+          // If GraphQL failed entirely, start with REST data
+          if (o == null) {
+            o = ro;
+            // Map basic fields
+            o['displayFulfillmentStatus'] = ro['fulfillment_status'];
+            o['displayFinancialStatus'] = ro['financial_status'];
+            o['statusPageUrl'] = ro['order_status_url'];
+            o['createdAt'] = ro['created_at'];
+            o['totalPriceSet'] = {
+              'presentmentMoney': {'amount': ro['total_price']}
+            };
+            o['subtotalPriceSet'] = {
+              'presentmentMoney': {'amount': ro['subtotal_price']}
+            };
+            o['totalTaxSet'] = {
+              'presentmentMoney': {'amount': ro['total_tax']}
+            };
+            o['totalShippingPriceSet'] = {
+              'presentmentMoney': {'amount': ro['total_shipping']}
+            };
+
+            // Map line items from REST
+            o['lineItems'] = {
+              'nodes': (ro['line_items'] as List? ?? [])
+                  .map((li) => {
+                        'id': "gid://shopify/LineItem/${li['id']}",
+                        'title': li['title'],
+                        'quantity': li['quantity'],
+                        'originalUnitPriceSet': {
+                          'presentmentMoney': {'amount': li['price']}
+                        },
+                        'variantTitle': li['variant_title'],
+                        // REST items rarely have images directly; will need fallback if possible
+                      })
+                  .toList()
+            };
+          } else {
+            // MERGE REST data into existing GraphQL object
+            // Prefer REST for address parts and fulfillments
+            var rsa = ro['shipping_address'] ?? ro['billing_address'] ?? {};
+            o['shippingAddress'] = {
+              ...(o['shippingAddress'] ?? {}),
+              'address1': o['shippingAddress']?['address1'] ?? rsa['address1'],
+              'address2': o['shippingAddress']?['address2'] ?? rsa['address2'],
+              'city': o['shippingAddress']?['city'] ?? rsa['city'],
+              'province': o['shippingAddress']?['province'] ?? rsa['province'],
+              'zip': o['shippingAddress']?['zip'] ?? rsa['zip'],
+              'country': o['shippingAddress']?['country'] ?? rsa['country'],
+              'firstName':
+                  o['shippingAddress']?['firstName'] ?? rsa['first_name'],
+              'lastName': o['shippingAddress']?['lastName'] ?? rsa['last_name'],
+              'phone': o['shippingAddress']?['phone'] ?? rsa['phone'],
+            };
+
+            if (o['statusPageUrl'] == null)
+              o['statusPageUrl'] = ro['order_status_url'];
+          }
+
+          // Merge Fulfillments - REST is superior for tracking numbers
+          if (ro['fulfillments'] != null &&
+              (ro['fulfillments'] as List).isNotEmpty) {
+            o['fulfillments'] = {
+              'nodes': (ro['fulfillments'] as List)
+                  .map((rf) => {
+                        'id': rf['id'],
+                        'shipmentStatus': rf['shipment_status'],
+                        'name': rf['name'],
+                        'trackingInfo': [
+                          {
+                            'number': rf['tracking_number'],
+                            'url': rf['tracking_url'],
+                            'company': rf['tracking_company'],
+                          }
+                        ],
+                        'trackingNumbers': rf['tracking_numbers'] ?? [],
+                        'trackingUrls': rf['tracking_urls'] ?? [],
+                      })
+                  .toList()
+            };
+          }
+        }
+      } catch (e) {
+        // debugPrint("REST Merge Error: $e");
+      }
+
+      if (o != null) {
+        var sa = o['shippingAddress'] ?? o['shipping_address'] ?? {};
+        var ba = o['billingAddress'] ?? o['billing_address'] ?? {};
         var c = o['customer'] ?? {};
-        var da = c['defaultAddress'] ?? {};
+        var da = c['defaultAddress'] ?? c['default_address'] ?? {};
 
         // 1. Resolve Identity
         String firstName = (sa['firstName'] ??
@@ -368,57 +481,6 @@ class ShopifyAPI {
         String company = (sa['company'] ?? ba['company'] ?? da['company'] ?? "")
             .toString()
             .trim();
-
-        // 2. REST FALLBACK: If identity is blocked (redacted/null), try the REST door
-        if (fullName.isEmpty || phone.isEmpty || zip.isEmpty) {
-          try {
-            final numericId = gid.split('/').last;
-            final restRes = await _getData(link: "orders/$numericId");
-            if (restRes['order'] != null) {
-              var ro = restRes['order'];
-              var rsa = ro['shipping_address'] ?? ro['billing_address'] ?? {};
-              var rc = ro['customer'] ?? {};
-
-              if (fullName.isEmpty || fullName == "Customer") {
-                fullName = rsa['name'] ??
-                    '${rc['first_name'] ?? ''} ${rc['last_name'] ?? ''}'.trim();
-              }
-              if (phone.isEmpty) phone = rsa['phone'] ?? rc['phone'] ?? "";
-              if (zip.isEmpty) zip = rsa['zip'] ?? "";
-              if (company.isEmpty) company = rsa['company'] ?? "";
-
-              // Updates address parts if needed
-              if (sa['address1'] == null) sa['address1'] = rsa['address1'];
-              if (sa['address2'] == null) sa['address2'] = rsa['address2'];
-              if (sa['city'] == null) sa['city'] = rsa['city'];
-              if (sa['province'] == null) sa['province'] = rsa['province'];
-              if (sa['country'] == null) sa['country'] = rsa['country'];
-              if (o['statusPageUrl'] == null)
-                o['statusPageUrl'] = ro['order_status_url'];
-
-              // Map REST fulfillments to GraphQL-like nodes for unified parsing
-              if (o['fulfillments'] == null && ro['fulfillments'] != null) {
-                o['fulfillments'] = {
-                  'nodes': (ro['fulfillments'] as List)
-                      .map((rf) => {
-                            'id': rf['id'],
-                            'shipmentStatus': rf['shipment_status'],
-                            'trackingInfo': [
-                              {
-                                'number': rf['tracking_number'],
-                                'url': rf['tracking_url'],
-                                'company': rf['tracking_company'],
-                              }
-                            ]
-                          })
-                      .toList()
-                };
-              }
-            }
-          } catch (e) {
-            // debugPrint("REST Fallback Error: $e");
-          }
-        }
 
         if (fullName.isEmpty) fullName = "Customer";
 
@@ -463,7 +525,10 @@ class ShopifyAPI {
                           ?['amount']
                       ?.toString(),
                   'variant_title': li['variantTitle'],
-                  'image': li['image']?['url'] ?? '',
+                  'image': li['image']?['url'] ??
+                      li['variant']?['image']?['url'] ??
+                      li['variant']?['product']?['featuredImage']?['url'] ??
+                      '',
                 })
             .toList();
 
@@ -489,16 +554,76 @@ class ShopifyAPI {
           'financial_status': o['displayFinancialStatus']?.toLowerCase(),
           'cancelled_at': o['cancelledAt'],
           'confirmed': o['confirmed'] ?? true,
-          'fulfillments': (o['fulfillments']?['nodes'] as List? ?? []).map((f) {
-            var ti = (f['trackingInfo'] as List? ?? []).firstOrNull ?? {};
-            return {
-              'id': f['id'],
-              'shipment_status': f['shipmentStatus'],
-              'tracking_number': ti['number'],
-              'tracking_url': ti['url'],
-              'tracking_company': ti['company'],
-            };
-          }).toList(),
+          'fulfillments': (() {
+            var fData = o['fulfillments'];
+            List rawList = [];
+            if (fData is List) {
+              rawList = fData;
+            } else if (fData is Map) {
+              rawList = fData['nodes'] as List? ??
+                  fData['edges']?.map((e) => e['node']).toList() as List? ??
+                  [];
+            }
+
+            return rawList
+                .map((f) {
+                  if (f == null) return null;
+                  var tiList = f['trackingInfo'] as List? ?? [];
+                  var ti = tiList.isNotEmpty ? tiList.first : {};
+
+                  String? trackNum = ti['number']?.toString();
+                  String? trackUrl = ti['url']?.toString();
+                  String? trackCompany = ti['company']?.toString();
+
+                  // Deep fallback for tracking number
+                  if (trackNum == null || trackNum.isEmpty) {
+                    trackNum = (f['trackingNumbers'] as List? ?? [])
+                            .firstOrNull
+                            ?.toString() ??
+                        f['tracking_number']?.toString();
+                  }
+
+                  // Deepest search: Extract from name or other fields if still missing
+                  if (trackNum == null || trackNum.isEmpty) {
+                    final searchStr =
+                        "${f['name'] ?? ''} ${f['shipment_status'] ?? ''}";
+                    final reg = RegExp(r'\d{10,18}');
+                    trackNum = reg.firstMatch(searchStr)?.group(0);
+                  }
+
+                  // Deep fallback for tracking URL
+                  if (trackUrl == null || trackUrl.isEmpty) {
+                    trackUrl = (f['trackingUrls'] as List? ?? [])
+                            .firstOrNull
+                            ?.toString() ??
+                        f['tracking_url']?.toString();
+                  }
+
+                  // Deep fallback for company
+                  if (trackCompany == null || trackCompany.isEmpty) {
+                    trackCompany = f['trackingCompany']?.toString() ??
+                        f['tracking_company']?.toString();
+
+                    // Extraction fallback for company
+                    if ((trackCompany == null || trackCompany.isEmpty) &&
+                        (f['name']?.toString().contains("Delhivery") ??
+                            false)) {
+                      trackCompany = "Delhivery";
+                    }
+                  }
+
+                  return {
+                    'id': f['id']?.toString(),
+                    'shipment_status': f['shipmentStatus']?.toString() ??
+                        f['shipment_status']?.toString(),
+                    'tracking_number': trackNum,
+                    'tracking_url': trackUrl,
+                    'tracking_company': trackCompany,
+                  };
+                })
+                .where((e) => e != null)
+                .toList();
+          })(),
           'line_items': lineItemsMapped,
         };
 
@@ -519,7 +644,7 @@ class ShopifyAPI {
       }
       return finalData;
     } catch (e) {
-      // debugPrint("getOrderFullDetails Overall Error: $e");
+      debugPrint("getOrderFullDetails Overall Error: $e");
     }
     return {};
   }
@@ -632,7 +757,10 @@ class ShopifyAPI {
       // debugPrint("Shopify Create Order Status: ${res.statusCode}");
 
       if (res.statusCode == 201) {
-        return jsonDecode(res.body);
+        final decoded = jsonDecode(res.body);
+        // Clear attribution after success so next order is organic
+        await AttributionService().clearAttribution();
+        return decoded;
       } else {
         // debugPrint("Create Order Error ${res.statusCode}: ${res.body}");
         return {

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../home_view.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import '../../controller/constants.dart';
+import '../../services/attribution_service.dart';
+import '../../utils/firebase_events.dart';
+import '../../utils/meta_events.dart';
 
 class OrderSuccessView extends StatefulWidget {
   final String orderNumber;
@@ -37,6 +40,24 @@ class _OrderSuccessViewState extends State<OrderSuccessView>
     );
     _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
     _animController.forward();
+
+    // Trigger Revenue Tracking
+    _trackRevenue();
+  }
+
+  void _trackRevenue() {
+    try {
+      // 1. AppsFlyer Revenue Tracking
+      AttributionService.logPurchase(widget.totalAmount, widget.orderNumber);
+
+      // 2. Firebase Revenue Tracking
+      FirebaseEvents.purchase(widget.totalAmount);
+
+      // 3. Meta (Facebook) Revenue Tracking
+      MetaEvents.purchase(totalValue: widget.totalAmount);
+    } catch (e) {
+      debugPrint("Revenue Tracking Error: $e");
+    }
   }
 
   @override

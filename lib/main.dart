@@ -114,6 +114,14 @@ void main() async {
         registerOnDeepLinkingCallback: true,
       );
 
+      // Sync FCM Token for Uninstall Tracking
+      FirebaseMessaging.instance.getToken().then((token) {
+        if (token != null) {
+          appsflyerSdk.updateServerUninstallToken(token);
+          debugPrint("🚀 AppsFlyer Uninstall Token Updated");
+        }
+      });
+
       appsflyerSdk.onDeepLinking((DeepLinkResult dp) {
         if (dp.status == Status.FOUND) {
           final deepLinkValue = dp.deepLink?.deepLinkValue;

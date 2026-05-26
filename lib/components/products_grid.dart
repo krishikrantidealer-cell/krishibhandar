@@ -14,6 +14,7 @@ import '../controller/cart_controller.dart';
 import '../utils/firebase_events.dart';
 import '../utils/meta_events.dart';
 import 'network_image.dart';
+import '../services/attribution_service.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
@@ -887,6 +888,9 @@ class _ProductCardState extends State<ProductCard> {
       name: widget.product.title,
       price: variant.price,
     );
+    // AppsFlyer Event: Add to Cart
+    AttributionService.logAddToCart(widget.product.id, double.tryParse(variant.price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0);
+
     FirebaseEvents.addToCart(widget.product.id, variant.price);
 
     await CartController.addToCart(

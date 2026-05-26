@@ -11,6 +11,7 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../components/network_image.dart';
 import '../controller/constants.dart';
 import '../controller/routers.dart';
+import '../services/attribution_service.dart';
 import '../controller/cart_controller.dart';
 import '../controller/auth_controller.dart';
 import 'checkout/address_view.dart';
@@ -618,6 +619,10 @@ class _CartViewState extends State<CartView> {
           onDismissed: isFreeItem
               ? null
               : (_) {
+                  final price = double.tryParse(
+                          item.price.replaceAll(RegExp(r'[^\d.]'), '')) ??
+                      0.0;
+                  AttributionService.logRemoveFromCart(item.id, price);
                   _updateQty(item.id, -item.qty);
                   HapticFeedback.mediumImpact();
                 },
@@ -1370,6 +1375,8 @@ class _CartViewState extends State<CartView> {
                 AppLocalizations.of(context)!.codSubtitle,
                 const Color(0xFF4A4A4A), () {
               Navigator.pop(context);
+              // AppsFlyer Event: Initiate Checkout
+              AttributionService.logInitiateCheckout(_getFinalTotal());
               _createShopifyOrder(isCod: true);
             }),
             const SizedBox(height: 8),
@@ -1457,7 +1464,9 @@ class _CartViewState extends State<CartView> {
     );
   }
 
-  void _handlePaymentSuccess(PaymentSuccessResponse response) {
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    // Call _createShopifyOrder with the payment ID
+    // This will create the order in Shopify and then clear the cart/navigate to success screen
     _createShopifyOrder(paymentId: response.paymentId);
   }
 
@@ -1471,6 +1480,11 @@ class _CartViewState extends State<CartView> {
 
   void _payOnline() async {
     double finalTotal = _getFinalTotal();
+
+    // AppsFlyer Event: Initiate Checkout
+    AttributionService.logInitiateCheckout(finalTotal);
+
+    setState(() => _isProcessingOrder = true);
     // Apply 3% online discount on top of any existing discount
     finalTotal = finalTotal * 0.97;
 
@@ -1527,6 +1541,21 @@ class _CartViewState extends State<CartView> {
       },
       'modal': {
         'confirm_close': true,
+      },
+      'notes': {
+        'user_id': await AuthController.getShopifyCustomerId() ?? 'guest',
+        'email': contactEmail,
+        'shipping_address': jsonEncode(_selectedAddress),
+        'cart_items': jsonEncode(_cartItems
+            .map((item) => {
+                  'variant_id': item.id.split('/').last,
+                  'quantity': item.qty,
+                  'price': item.price
+                })
+            .toList()),
+        'discount_code': _appliedDiscount?['code']?.toString(),
+        'discount_amount': _getDiscountAmount().toStringAsFixed(2),
+        'source': 'Flutter App Webhook Integration'
       }
     };
 
@@ -1580,7 +1609,8 @@ class _CartViewState extends State<CartView> {
       lineItems: items,
       shippingAddress: _selectedAddress!,
       totalAmount: finalTotal,
-      discountCode: _appliedDiscount?['code']?.toString() ?? (onlineDiscount > 0 ? "ONLINE-DISCOUNT" : null),
+      discountCode: _appliedDiscount?['code']?.toString() ??
+          (onlineDiscount > 0 ? "ONLINE-DISCOUNT" : null),
       discountAmount: totalDiscount,
       paymentId: paymentId,
       isCod: isCod,

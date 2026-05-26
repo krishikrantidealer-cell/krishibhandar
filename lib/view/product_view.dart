@@ -25,6 +25,7 @@ import '../controller/routers.dart';
 import '../model/product_model.dart';
 import '../shopify/shopify.dart';
 import '../controller/cart_controller.dart';
+import '../services/attribution_service.dart';
 import '../utils/meta_events.dart';
 import '../utils/firebase_events.dart';
 
@@ -102,6 +103,15 @@ class _ProductViewState extends State<ProductView>
       // Firebase Event: view_item
       FirebaseEvents.viewItem(
         widget.product!.id,
+        widget.product!.variants.isNotEmpty
+            ? widget.product!.variants.first.price
+            : '0',
+      );
+
+      // AppsFlyer Event: View Content
+      AttributionService.logViewContent(
+        widget.product!.id,
+        widget.product!.title,
         widget.product!.variants.isNotEmpty
             ? widget.product!.variants.first.price
             : '0',
@@ -862,6 +872,9 @@ class _ProductViewState extends State<ProductView>
                             price: v.price,
                           );
 
+                          // AppsFlyer Event: Add to Cart
+                          AttributionService.logAddToCart(p.id, double.tryParse(v.price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0);
+
                           // Firebase Event: add_to_cart
                           FirebaseEvents.addToCart(p.id, v.price);
 
@@ -937,6 +950,9 @@ class _ProductViewState extends State<ProductView>
                       totalValue: price,
                       contentIds: p.id,
                     );
+
+                    // AppsFlyer Event: Initiate Checkout
+                    AttributionService.logInitiateCheckout(price);
 
                     // Firebase Event: begin_checkout
                     FirebaseEvents.beginCheckout(price);

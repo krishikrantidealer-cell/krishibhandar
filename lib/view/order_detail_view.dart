@@ -36,8 +36,36 @@ class _OrderDetailViewState extends State<OrderDetailView> {
     try {
       final data = await ShopifyAPI.getOrderFullDetails(widget.order.id);
       if (data.isNotEmpty && mounted) {
+        OrderModel freshOrder = OrderModel.fromJson(data);
+
+        // Preserve images from initial order if fresh data is missing them
+        for (var i = 0; i < freshOrder.lineItems.length; i++) {
+          if (freshOrder.lineItems[i].image == null ||
+              freshOrder.lineItems[i].image!.isEmpty) {
+            // Find same item in initial order
+            final initialItem = widget.order.lineItems
+                .where((li) =>
+                    li.title == freshOrder.lineItems[i].title &&
+                    li.variantTitle == freshOrder.lineItems[i].variantTitle)
+                .firstOrNull;
+
+            if (initialItem != null && initialItem.image != null) {
+              freshOrder.lineItems[i] = LineItem(
+                title: freshOrder.lineItems[i].title,
+                quantity: freshOrder.lineItems[i].quantity,
+                price: freshOrder.lineItems[i].price,
+                variantTitle: freshOrder.lineItems[i].variantTitle,
+                image: initialItem.image,
+                variantId: freshOrder.lineItems[i].variantId,
+                productId: freshOrder.lineItems[i].productId,
+                totalDiscount: freshOrder.lineItems[i].totalDiscount,
+              );
+            }
+          }
+        }
+
         setState(() {
-          _currentOrder = OrderModel.fromJson(data);
+          _currentOrder = freshOrder;
         });
       }
     } catch (e) {
@@ -255,116 +283,134 @@ class _OrderDetailViewState extends State<OrderDetailView> {
               ),
             ),
           ],
-          if (!_currentOrder.isCancellable &&
-              _currentOrder.fulfillments.isNotEmpty &&
+          if (_currentOrder.fulfillmentStatus.toLowerCase() != 'unfulfilled' ||
               _currentOrder.hasTrackingNumber) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            (() {
+              final fulfillment = _currentOrder.validFulfillment;
+              final hasTrack = _currentOrder.hasTrackingNumber;
+              return Column(
                 children: [
-                  Row(
-                    children: [
-                      Icon(Icons.local_shipping_outlined,
-                          size: 18, color: Constants.baseColor),
-                      const SizedBox(width: 8),
-                      Text(AppLocalizations.of(context)!.shippingInfo,
-                          style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: const Color(0xFF1E1E1E))),
-                    ],
-                  ),
                   const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("AWB / Tracking ID",
-                              style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.grey[500])),
-                          const SizedBox(height: 2),
-                          Text(
-                              _currentOrder.fulfillments.last.trackingNumber ??
-                                  "",
-                              style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF1E1E1E))),
-                        ],
-                      ),
-                      IconButton(
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(
-                              text: _currentOrder
-                                      .fulfillments.last.trackingNumber ??
-                                  ""));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text("Tracking ID copied!")),
-                          );
-                        },
-                        icon: const Icon(Icons.copy_rounded, size: 18),
-                        color: Constants.baseColor,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ],
-                  ),
-                  if (_currentOrder.fulfillments.last.trackingCompany !=
-                      null) ...[
-                    const Divider(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                            "Courier: ${_currentOrder.fulfillments.last.trackingCompany}",
-                            style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey[600])),
-                        if (_currentOrder.fulfillments.last.trackingUrl != null)
-                          TextButton.icon(
-                            onPressed: () async {
-                              final urlString =
-                                  _currentOrder.fulfillments.last.trackingUrl!;
-                              final url = Uri.parse(urlString);
-                              if (await canLaunchUrl(url)) {
-                                await launchUrl(url,
-                                    mode: LaunchMode.externalApplication);
-                              }
-                            },
-                            icon: const Icon(Icons.track_changes_rounded,
-                                size: 14),
-                            label: const Text("Track Order",
-                                style: TextStyle(
-                                    fontSize: 12, fontWeight: FontWeight.w700)),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Constants.baseColor,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 4),
-                              backgroundColor:
-                                  Constants.baseColor.withOpacity(0.05),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
+                        Row(
+                          children: [
+                            Icon(Icons.local_shipping_outlined,
+                                size: 18, color: Constants.baseColor),
+                            const SizedBox(width: 8),
+                            Text(AppLocalizations.of(context)!.shippingInfo,
+                                style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF1E1E1E))),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text("AWB / Tracking ID",
+                                      style: GoogleFonts.inter(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.grey[500])),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                      hasTrack
+                                          ? (fulfillment?.trackingNumber ?? "")
+                                          : "Updating Tracking Details",
+                                      style: GoogleFonts.inter(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w800,
+                                          color: hasTrack
+                                              ? const Color(0xFF1E1E1E)
+                                              : Colors.grey[400])),
+                                ],
+                              ),
                             ),
-                          ),
+                            if (hasTrack)
+                              IconButton(
+                                onPressed: () {
+                                  Clipboard.setData(ClipboardData(
+                                      text: fulfillment?.trackingNumber ?? ""));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text("Tracking ID copied!")),
+                                  );
+                                },
+                                icon: const Icon(Icons.copy_rounded, size: 18),
+                                color: Constants.baseColor,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                          ],
+                        ),
+                        if (hasTrack &&
+                            fulfillment?.trackingCompany != null) ...[
+                          const Divider(height: 20),
+                          Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                      "Courier: ${fulfillment?.trackingCompany}",
+                                      style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.grey[600])),
+                                ),
+                                if (fulfillment?.trackingUrl != null) ...[
+                                  const SizedBox(width: 8),
+                                  TextButton.icon(
+                                    onPressed: () async {
+                                      final urlString =
+                                          fulfillment!.trackingUrl!;
+                                      final url = Uri.parse(urlString);
+                                      if (await canLaunchUrl(url)) {
+                                        await launchUrl(url,
+                                            mode:
+                                                LaunchMode.externalApplication);
+                                      }
+                                    },
+                                    icon: const Icon(
+                                        Icons.track_changes_rounded,
+                                        size: 14),
+                                    label: const Text("Track Order",
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700)),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Constants.baseColor,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 4),
+                                      backgroundColor:
+                                          Constants.baseColor.withOpacity(0.05),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8)),
+                                    ),
+                                  ),
+                                ],
+                              ]),
+                        ],
                       ],
                     ),
-                  ],
+                  ),
                 ],
-              ),
-            ),
+              );
+            })(),
           ],
         ],
       ),
@@ -382,12 +428,15 @@ class _OrderDetailViewState extends State<OrderDetailView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(AppLocalizations.of(context)!.orderInfo,
-                  style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      color: Constants.baseColor,
-                      letterSpacing: 1)),
+              Expanded(
+                child: Text(AppLocalizations.of(context)!.orderInfo,
+                    style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        color: Constants.baseColor,
+                        letterSpacing: 1)),
+              ),
+              const SizedBox(width: 8),
               Text("#${_currentOrder.orderNumber}",
                   style: GoogleFonts.outfit(
                       fontSize: 14,
@@ -524,11 +573,14 @@ class _OrderDetailViewState extends State<OrderDetailView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(AppLocalizations.of(context)!.grandTotal,
-                  style: GoogleFonts.outfit(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: const Color(0xFF1E1E1E))),
+              Expanded(
+                child: Text(AppLocalizations.of(context)!.grandTotal,
+                    style: GoogleFonts.outfit(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF1E1E1E))),
+              ),
+              const SizedBox(width: 8),
               Text("${Constants.inr}${_currentOrder.totalPrice}",
                   style: GoogleFonts.outfit(
                       fontSize: 20,
@@ -856,12 +908,14 @@ class _OrderDetailViewState extends State<OrderDetailView> {
       children: [
         Icon(icon, size: 16, color: Colors.grey[400]),
         const SizedBox(width: 8),
-        Text(label,
-            style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[500])),
-        const Spacer(),
+        Expanded(
+          child: Text(label,
+              style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[500])),
+        ),
+        const SizedBox(width: 8),
         Text(value,
             style: GoogleFonts.inter(
                 fontSize: 13,
@@ -875,11 +929,14 @@ class _OrderDetailViewState extends State<OrderDetailView> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label,
-            style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[600])),
+        Expanded(
+          child: Text(label,
+              style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[600])),
+        ),
+        const SizedBox(width: 8),
         Text(isFree ? "FREE" : "${Constants.inr}$value",
             style: GoogleFonts.inter(
                 fontSize: 14,

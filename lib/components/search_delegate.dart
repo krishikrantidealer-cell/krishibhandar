@@ -5,6 +5,7 @@ import '../model/product_model.dart';
 import '../shopify/shopify.dart';
 import '../view/product_view.dart';
 import 'network_image.dart';
+import '../services/attribution_service.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 
 class CustomSearchDelegate extends SearchDelegate<String> {
@@ -26,6 +27,9 @@ class CustomSearchDelegate extends SearchDelegate<String> {
 
   @override
   Widget buildResults(BuildContext context) {
+    if (query.isNotEmpty) {
+      AttributionService.logSearch(query);
+    }
     return _buildSearchContent(context);
   }
 
