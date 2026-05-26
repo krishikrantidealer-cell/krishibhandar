@@ -16,9 +16,9 @@ class NotificationService {
     );
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      debugPrint('User granted notification permission');
+      // debugPrint('User granted notification permission');
     } else {
-      debugPrint('User declined or has not accepted notification permission');
+      // debugPrint('User declined or has not accepted notification permission');
     }
 
     // 2. Local Notifications Setup (Foreground Support)
@@ -46,15 +46,15 @@ class NotificationService {
 
     // 3. Subscribe to Topic
     await _firebaseMessaging.subscribeToTopic("all_users");
-    debugPrint("Subscribed to all_users topic");
+    // debugPrint("Subscribed to all_users topic");
 
     // 4. Get FCM Token for debugging
     String? token = await _firebaseMessaging.getToken();
-    debugPrint("FCM Token: $token");
+    // debugPrint("FCM Token: $token");
 
     // 5. Handle Foreground Messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      debugPrint("Foreground Message Received: ${message.notification?.title}");
+      // debugPrint("Foreground Message Received: ${message.notification?.title}");
       
       RemoteNotification? notification = message.notification;
       AndroidNotification? android = message.notification?.android;
@@ -78,13 +78,13 @@ class NotificationService {
 
     // 6. Handle Background/Terminated Click
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      debugPrint("Notification clicked! Message: ${message.data}");
+      // debugPrint("Notification clicked! Message: ${message.data}");
     });
   }
 
   // Define background message handler (Must be top-level or static)
   @pragma('vm:entry-point')
   static Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-    debugPrint("Handling background message: ${message.messageId}");
+    // debugPrint("Handling background message: ${message.messageId}");
   }
 }

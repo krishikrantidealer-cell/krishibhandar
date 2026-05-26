@@ -54,7 +54,8 @@ class CartController {
     String? cartJson = await Pref.getPref(PrefKey.cart);
     List<dynamic> cartList = cartJson == null ? [] : jsonDecode(cartJson);
 
-    int index = cartList.indexWhere((item) => item['id'].toString() == variantId.toString());
+    int index = cartList
+        .indexWhere((item) => item['id'].toString() == variantId.toString());
 
     final newItem = CartItem(
       id: variantId,
@@ -90,7 +91,8 @@ class CartController {
     String? cartJson = await Pref.getPref(PrefKey.cart);
     if (cartJson == null) return;
     List<dynamic> cartList = jsonDecode(cartJson);
-    int index = cartList.indexWhere((item) => item['id'].toString() == variantId.toString());
+    int index = cartList
+        .indexWhere((item) => item['id'].toString() == variantId.toString());
     if (index >= 0) {
       if (newQty > 0) {
         cartList[index]['qty'] = newQty;
@@ -105,7 +107,13 @@ class CartController {
     String? cartJson = await Pref.getPref(PrefKey.cart);
     if (cartJson == null) return;
     List<dynamic> cartList = jsonDecode(cartJson);
-    cartList.removeWhere((item) => item['id'].toString() == variantId.toString());
+    cartList
+        .removeWhere((item) => item['id'].toString() == variantId.toString());
     await Pref.setPref(key: PrefKey.cart, value: jsonEncode(cartList));
+  }
+
+  // ─── Clear entire cart (called after successful payment) ─────────────────
+  static Future<void> clearCart() async {
+    await Pref.removePrefKey(PrefKey.cart);
   }
 }

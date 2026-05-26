@@ -9,8 +9,15 @@ enum PrefKey {
 }
 
 class Pref {
+  static SharedPreferences? _prefs;
+
   static Future<SharedPreferences> _preferences() async {
-    return await SharedPreferences.getInstance();
+    _prefs ??= await SharedPreferences.getInstance();
+    return _prefs!;
+  }
+
+  static Future<void> ensureInitialized() async {
+    _prefs ??= await SharedPreferences.getInstance();
   }
 
   static Future<String?> getPref(PrefKey key) async {

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import '../controller/auth_controller.dart';
 import '../controller/constants.dart';
 import '../controller/update_service.dart';
+import 'auth/login_view.dart';
+import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import 'home_view.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -10,7 +13,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
@@ -47,7 +51,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       ),
     );
 
-    _textSlideAnimation = Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero).animate(
+    _textSlideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero).animate(
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.12, 0.44, curve: Curves.easeOut),
@@ -66,10 +71,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     } catch (e) {
       debugPrint("Init Error: $e");
     }
-    
+
     // 2. Check for updates
     final updateType = await UpdateService.checkUpdateStatus();
-    
+
     if (updateType == UpdateType.force && mounted) {
       UpdateService.showUpdateDialog(context, UpdateType.force);
       return; // Stop flow for force update
@@ -83,26 +88,41 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     // 4. Wait for minimum splash time
     await Future.delayed(const Duration(milliseconds: 3000));
-    
+
     if (mounted) {
       setState(() => _isExiting = true);
-      
+
       await Future.delayed(const Duration(milliseconds: 500));
 
       if (mounted) {
+        // Check if user is already logged in
+        final bool loggedIn = AuthController.isLoggedIn();
+
+        if (loggedIn) {
+          // Heal session if SharedPreferences were cleared but Firebase remains
+          AuthController.getSavedPhone().then((phone) {
+            if (phone != null) AuthController.syncWithShopify(phone);
+          });
+        }
+
+        final Widget destination =
+            loggedIn ? const MyHomePage() : const LoginView();
+
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const MyHomePage(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                destination,
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
             },
             transitionDuration: const Duration(milliseconds: 400),
           ),
         ).then((_) {
           // Show optional update dialog on Home if applicable
-          if (updateType == UpdateType.optional && mounted) {
-             UpdateService.showUpdateDialog(context, UpdateType.optional);
+          if (updateType == UpdateType.optional && mounted && loggedIn) {
+            UpdateService.showUpdateDialog(context, UpdateType.optional);
           }
         });
       }
@@ -162,6 +182,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     builder: (context, child) {
                       return Column(
                         mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Transform.translate(
                             offset: Offset(0, _floatingAnimation.value),
@@ -182,14 +203,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                                   ),
                                   child: Image.asset(
                                     'assets/logo_splash.png',
-                                    width: size.width * 0.5,
+                                    width: size.width * 0.45,
                                     fit: BoxFit.contain,
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 40),
+                          const SizedBox(height: 48),
                           SlideTransition(
                             position: _textSlideAnimation,
                             child: Opacity(
@@ -198,21 +219,23 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                                 children: [
                                   const Text(
                                     "Krishi Bhandar",
+                                    textAlign: TextAlign.center,
                                     style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: 36,
+                                      fontSize: 34,
                                       fontWeight: FontWeight.bold,
-                                      letterSpacing: 1.5,
+                                      letterSpacing: 1.2,
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 12),
                                   Text(
-                                    "Pure Organic Agriculture",
+                                    "हर किसान की पहचान !",
+                                    textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.7),
+                                      color: Colors.white.withOpacity(0.85),
                                       fontSize: 16,
-                                      fontWeight: FontWeight.w400,
-                                      letterSpacing: 1.2,
+                                      fontWeight: FontWeight.w500,
+                                      letterSpacing: 1.5,
                                     ),
                                   ),
                                 ],
