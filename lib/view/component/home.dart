@@ -5,6 +5,7 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
 import 'package:google_fonts/google_fonts.dart';
@@ -121,39 +122,36 @@ class _HomeState extends State<Home> {
   void _handleBannerClick(CategoriesModel banner) async {
     int index = _banners.indexOf(banner);
 
-    // debugPrint("Banner Index: $index");
-
-    // 🟢 Banner 0 → Collection
+    // 🟢 Banner 1 → Product: Rakshak
     if (index == 0) {
-      Routers.goTO(
-        context,
-        toBody: CollectionView(
-          collectionId: "329026470041",
-        ),
-      );
+      await _openProduct("rakshak-novaluron-indoxacarb-sc");
     }
 
-    // 🔥 Banner 1 → Product 1
+    // 🟢 Banner 2 → Play Store
     else if (index == 1) {
-      await _openProduct("bifent-10-ec-bifenthrin-10-ec");
+      await launchUrlString(
+          "https://play.google.com/store/apps/details?id=com.snss.ebs.kisan_sewa_kendra",
+          mode: LaunchMode.externalApplication);
     }
 
-    // 🔥 Banner 2 → Clearmite (Mites & Thrips)
+    // 🟢 Banner 3 → Product: Grow Genius
     else if (index == 2) {
-      await _openProduct("Clearmite");
+      await _openProduct("grow-genius-gibberellic-acid-0-001-l-plant-growth-regulator");
     }
 
-    // 🔥 Banner 3 → Product 3
+    // 🟢 Banner 4 → Play Store
     else if (index == 3) {
-      await _openProduct("humiroot-humic-acid-fulvic-acid-98");
+      await launchUrlString(
+          "https://play.google.com/store/apps/details?id=com.snss.ebs.kisan_sewa_kendra",
+          mode: LaunchMode.externalApplication);
     }
 
-    // 🔥 Banner 4 → Product 4
+    // 🟢 Banner 5 → Product: Humic Acid
     else if (index == 4) {
       await _openProduct("humic-acid-premium-quality");
     }
 
-    // 🛑 fallback
+    // 🛑 Fallback
     else {
       Routers.goTO(
         context,
@@ -202,6 +200,31 @@ class _HomeState extends State<Home> {
       }
     } catch (e) {
       // debugPrint("❌ Product open error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Something went wrong. Please try again."),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _openProductById(String id) async {
+    try {
+      final product = await Shopify.getProductDetails(context, productId: id);
+      if (product != null && mounted) {
+        Routers.goTO(context, toBody: ProductView(product: product));
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Product not found."),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -533,15 +556,21 @@ class _HomeState extends State<Home> {
                     SliverToBoxAdapter(
                         child: _buildDynamicSection(bestSeller, [])),
 
+                  // --- NEW COLLECTIONS SECTION ---
+                  SliverToBoxAdapter(child: _buildCollectionsSection()),
+
                   if (badiBachat != null)
                     SliverToBoxAdapter(
                         child:
                             _buildDynamicSection(badiBachat, _bestSellerIds)),
 
                   for (var section in allCats)
-                    if (section != bestSeller && section != badiBachat)
+                    if (section != bestSeller && section != badiBachat) ...[
                       SliverToBoxAdapter(
                           child: _buildDynamicSection(section, [])),
+                      if (section['id'] == "329026240665")
+                        SliverToBoxAdapter(child: _buildExclusiveSection()),
+                    ],
 
                   // --- PREMIUM FOOTER ---
                   SliverToBoxAdapter(child: _buildPremiumFooter()),
@@ -613,6 +642,165 @@ class _HomeState extends State<Home> {
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildCollectionsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF26842c),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                "Collections",
+                style: GoogleFonts.outfit(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 1.2,
+            children: [
+              _CollectionCard(
+                imageUrl:
+                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Bio-Products.png?v=1778653230",
+                onTap: () => Routers.goTO(context,
+                    toBody: CollectionView(
+                        collectionId: "329337798809", title: "Bio Products")),
+              ),
+              _CollectionCard(
+                imageUrl:
+                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Insecticides_caa2d9e9-b52e-41e8-ab52-2d7ba95a8da0.png?v=1778653230",
+                onTap: () => Routers.goTO(context,
+                    toBody: CollectionView(
+                        collectionId: "329026371737", title: "Insecticides")),
+              ),
+              _CollectionCard(
+                imageUrl:
+                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Fungicides_b66a7ccd-99d4-40ee-a069-17413504bcf2.png?v=1778653230",
+                onTap: () => Routers.goTO(context,
+                    toBody: CollectionView(
+                        collectionId: "329026175129", title: "Fungicides")),
+              ),
+              _CollectionCard(
+                imageUrl:
+                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/PGRs.png?v=1778653230",
+                onTap: () => Routers.goTO(context,
+                    toBody: CollectionView(
+                        collectionId: "329026470041", title: "PGRs")),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextButton.icon(
+              onPressed: () => Routers.goTO(context,
+                  toBody: CollectionView(
+                      collectionId: "329119367321", title: "Best Sellers")),
+              icon: Text(AppLocalizations.of(context)!.exploreMore,
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.bold)),
+              label: const Icon(Icons.arrow_right_alt, size: 18),
+              style: TextButton.styleFrom(
+                  foregroundColor: Constants.baseColor,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 0)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildExclusiveSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF26842c),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                "Exclusive",
+                style: GoogleFonts.outfit(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 1.2,
+            children: [
+              _CollectionCard(
+                imageUrl:
+                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/NPK_Fertilizers.png?v=1778656835",
+                onTap: () => Routers.goTO(context,
+                    toBody: CollectionView(
+                        collectionId: "329027715225", title: "NPK Fertilizers")),
+              ),
+              _CollectionCard(
+                imageUrl:
+                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/ChatGPT_Image_May_13_2026_12_14_51_PM.png?v=1778654730",
+                onTap: () => _openProductById("8507485225113"),
+              ),
+              _CollectionCard(
+                imageUrl:
+                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Proper_404_ff6ed463-0058-4ab1-ae59-53942d0a8acc.png?v=1778654565",
+                onTap: () => _openProductById("7926581362841"),
+              ),
+              _CollectionCard(
+                imageUrl:
+                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/ChatGPT_Image_May_16_2026_11_58_03_AM.png?v=1778912897",
+                onTap: () => _openProductById("8568815157401"),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
       ],
     );
   }
@@ -692,6 +880,62 @@ class _HomeState extends State<Home> {
                 fontWeight: FontWeight.bold,
                 color: Colors.black54)),
       ],
+    );
+  }
+}
+
+class _CollectionCard extends StatefulWidget {
+  final String imageUrl;
+  final VoidCallback onTap;
+
+  const _CollectionCard({
+    required this.imageUrl,
+    required this.onTap,
+  });
+
+  @override
+  State<_CollectionCard> createState() => _CollectionCardState();
+}
+
+class _CollectionCardState extends State<_CollectionCard> {
+  double _scale = 1.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _scale = 0.93),
+      onTapUp: (_) => setState(() => _scale = 1.0),
+      onTapCancel: () => setState(() => _scale = 1.0),
+      onTap: widget.onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeInOut,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: _scale < 1.0 ? 12 : 6,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: WidgetButton(
+            onTap: widget.onTap,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: KskNetworkImage(
+                widget.imageUrl,
+                fit: BoxFit.fill,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

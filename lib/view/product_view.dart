@@ -825,6 +825,12 @@ class _ProductViewState extends State<ProductView>
                     ),
                   ),
                 ],
+
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 10, 20, 0),
+                  child: _PromoBanners(),
+                ),
+
                 const SizedBox(height: 180), // Increased bottom spacing
               ],
             ),
@@ -1476,6 +1482,123 @@ class _ProductViewState extends State<ProductView>
           },
         ),
       ],
+    );
+  }
+}
+
+class _PromoBanners extends StatefulWidget {
+  const _PromoBanners();
+
+  @override
+  State<_PromoBanners> createState() => _PromoBannersState();
+}
+
+class _PromoBannersState extends State<_PromoBanners> {
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) setState(() => _visible = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: _visible ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 450),
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 450),
+        padding: EdgeInsets.only(top: _visible ? 0 : 20),
+        child: Column(
+          children: const [
+            _PromoBannerCard(
+              imageUrl:
+                  "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Dizoxy_Top_6af007fe-8df9-446e-bf10-7c37add2e8ed.png?v=1778659719",
+              productId: "8270562328729",
+            ),
+            SizedBox(height: 16),
+            _PromoBannerCard(
+              imageUrl:
+                  "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Cargar_76360ba7-5801-464e-a78a-b9c81a5a8d63.png?v=1778660266",
+              productId: "7926676848793",
+            ),
+            SizedBox(height: 16),
+            _PromoBannerCard(
+              imageUrl:
+                  "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/ChatGPT_Image_May_13_2026_12_55_33_PM.png?v=1778657162",
+              productId: "8074173350041",
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PromoBannerCard extends StatefulWidget {
+  final String imageUrl;
+  final String productId;
+
+  const _PromoBannerCard({required this.imageUrl, required this.productId});
+
+  @override
+  State<_PromoBannerCard> createState() => _PromoBannerCardState();
+}
+
+class _PromoBannerCardState extends State<_PromoBannerCard> {
+  double _scale = 1.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _scale = 0.94),
+      onTapUp: (_) => setState(() => _scale = 1.0),
+      onTapCancel: () => setState(() => _scale = 1.0),
+      onTap: () async {
+        try {
+          final product = await Shopify.getProductDetails(context,
+              productId: widget.productId);
+          if (product != null && mounted) {
+            Routers.goTO(context, toBody: ProductView(product: product));
+          } else if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Product not found.")),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Something went wrong.")),
+            );
+          }
+        }
+      },
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 180),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: _scale < 1.0 ? 12 : 6,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: KskNetworkImage(
+              widget.imageUrl,
+              fit: BoxFit.fill,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
