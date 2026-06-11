@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/attribution_service.dart';
 import 'constants.dart';
+import 'pref.dart';
 
 class AuthController {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -20,20 +21,13 @@ class AuthController {
 
   // ─── Check if user is logged in ──────────────────────────────────────────
   static bool isLoggedIn() {
-    return _auth.currentUser != null;
+    final String? phone = Pref.prefs?.getString(_keyPhone);
+    return phone != null && phone.isNotEmpty;
   }
 
   static Future<String?> getSavedPhone() async {
     final prefs = await SharedPreferences.getInstance();
-    String? phone = prefs.getString(_keyPhone);
-    if (phone == null && _auth.currentUser?.phoneNumber != null) {
-      String fbPhone = _auth.currentUser!.phoneNumber!;
-      if (fbPhone.startsWith('+91')) {
-        fbPhone = fbPhone.substring(3);
-      }
-      return fbPhone;
-    }
-    return phone;
+    return prefs.getString(_keyPhone);
   }
 
   static Future<String?> getSavedName() async {
@@ -189,95 +183,26 @@ class AuthController {
     };
   }
 
-  // ─── Send OTP ─────────────────────────────────────────────────────────────
+  // ─── Send OTP (Bypassed) ──────────────────────────────────────────────────
   static Future<void> sendOtp({
     required String phone,
     required Function(String verificationId) onCodeSent,
     required Function(String error) onError,
     required VoidCallback onAutoVerified,
   }) async {
-    try {
-      await _auth.verifyPhoneNumber(
-        phoneNumber: '+91$phone',
-        timeout: const Duration(seconds: 60),
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          // Auto-verification on Android (SMS auto-read)
-          try {
-            await _auth.signInWithCredential(credential);
-
-            // Save phone and initial Shopify sync
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setString(_keyPhone, phone);
-
-            // Critical to sync shopify even in auto-verification
-            await syncWithShopify(phone);
-
-            onAutoVerified();
-          } catch (e) {
-            debugPrint('AuthController: Auto-verification error: $e');
-          }
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          // If we are already signed in (auto-verification completed), ignore late failure events
-          if (_auth.currentUser != null) return;
-
-          String message = 'Verification failed. Please try again.';
-          if (e.code == 'invalid-phone-number') {
-            message = 'Invalid phone number. Please check and try again.';
-          } else if (e.code == 'too-many-requests') {
-            message =
-                'Too many attempts. You have been temporarily blocked for security reasons. Please try again in 4-24 hours.';
-          } else if (e.code == 'network-request-failed') {
-            message = 'Network error. Please check your internet connection.';
-          } else if (e.code == 'session-expired') {
-            message = 'The SMS code has expired. Please request a new code.';
-          } else {
-            message = 'Error (${e.code}): ${e.message}';
-          }
-          onError(message);
-        },
-        codeSent: (String verificationId, int? resendToken) {
-          onCodeSent(verificationId);
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {},
-      );
-    } catch (e) {
-      onError('Failed to send OTP. Please try again.');
-    }
+    // Firebase OTP login is commented out completely
+    onError('Firebase OTP is disabled');
   }
 
-  // ─── Verify OTP ──────────────────────────────────────────────────────────
+  // ─── Verify OTP (Bypassed) ────────────────────────────────────────────────
   static Future<bool> verifyOtp({
     required String verificationId,
     required String smsCode,
     required String phone,
     required Function(String error) onError,
   }) async {
-    try {
-      final credential = PhoneAuthProvider.credential(
-        verificationId: verificationId,
-        smsCode: smsCode,
-      );
-      await _auth.signInWithCredential(credential);
-
-      // Save phone to SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_keyPhone, phone);
-
-      return true;
-    } on FirebaseAuthException catch (e) {
-      String message = 'Invalid OTP. Please try again.';
-      if (e.code == 'invalid-verification-code') {
-        message = 'Wrong OTP entered. Please check and try again.';
-      } else if (e.code == 'session-expired') {
-        message = 'OTP expired. Please request a new one.';
-      }
-      onError(message);
-      return false;
-    } catch (e) {
-      onError('Verification failed. Please try again.');
-      return false;
-    }
+    // Firebase OTP login is commented out completely
+    return true;
   }
 
   // ─── Sync with Shopify ────────────────────────────────────────────────────
@@ -366,7 +291,9 @@ class AuthController {
 
   // ─── Sign Out ─────────────────────────────────────────────────────────────
   static Future<void> signOut() async {
-    await _auth.signOut();
+    try {
+      await _auth.signOut();
+    } catch (_) {}
     final prefs = await SharedPreferences.getInstance();
     await Future.wait([
       prefs.remove(_keyPhone),

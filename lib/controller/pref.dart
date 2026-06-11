@@ -11,6 +11,8 @@ enum PrefKey {
 class Pref {
   static SharedPreferences? _prefs;
 
+  static SharedPreferences? get prefs => _prefs;
+
   static Future<SharedPreferences> _preferences() async {
     _prefs ??= await SharedPreferences.getInstance();
     return _prefs!;

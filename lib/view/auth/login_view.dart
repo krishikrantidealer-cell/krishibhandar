@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'otp_view.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import '../home_view.dart';
@@ -61,52 +62,41 @@ class _LoginViewState extends State<LoginView>
 
   Future<void> _sendOtp() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_cooldown > 0) return;
     setState(() => _isLoading = true);
 
-    // Clear session in background (don't block SMS request)
-    AuthController.signOut();
+    final phone = _phoneController.text.trim();
 
-    await AuthController.sendOtp(
-      phone: _phoneController.text.trim(),
-      onCodeSent: (verificationId) {
-        if (mounted) {
-          setState(() => _isLoading = false);
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => OtpView(
-                phone: _phoneController.text.trim(),
-                verificationId: verificationId,
-              ),
-            ),
-          );
-        }
-      },
-      onAutoVerified: () {
-        if (mounted) {
-          setState(() => _isLoading = false);
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const MyHomePage()),
-            (route) => false,
-          );
-        }
-      },
-      onError: (error) {
-        if (mounted) {
-          setState(() => _isLoading = false);
-          _startCooldown(); // Start cooldown on error to prevent spamming
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(error),
-              backgroundColor: Colors.red.shade700,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      },
-    );
+    try {
+      // Clear session in background (don't block SMS request)
+      await AuthController.signOut();
+
+      // Save phone to SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_phone', phone);
+
+      // Sync with Shopify
+      await AuthController.syncWithShopify(phone);
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const MyHomePage()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Login failed: $e"),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -256,8 +246,7 @@ class _LoginViewState extends State<LoginView>
                       width: double.infinity,
                       height: 58,
                       child: ElevatedButton(
-                        onPressed:
-                            (_isLoading || _cooldown > 0) ? null : _sendOtp,
+                        onPressed: _isLoading ? null : _sendOtp,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Constants.baseColor,
                           foregroundColor: Colors.white,
@@ -275,12 +264,9 @@ class _LoginViewState extends State<LoginView>
                                   strokeWidth: 2.5,
                                 ),
                               )
-                            : Text(
-                                _cooldown > 0
-                                    ? AppLocalizations.of(context)!
-                                        .tryAgainIn(_cooldown)
-                                    : AppLocalizations.of(context)!.sendOtp,
-                                style: const TextStyle(
+                            : const Text(
+                                "Login",
+                                style: TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: 0.5,
@@ -290,12 +276,12 @@ class _LoginViewState extends State<LoginView>
                     ),
                     const SizedBox(height: 24),
 
-                    Center(
+                    const Center(
                       child: Text(
-                        AppLocalizations.of(context)!.verificationSentMsg,
+                        "We will securely verify your details with Shopify",
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontSize: 13, color: Colors.grey.shade400),
+                            fontSize: 13, color: Colors.grey),
                       ),
                     ),
 

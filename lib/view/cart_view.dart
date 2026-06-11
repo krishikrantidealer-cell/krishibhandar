@@ -1,23 +1,19 @@
-import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
-import 'package:kisan_sewa_kendra/shopify/shopify.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 import '../components/network_image.dart';
 import '../controller/constants.dart';
-import '../controller/routers.dart';
 import '../services/attribution_service.dart';
 import '../controller/cart_controller.dart';
 import '../controller/auth_controller.dart';
+import '../shopify/shopify.dart';
 import 'checkout/address_view.dart';
 import 'checkout/coupons_view.dart';
+import 'checkout/shiprocket_checkout_view.dart';
 import 'checkout/order_success_view.dart';
-import 'home_view.dart';
 
 class CartView extends StatefulWidget {
   const CartView({super.key});
@@ -30,7 +26,6 @@ class _CartViewState extends State<CartView> {
   Map<String, dynamic>? _selectedAddress;
   Map<String, dynamic>? _appliedDiscount;
   bool _isProcessingOrder = false;
-  late Razorpay _razorpay;
   List<CartItem> _cartItems = [];
   bool _isLoading = true;
 
@@ -39,14 +34,6 @@ class _CartViewState extends State<CartView> {
     super.initState();
     _init();
     _loadDefaultAddress();
-    _initRazorpay();
-  }
-
-  void _initRazorpay() {
-    _razorpay = Razorpay();
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
-    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
   }
 
   Future<void> _loadDefaultAddress() async {
@@ -64,7 +51,6 @@ class _CartViewState extends State<CartView> {
 
   @override
   void dispose() {
-    _razorpay.clear();
     super.dispose();
   }
 
@@ -1226,8 +1212,7 @@ class _CartViewState extends State<CartView> {
   }
 
   Widget _buildIntegratedCheckoutBar() {
-    double finalTotal = _getFinalTotal();
-
+    final hasAddress = _selectedAddress != null;
     return Container(
         padding: EdgeInsets.fromLTRB(
             20, 12, 20, MediaQuery.of(context).padding.bottom + 12),
@@ -1243,405 +1228,212 @@ class _CartViewState extends State<CartView> {
         ),
         child: Row(
           children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: _isProcessingOrder
-                    ? null
-                    : (_selectedAddress == null
-                        ? _selectAddress
-                        : _showPaymentSelector),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  height: 54,
-                  decoration: BoxDecoration(
-                    color: _selectedAddress == null
-                        ? Colors.black
-                        : Constants.baseColor,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                          color: (_selectedAddress == null
-                                  ? Colors.black
-                                  : Constants.baseColor)
-                              .withOpacity(0.2),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4))
-                    ],
+            if (!hasAddress)
+              Expanded(
+                child: GestureDetector(
+                  onTap: _isProcessingOrder ? null : _selectAddress,
+                  child: _checkoutButton(
+                    label: AppLocalizations.of(context)!.addDeliveryAddress,
+                    color: Colors.black,
+                    icon: Icons.add_location_alt_rounded,
                   ),
-                  child: Center(
-                    child: _isProcessingOrder
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                  _selectedAddress == null
-                                      ? AppLocalizations.of(context)!
-                                          .addDeliveryAddress
-                                      : AppLocalizations.of(context)!
-                                          .proceedToPlaceOrder,
-                                  style: GoogleFonts.outfit(
-                                      fontWeight: FontWeight.w900,
-                                      color: Colors.white,
-                                      fontSize: 15,
-                                      letterSpacing: 1)),
-                              const SizedBox(width: 12),
-                              const Icon(Icons.arrow_forward_rounded,
-                                  color: Colors.white, size: 20),
-                            ],
-                          ),
+                ),
+              )
+            else ...[
+              // Online Payment
+              Expanded(
+                child: GestureDetector(
+                  onTap: _isProcessingOrder ? null : _openShiprocketCheckout,
+                  child: _checkoutButton(
+                    label: AppLocalizations.of(context)!.onlinePayment,
+                    color: Constants.baseColor,
+                    icon: Icons.payment_rounded,
                   ),
                 ),
               ),
-            ),
+              const SizedBox(width: 12),
+              // Cash on Delivery
+              Expanded(
+                child: GestureDetector(
+                  onTap: _isProcessingOrder ? null : _openCodCheckout,
+                  child: _checkoutButton(
+                    label: AppLocalizations.of(context)!.cod,
+                    color: const Color(0xFF1E1E1E),
+                    icon: Icons.local_shipping_rounded,
+                  ),
+                ),
+              ),
+            ]
           ],
         ));
   }
 
-  void _showPaymentSelector() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        padding: EdgeInsets.fromLTRB(
-            20, 10, 20, MediaQuery.of(context).padding.bottom + 16),
-        decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-            boxShadow: [
-              BoxShadow(color: Colors.black12, blurRadius: 15, spreadRadius: 2)
-            ]),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 32,
-              height: 3,
-              decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(2)),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(AppLocalizations.of(context)!.paymentOptions,
-                          style: GoogleFonts.outfit(
-                              fontWeight: FontWeight.w900, fontSize: 18)),
-                      Text(AppLocalizations.of(context)!.choosePreferredMethod,
-                          style: GoogleFonts.inter(
-                              fontSize: 11,
-                              color: Colors.grey[400],
-                              fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.close_rounded,
-                        size: 16, color: Colors.grey),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _paymentOption(
-                Icons.account_balance_wallet_rounded,
-                AppLocalizations.of(context)!.onlinePayment,
-                AppLocalizations.of(context)!.payMethodSubtitle,
-                Constants.baseColor,
-                discount: "3% OFF", () {
-              Navigator.pop(context);
-              _payOnline();
-            }),
-            const SizedBox(height: 8),
-            _paymentOption(
-                Icons.currency_rupee_rounded,
-                AppLocalizations.of(context)!.cod,
-                AppLocalizations.of(context)!.codSubtitle,
-                const Color(0xFF4A4A4A), () {
-              Navigator.pop(context);
-              // AppsFlyer Event: Initiate Checkout
-              AttributionService.logInitiateCheckout(_getFinalTotal());
-              _createShopifyOrder(isCod: true);
-            }),
-            const SizedBox(height: 8),
-          ],
-        ),
+  Widget _checkoutButton({
+    required String label,
+    required Color color,
+    required IconData icon,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      height: 54,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+              color: color.withOpacity(0.2),
+              blurRadius: 10,
+              offset: const Offset(0, 4))
+        ],
       ),
-    );
-  }
-
-  Widget _paymentOption(
-      IconData icon, String title, String sub, Color color, VoidCallback onTap,
-      {String? discount}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: Colors.grey.withOpacity(0.08)),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.01),
-                blurRadius: 5,
-                offset: const Offset(0, 2),
-              )
-            ]),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: Center(
+        child: _isProcessingOrder
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2))
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      Text(title,
-                          style: GoogleFonts.inter(
-                              fontWeight: FontWeight.w800, fontSize: 14)),
-                      if (discount != null) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF43A047), Color(0xFF66BB6A)],
-                            ),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            discount,
-                            style: GoogleFonts.inter(
-                              fontSize: 8,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                  Icon(icon, color: Colors.white, size: 16),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          fontSize: 12,
+                          letterSpacing: 0.5),
+                    ),
                   ),
-                  Text(sub,
-                      style: GoogleFonts.inter(
-                          fontSize: 11,
-                          color: Colors.grey[500],
-                          fontWeight: FontWeight.w500)),
                 ],
               ),
-            ),
-            Icon(Icons.chevron_right_rounded,
-                color: Colors.grey[300], size: 20),
-          ],
+      ),
+    );
+  }
+
+  /// Opens Shiprocket checkout — user picks online payment or COD inside Shiprocket.
+  void _openShiprocketCheckout() {
+    AttributionService.logInitiateCheckout(_getFinalTotal());
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ShiprocketCheckoutView(
+          cartItems: _cartItems,
+          totalAmount: _getFinalTotal(),
+          couponCode: _appliedDiscount?['code']?.toString(),
+          shippingAddress: _selectedAddress,
+          discountAmount: _appliedDiscount != null
+              ? (double.tryParse(
+                      _appliedDiscount!['value']?.toString() ?? '') ??
+                  0.0)
+              : 0.0,
         ),
       ),
     );
   }
 
-  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
-    // Call _createShopifyOrder with the payment ID
-    // This will create the order in Shopify and then clear the cart/navigate to success screen
-    _createShopifyOrder(paymentId: response.paymentId);
-  }
-
-  void _handlePaymentError(PaymentFailureResponse response) {
-    setState(() => _isProcessingOrder = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Payment Failed: ${response.message}")));
-  }
-
-  void _handleExternalWallet(ExternalWalletResponse response) {}
-
-  void _payOnline() async {
-    double finalTotal = _getFinalTotal();
-
-    // AppsFlyer Event: Initiate Checkout
-    AttributionService.logInitiateCheckout(finalTotal);
-
-    setState(() => _isProcessingOrder = true);
-    // Apply 3% online discount on top of any existing discount
-    finalTotal = finalTotal * 0.97;
-
-    // Prioritize phone from selected address, fallback to login phone
-    String? contactPhone = _selectedAddress?['phone']?.toString();
-    if (contactPhone == null || contactPhone.isEmpty) {
-      contactPhone = await AuthController.getSavedPhone();
-    }
-
-    // More robust phone cleaning for Razorpay prefill
-    if (contactPhone != null && contactPhone.isNotEmpty) {
-      contactPhone = contactPhone.replaceAll(RegExp(r'[^\d]'), '');
-
-      // Remove leading '0' if present
-      if (contactPhone.startsWith('0')) {
-        contactPhone = contactPhone.substring(1);
-      }
-
-      // Remove '91' prefix if it's already there and the rest is 10 digits
-      if (contactPhone.startsWith('91') && contactPhone.length > 10) {
-        contactPhone = contactPhone.substring(2);
-      }
-
-      // Force digits-only format: 91XXXXXXXXXX (no +)
-      if (contactPhone.length == 10) {
-        contactPhone = "91$contactPhone";
-      } else {
-        contactPhone = contactPhone.replaceAll('+', '');
-      }
-    }
-
-    String? contactName = _selectedAddress?['name']?.toString() ??
-        await AuthController.getSavedName();
-    if (contactName == null || contactName.isEmpty) contactName = "Customer";
-
-    String? contactEmail = await AuthController.getSavedEmail();
-    if (contactEmail == null || contactEmail.isEmpty) {
-      // Razorpay requires an email to skip the contact screen.
-      contactEmail = "customer@kisansewakendra.com";
-    }
-
-    var options = {
-      'key': Constants.razorpayKey,
-      'amount': (finalTotal * 100).toInt(), // amount in paise
-      'name': Constants.title,
-      'image':
-          'https://cdn.shopify.com/s/files/1/0627/9204/0601/files/logo.png',
-      'description': 'Payment for Order',
-      'prefill': {
-        'contact': contactPhone ?? '', // Standard key
-        'phone': contactPhone ?? '', // Alias for some SDK versions
-        'name': contactName,
-        'email': contactEmail,
-      },
-      'modal': {
-        'confirm_close': true,
-      },
-      'notes': {
-        'user_id': await AuthController.getShopifyCustomerId() ?? 'guest',
-        'email': contactEmail,
-        'shipping_address': jsonEncode(_selectedAddress),
-        'cart_items': jsonEncode(_cartItems
-            .map((item) => {
-                  'variant_id': item.id.split('/').last,
-                  'quantity': item.qty,
-                  'price': item.price
-                })
-            .toList()),
-        'discount_code': _appliedDiscount?['code']?.toString(),
-        'discount_amount': _getDiscountAmount().toStringAsFixed(2),
-        'source': 'Flutter App Webhook Integration'
-      }
-    };
-
-    print("DEBUG: Razorpay Options --> $options");
-    debugPrint("DEBUG: Razorpay Options --> $options");
-
-    try {
-      _razorpay.open(options);
-    } catch (e) {
-      debugPrint("Razorpay Error: $e");
-    }
-  }
-
-  Future<void> _createShopifyOrder(
-      {String? paymentId, bool isCod = false}) async {
-    setState(() => _isProcessingOrder = true);
-    double subtotal = _getTotalValue();
-    double couponDiscount = _getDiscountAmount();
-    double onlineDiscount = isCod ? 0 : ((subtotal - couponDiscount) * 0.03);
-    double finalTotal = subtotal - couponDiscount - onlineDiscount;
-    double totalDiscount = couponDiscount + onlineDiscount;
-
-    // We send ORIGINAL prices to Shopify so the subtotal looks correct.
-    // The discount is handled at the order level via discount_codes and total_discounts.
-    final List<Map<String, dynamic>> items = _cartItems.map((item) {
-      double originalPrice =
-          double.tryParse(item.price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0;
-
-      return {
-        "variant_id": item.id,
-        "quantity": item.qty,
-        "price": originalPrice.toStringAsFixed(2),
-      };
-    }).toList();
-
-    final String? customerId = await AuthController.getShopifyCustomerId();
-    if (customerId == null) {
-      if (mounted) {
-        setState(() => _isProcessingOrder = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Error: Customer ID not found")));
-      }
+  void _openCodCheckout() async {
+    if (_selectedAddress == null) {
+      _selectAddress();
       return;
     }
 
-    String? contactEmail = await AuthController.getSavedEmail();
+    setState(() => _isProcessingOrder = true);
 
-    final orderRes = await ShopifyAPI.createOrder(
-      customerId: customerId,
-      email: contactEmail,
-      lineItems: items,
-      shippingAddress: _selectedAddress!,
-      totalAmount: finalTotal,
-      discountCode: _appliedDiscount?['code']?.toString() ??
-          (onlineDiscount > 0 ? "ONLINE-DISCOUNT" : null),
-      discountAmount: totalDiscount,
-      paymentId: paymentId,
-      isCod: isCod,
-    );
+    try {
+      final customerId = await AuthController.getShopifyCustomerId();
+      final email = await AuthController.getSavedEmail();
+      final phone = await AuthController.getSavedPhone();
 
-    if (orderRes.isNotEmpty && orderRes['order'] != null) {
-      String realOrderNumber = orderRes['order']['name']?.toString() ??
-          "KSK-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}";
+      // Ensure phone is added to shipping address if missing
+      final address = Map<String, dynamic>.from(_selectedAddress!);
+      if (address['phone'] == null || address['phone'].toString().isEmpty) {
+        address['phone'] = phone ?? '';
+      }
 
-      // Final cleanup
-      await CartController.clearCart();
-      if (mounted) {
-        Navigator.pushReplacement(
+      // Map cart items
+      final List<Map<String, dynamic>> items = _cartItems.map((item) {
+        final price =
+            double.tryParse(item.price.replaceAll(RegExp(r'[^\d.]'), '')) ??
+                0.0;
+        return {
+          'variant_id': item.id,
+          'quantity': item.qty,
+          'price': price,
+        };
+      }).toList();
+
+      double discountAmount = 0.0;
+      String? discountCode;
+      if (_appliedDiscount != null) {
+        discountCode = _appliedDiscount!['code']?.toString();
+        discountAmount =
+            double.tryParse(_appliedDiscount!['value']?.toString() ?? '') ??
+                0.0;
+      }
+
+      final res = await ShopifyAPI.createOrder(
+        customerId: customerId,
+        email: email,
+        lineItems: items,
+        shippingAddress: address,
+        totalAmount: _getFinalTotal(),
+        discountCode: discountCode,
+        discountAmount: discountAmount,
+        isCod: true,
+      );
+
+      if (res['error'] != null) {
+        final errMsg = res['error'].toString();
+        debugPrint('COD Order Error: $errMsg');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Order Failed: $errMsg"),
+              duration: const Duration(seconds: 8),
+              action: SnackBarAction(
+                label: 'OK',
+                onPressed: () =>
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+              ),
+            ),
+          );
+        }
+      } else {
+        // Success
+        final order = res['order'];
+        final orderNumber =
+            order?['name']?.toString().replaceAll('#', '') ?? 'CONFIRMED';
+
+        await CartController.clearCart();
+        if (mounted) {
+          Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-                builder: (_) => OrderSuccessView(
-                      orderNumber: realOrderNumber,
-                      totalAmount: finalTotal,
-                      paymentId:
-                          paymentId ?? (isCod ? "Cash on Delivery" : "Online"),
-                    )));
+              builder: (_) => OrderSuccessView(
+                orderNumber: orderNumber,
+                totalAmount: _getFinalTotal(),
+                paymentId: "Cash on Delivery",
+              ),
+            ),
+          );
+        }
       }
-    } else {
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
+    } finally {
       if (mounted) {
         setState(() => _isProcessingOrder = false);
-        String errorMsg = "Failed to create order.";
-        if (orderRes.containsKey('error')) {
-          errorMsg += " ${orderRes['error']}";
-        }
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(errorMsg)));
       }
     }
   }
