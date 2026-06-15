@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import '../controller/auth_controller.dart';
 import '../controller/constants.dart';
 import '../controller/update_service.dart';
+<<<<<<< HEAD
 import '../controller/technical_mapping_controller.dart';
 import 'auth/login_view.dart';
+=======
+
+>>>>>>> 9eaa973e07fdc1eefae02a40a04da2a93bdf1073
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import 'home_view.dart';
 
@@ -98,18 +102,8 @@ class _SplashScreenState extends State<SplashScreen>
       await Future.delayed(const Duration(milliseconds: 500));
 
       if (mounted) {
-        // Check if user is already logged in
-        final bool loggedIn = AuthController.isLoggedIn();
-
-        if (loggedIn) {
-          // Heal session if SharedPreferences were cleared but Firebase remains
-          AuthController.getSavedPhone().then((phone) {
-            if (phone != null) AuthController.syncWithShopify(phone);
-          });
-        }
-
-        final Widget destination =
-            loggedIn ? const MyHomePage() : const LoginView();
+        // Directly navigate to the home page – login UI is no longer used.
+        final Widget destination = const MyHomePage();
 
         Navigator.pushReplacement(
           context,
@@ -124,7 +118,7 @@ class _SplashScreenState extends State<SplashScreen>
           ),
         ).then((_) {
           // Show optional update dialog on Home if applicable
-          if (updateType == UpdateType.optional && mounted && loggedIn) {
+          if (updateType == UpdateType.optional && mounted) {
             UpdateService.showUpdateDialog(context, UpdateType.optional);
           }
         });

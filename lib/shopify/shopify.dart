@@ -670,7 +670,7 @@ class ShopifyAPI {
         };
       }).toList();
 
-      String cleanPhone = shippingAddress['phone']
+      String? cleanPhone = shippingAddress['phone']
               ?.toString()
               .replaceAll(RegExp(r'[^\d]'), '') ??
           '';
@@ -678,45 +678,54 @@ class ShopifyAPI {
         cleanPhone = "+91$cleanPhone";
       } else if (cleanPhone.length > 10 && !cleanPhone.startsWith('+')) {
         cleanPhone = "+$cleanPhone";
+      } else if (cleanPhone.isEmpty) {
+        cleanPhone = null;
       }
+
+      final Map<String, dynamic> addressBlock = {
+        "first_name":
+            shippingAddress['name']?.toString().split(' ').first ?? '',
+        "last_name":
+            shippingAddress['name']?.toString().split(' ').skip(1).join(' ') ??
+                '',
+        "address1": shippingAddress['address1'] ?? '',
+        "address2": shippingAddress['address2'] ?? '',
+        "city": shippingAddress['city'] ?? '',
+        "province": shippingAddress['state'] ?? '',
+        "zip": shippingAddress['pincode'] ?? '',
+        if (cleanPhone != null && cleanPhone.isNotEmpty) "phone": cleanPhone,
+        "country": "India"
+      };
 
       final Map<String, dynamic> orderPayload = {
         "line_items": cleanLineItems,
         "financial_status": isCod ? "pending" : "paid",
         "total_price": totalAmount.toStringAsFixed(2),
         "currency": "INR",
-        "phone": cleanPhone,
+        if (cleanPhone != null && cleanPhone.isNotEmpty) "phone": cleanPhone,
         "note_attributes": [
           {
             "name": "payment_id",
             "value": paymentId ?? (isCod ? "COD" : "Online")
           },
+          {"name": "payment_method", "value": isCod ? "COD" : "Online"},
           {"name": "channel", "value": "Mobile App"},
           ...(await AttributionService().getAttribution())
               .entries
               .map((e) => {"name": e.key, "value": e.value})
               .toList(),
         ],
-        "shipping_address": {
-          "first_name":
-              shippingAddress['name']?.toString().split(' ').first ?? '',
-          "last_name": shippingAddress['name']
-                  ?.toString()
-                  .split(' ')
-                  .skip(1)
-                  .join(' ') ??
-              '',
-          "address1": shippingAddress['address1'] ?? '',
-          "address2": shippingAddress['address2'] ?? '',
-          "city": shippingAddress['city'] ?? '',
-          "province": shippingAddress['state'] ?? '',
-          "zip": shippingAddress['pincode'] ?? '',
-          "phone": cleanPhone,
-          "country": "India"
-        },
+        "shipping_address": addressBlock,
+        "billing_address": addressBlock,
         "inventory_behavior": "decrement_ignoring_policy",
         "send_receipt": true,
+        "source_name": "mobile_app",
       };
+
+      if (isCod) {
+        orderPayload["payment_gateway_names"] = ["Cash on Delivery (COD)"];
+        orderPayload["tags"] = "COD, Mobile App";
+      }
 
       if (email != null && email.isNotEmpty) {
         orderPayload["email"] = email;
@@ -736,8 +745,8 @@ class ShopifyAPI {
         orderPayload["total_discounts"] = discountAmount.toStringAsFixed(2);
       }
 
-      // debugPrint(
-      //     "DEBUG: Shopify Order Payload --> ${jsonEncode(orderPayload)}");
+      debugPrint(
+          "DEBUG: Shopify Order Payload --> ${jsonEncode(orderPayload)}");
 
       if (customerId != null && customerId.isNotEmpty && customerId != "null") {
         try {
@@ -754,7 +763,8 @@ class ShopifyAPI {
         body: jsonEncode({"order": orderPayload}),
       );
 
-      // debugPrint("Shopify Create Order Status: ${res.statusCode}");
+      debugPrint(
+          "Shopify Create Order Status: ${res.statusCode} Body: ${res.body}");
 
       if (res.statusCode == 201) {
         final decoded = jsonDecode(res.body);
@@ -762,13 +772,13 @@ class ShopifyAPI {
         await AttributionService().clearAttribution();
         return decoded;
       } else {
-        // debugPrint("Create Order Error ${res.statusCode}: ${res.body}");
+        debugPrint("Create Order Error ${res.statusCode}: ${res.body}");
         return {
           "error": "Shopify Status ${res.statusCode}: ${res.body}",
         };
       }
     } catch (e) {
-      // debugPrint("createOrder Overall Error: $e");
+      debugPrint("createOrder Overall Error: $e");
       return {
         "error": "Exception: $e",
       };
