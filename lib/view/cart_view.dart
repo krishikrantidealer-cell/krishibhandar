@@ -1239,7 +1239,7 @@ class _CartViewState extends State<CartView> {
                   ),
                 ),
               )
-            else ...[
+            else
               // Online Payment
               Expanded(
                 child: GestureDetector(
@@ -1251,19 +1251,6 @@ class _CartViewState extends State<CartView> {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              // Cash on Delivery
-              Expanded(
-                child: GestureDetector(
-                  onTap: _isProcessingOrder ? null : _openCodCheckout,
-                  child: _checkoutButton(
-                    label: AppLocalizations.of(context)!.cod,
-                    color: const Color(0xFF1E1E1E),
-                    icon: Icons.local_shipping_rounded,
-                  ),
-                ),
-              ),
-            ]
           ],
         ));
   }

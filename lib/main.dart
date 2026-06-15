@@ -3,7 +3,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:appsflyer_sdk/appsflyer_sdk.dart';
-import 'package:kisan_sewa_kendra/controller/cart_controller.dart';
 import 'package:kisan_sewa_kendra/controller/pref.dart';
 import 'package:kisan_sewa_kendra/services/attribution_service.dart';
 import 'package:flutter/material.dart';
