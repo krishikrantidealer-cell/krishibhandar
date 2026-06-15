@@ -4,7 +4,6 @@ import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kisan_sewa_kendra/components/cart_summary_bar.dart';
 import 'package:kisan_sewa_kendra/components/products_grid.dart';
-import 'package:kisan_sewa_kendra/components/search_delegate.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import 'package:kisan_sewa_kendra/view/cart_view.dart';
 import 'package:kisan_sewa_kendra/view/collection_view.dart';
@@ -13,7 +12,6 @@ import 'package:kisan_sewa_kendra/view/search_results_view.dart';
 
 import 'dart:async';
 import 'dart:convert';
-import 'package:badges/badges.dart' as badges;
 import '../controller/pref.dart';
 
 import 'package:flutter/services.dart';
@@ -28,6 +26,7 @@ import '../controller/cart_controller.dart';
 import '../services/attribution_service.dart';
 import '../utils/meta_events.dart';
 import '../utils/firebase_events.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 class ProductView extends StatefulWidget {
   final ProductModel? product;
@@ -42,6 +41,31 @@ class ProductView extends StatefulWidget {
 
   @override
   State<ProductView> createState() => _ProductViewState();
+}
+
+class MyWidgetFactory extends WidgetFactory {
+  @override
+  void parse(BuildMetadata meta) {
+    if (meta.element.localName == 'iframe') {
+      debugPrint("DEBUG: [MyWidgetFactory] Found iframe tag in HTML");
+      debugPrint("DEBUG: [MyWidgetFactory] iframe element: ${meta.element.outerHtml}");
+    }
+    super.parse(meta);
+  }
+
+  @override
+  Widget? buildWebView(
+    BuildMetadata meta,
+    String url, {
+    double? height,
+    Iterable<String>? sandbox,
+    double? width,
+  }) {
+    debugPrint("DEBUG: [MyWidgetFactory] buildWebView called for URL: $url");
+    // Returning null or SizedBox.shrink() here suppresses the internal iframe rendering
+    // so we can use our dedicated ShopifyIframeWidget without duplication.
+    return const SizedBox.shrink();
+  }
 }
 
 class _ProductViewState extends State<ProductView>
@@ -181,6 +205,7 @@ class _ProductViewState extends State<ProductView>
       context,
       productId: productId,
     );
+    if (!mounted) return;
     _recommend = await Shopify.getProductsRecommend(
       context,
       id: productId,
@@ -209,10 +234,24 @@ class _ProductViewState extends State<ProductView>
     }
   }
 
+  String? _extractIframeSrc(String html) {
+    if (html.isEmpty) return null;
+    final match = RegExp(r'<iframe[^>]+src="([^"]+)"').firstMatch(html);
+    return match?.group(1);
+  }
+
+  String? _extractYoutubeId(String src) {
+    final regExp = RegExp(
+        r'(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/|embed\/)([^"&?\/\s]{11})');
+    final match = regExp.firstMatch(src);
+    return match?.group(1);
+  }
+
   Widget _buildQuantitySelector(int currentQty) {
     final product = _localizedProduct ?? widget.product;
-    if (product == null || product.variants.isEmpty)
+    if (product == null || product.variants.isEmpty) {
       return const SizedBox.shrink();
+    }
     final variant = product.variants[_varientIndex];
     return Container(
       padding: const EdgeInsets.all(4),
@@ -1083,6 +1122,15 @@ class _ProductViewState extends State<ProductView>
                   fontSize: 17,
                   color: Colors.black)),
           const SizedBox(height: 15),
+          Builder(builder: (context) {
+            final iframeSrc = _extractIframeSrc(product.body);
+            if (iframeSrc == null) return const SizedBox.shrink();
+            final videoId = _extractYoutubeId(iframeSrc);
+            if (videoId == null) return const SizedBox.shrink();
+            final isShorts = iframeSrc.contains('youtube.com/shorts') ||
+                iframeSrc.contains('/shorts/');
+            return _ProductVideoCard(videoId: videoId, isShorts: isShorts);
+          }),
           AnimatedSize(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
@@ -1097,13 +1145,22 @@ class _ProductViewState extends State<ProductView>
                   children: [
                     SingleChildScrollView(
                       physics: const NeverScrollableScrollPhysics(),
-                      child: HtmlWidget(
-                        product.body,
-                        textStyle: const TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF666666),
-                            height: 1.7),
-                      ),
+                      child: Builder(builder: (context) {
+                        debugPrint("DEBUG: Product ID: ${product.id}");
+                        debugPrint("DEBUG: Body length: ${product.body.length}");
+                        debugPrint("DEBUG: Contains iframe: ${product.body.contains('<iframe')}");
+                        if (product.body.contains('<iframe')) {
+                          debugPrint("DEBUG: Iframe HTML: ${product.body.substring(product.body.indexOf('<iframe'), product.body.indexOf('</iframe>') + 9)}");
+                        }
+                        return HtmlWidget(
+                          product.body,
+                          factoryBuilder: () => MyWidgetFactory(),
+                          textStyle: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF666666),
+                              height: 1.7),
+                        );
+                      }),
                     ),
                     if (!_isExpanded)
                       Positioned(
@@ -1486,6 +1543,154 @@ class _ProductViewState extends State<ProductView>
   }
 }
 
+class _ProductVideoCard extends StatelessWidget {
+  final String videoId;
+  final bool isShorts;
+  const _ProductVideoCard({required this.videoId, this.isShorts = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final thumbnailUrl = "https://img.youtube.com/vi/$videoId/hqdefault.jpg";
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProductVideoWebViewScreen(
+                videoUrl: "https://www.youtube.com/watch?v=$videoId",
+              ),
+            ),
+          );
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.12),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: AspectRatio(
+                  aspectRatio: isShorts ? 9 / 16 : 16 / 9,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      KskNetworkImage(thumbnailUrl, fit: BoxFit.cover),
+                      Container(color: Colors.black.withOpacity(0.25)),
+                      const Center(
+                        child: Icon(
+                          Icons.play_circle_fill_rounded,
+                          color: Colors.white,
+                          size: 72,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(Icons.video_collection_outlined,
+                    color: Constants.baseColor, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  "Watch Product Video",
+                  style: TextStyle(
+                    color: Constants.baseColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ProductVideoWebViewScreen extends StatefulWidget {
+  final String videoUrl;
+  const ProductVideoWebViewScreen({
+    super.key,
+    required this.videoUrl,
+  });
+
+  @override
+  State<ProductVideoWebViewScreen> createState() =>
+      _ProductVideoWebViewScreenState();
+}
+
+class _ProductVideoWebViewScreenState extends State<ProductVideoWebViewScreen> {
+  late final WebViewController _controller;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(Colors.black)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageStarted: (String url) {
+            setState(() => _isLoading = true);
+          },
+          onPageFinished: (String url) {
+            setState(() => _isLoading = false);
+          },
+          onWebResourceError: (WebResourceError error) {
+            debugPrint("WebView Error: ${error.description}");
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse(widget.videoUrl));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          SafeArea(
+            child: WebViewWidget(controller: _controller),
+          ),
+          if (_isLoading)
+            const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 10,
+            left: 10,
+            child: CircleAvatar(
+              backgroundColor: Colors.black45,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PromoBanners extends StatefulWidget {
   const _PromoBanners();
 
@@ -1559,6 +1764,7 @@ class _PromoBannerCardState extends State<_PromoBannerCard> {
       onTapCancel: () => setState(() => _scale = 1.0),
       onTap: () async {
         try {
+          if (!mounted) return;
           final product = await Shopify.getProductDetails(context,
               productId: widget.productId);
           if (product != null && mounted) {

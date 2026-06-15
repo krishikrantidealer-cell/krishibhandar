@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../controller/auth_controller.dart';
 import '../controller/constants.dart';
 import '../controller/update_service.dart';
+import '../controller/technical_mapping_controller.dart';
 import 'auth/login_view.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import 'home_view.dart';
@@ -68,6 +69,8 @@ class _SplashScreenState extends State<SplashScreen>
     try {
       await UpdateService.init();
       await Constants.fetchRemoteConfig(context);
+      // Pre-load technical mappings to avoid UI freeze later
+      await TechnicalMappingController().ensureLoaded();
     } catch (e) {
       debugPrint("Init Error: $e");
     }

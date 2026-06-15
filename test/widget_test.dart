@@ -9,11 +9,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:kisan_sewa_kendra/main.dart';
+import 'package:kisan_sewa_kendra/controller/language_controller.dart';
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    // MyApp requires a LanguageController instance; create one for tests.
+    await tester.pumpWidget(MyApp(languageController: LanguageController()));
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);

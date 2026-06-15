@@ -12,7 +12,12 @@ def keystoreProperties = new Properties()
 def keystorePropertiesFile = rootProject.file('key.properties')
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+} else {
+    println "WARNING: key.properties not found at ${keystorePropertiesFile.absolutePath}"
 }
+
+println "DEBUG Signing: keyAlias = ${keystoreProperties['keyAlias']}"
+println "DEBUG Signing: storeFile = ${keystoreProperties['storeFile']}"
 
 android {
     namespace = "com.snss.ebs.kisan_sewa_kendra"

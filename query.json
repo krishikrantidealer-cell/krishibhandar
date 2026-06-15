@@ -1,0 +1,1 @@
+{"query": "{ products(first: 10, query: \"German 505\") { nodes { id title descriptionHtml } } }" }

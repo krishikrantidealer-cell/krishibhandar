@@ -2,9 +2,11 @@
 
     <!-- ✅ Internet Permission -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
-    <!-- ✅ REQUIRED FOR META AD ID (CRITICAL FOR ANDROID 12+) -->
-    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+<!--    &lt;!&ndash; ✅ REQUIRED FOR META AD ID (CRITICAL FOR ANDROID 12+) &ndash;&gt;-->
+<!--    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />-->
 
     <!-- ✅ REQUIRED FOR LOCATION FETCHING -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -75,6 +77,7 @@
         android:label="Krishi Bhandar"
         android:usesCleartextTraffic="true"
         android:largeHeap="true"
+        android:hardwareAccelerated="true"
         android:enableOnBackInvokedCallback="true">
 
         <activity
