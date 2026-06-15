@@ -6,7 +6,7 @@ String slugify(String text) {
       .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
       .replaceAll(RegExp(r'^-+|-+$'), '');
 }
-
+//tedbvft
 String cleanTechnicalName(String name) {
   String current = name.trim();
   bool changed = true;
