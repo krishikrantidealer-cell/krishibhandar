@@ -1,15 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:kisan_sewa_kendra/controller/technical_mapping_controller.dart';
+import 'package:kisan_sewa_kendra/view/home_view.dart';
 import '../controller/auth_controller.dart';
 import '../controller/constants.dart';
 import '../controller/update_service.dart';
-<<<<<<< HEAD
-import '../controller/technical_mapping_controller.dart';
-import 'auth/login_view.dart';
-=======
-
->>>>>>> 9eaa973e07fdc1eefae02a40a04da2a93bdf1073
-import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
-import 'home_view.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});

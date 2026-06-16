@@ -8,7 +8,6 @@ import '../model/order_model.dart';
 import 'order_detail_view.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kisan_sewa_kendra/components/network_image.dart';
-import 'support_view.dart';
 import '../controller/cart_controller.dart';
 import '../controller/routers.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
@@ -74,7 +73,7 @@ class _OrderViewState extends State<OrderView>
             const Duration(seconds: 10)) {
       return;
     }
-    var customerId = await AuthController.getShopifyCustomerId();
+    final customerId = await AuthController.getShopifyCustomerId();
     if (customerId == null) return;
     try {
       final orderData = await ShopifyAPI.getCustomerOrders(customerId);
@@ -87,16 +86,15 @@ class _OrderViewState extends State<OrderView>
     } catch (_) {}
   }
 
+  /// Fetch orders using the Shopify customer ID saved after checkout.
+  /// No login required — customer ID is set automatically via syncCustomerFromOrder.
   Future<void> _fetchOrders() async {
-    var customerId = await AuthController.getShopifyCustomerId();
+    final customerId = await AuthController.getShopifyCustomerId();
+    // No customer ID means user hasn't placed an order yet — show empty state.
     if (customerId == null) {
-      final phone = await AuthController.getSavedPhone();
-      if (phone != null) {
-        await AuthController.syncWithShopify(phone);
-        customerId = await AuthController.getShopifyCustomerId();
-      }
+      if (mounted) setState(() => _isLoadingOrders = false);
+      return;
     }
-    if (customerId == null) return;
 
     if (mounted) setState(() => _isLoadingOrders = true);
     try {
@@ -146,7 +144,6 @@ class _OrderViewState extends State<OrderView>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final bool loggedIn = AuthController.isLoggedIn();
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -191,30 +188,28 @@ class _OrderViewState extends State<OrderView>
 
             // Main Content (Protected by SafeArea)
             SafeArea(
-              child: !loggedIn
-                  ? _buildLoginPrompt()
-                  : DefaultTabController(
-                      length: 4,
-                      child: Builder(builder: (context) {
-                        final tabController = DefaultTabController.of(context);
-                        return Column(
+              child: DefaultTabController(
+                length: 4,
+                child: Builder(builder: (context) {
+                  final tabController = DefaultTabController.of(context);
+                  return Column(
+                    children: [
+                      _buildAdvancedHeader(),
+                      _buildFilterChips(tabController),
+                      Expanded(
+                        child: TabBarView(
                           children: [
-                            _buildAdvancedHeader(),
-                            _buildFilterChips(tabController),
-                            Expanded(
-                              child: TabBarView(
-                                children: [
-                                  _buildOrderList(0),
-                                  _buildOrderList(1),
-                                  _buildOrderList(2),
-                                  _buildOrderList(3),
-                                ],
-                              ),
-                            ),
+                            _buildOrderList(0),
+                            _buildOrderList(1),
+                            _buildOrderList(2),
+                            _buildOrderList(3),
                           ],
-                        );
-                      }),
-                    ),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ),
             ),
           ],
         ),
@@ -731,42 +726,7 @@ class _OrderViewState extends State<OrderView>
     return Constants.baseColor;
   }
 
-  Widget _buildLoginPrompt() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: Constants.baseColor.withOpacity(0.03),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.shield_moon_rounded,
-                  size: 80, color: Constants.baseColor.withOpacity(0.2)),
-            ),
-            const SizedBox(height: 32),
-            Text(
-              AppLocalizations.of(context)!.accessRestricted,
-              style: GoogleFonts.outfit(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF1E1E1E)),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              AppLocalizations.of(context)!.signInPrompt,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                  color: Colors.grey[500], fontSize: 14, height: 1.5),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildEmptyOrders() {
     return Center(

@@ -409,6 +409,29 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
     debugPrint(
         "DEBUG: Success Pattern Detected. Clearing Cart for Order: $orderNumber ($paymentId)");
     await CartController.clearCart();
+
+    // 1. Try to sync customer from the Shopify order (works when URL has /orders/<id>)
+    await AuthController.syncCustomerFromOrder(orderNumber);
+
+    // 2. Fallback: if customer ID still not saved, sync using phone from shipping address.
+    //    This handles cases where Shiprocket's success URL is just "thank-you" with no order ID.
+    final existingId = await AuthController.getShopifyCustomerId();
+    if (existingId == null) {
+      final phone = widget.shippingAddress?['phone']?.toString() ??
+          await AuthController.getSavedPhone();
+      if (phone != null && phone.isNotEmpty) {
+        // Normalize to 10-digit
+        final normalized = phone.replaceAll(RegExp(r'[^\d]'), '');
+        final digits = normalized.length > 10
+            ? normalized.substring(normalized.length - 10)
+            : normalized;
+        if (digits.length == 10) {
+          debugPrint('DEBUG: Fallback — syncing customer by phone: $digits');
+          await AuthController.syncWithShopify(digits);
+        }
+      }
+    }
+
     if (mounted) {
       Navigator.pushReplacement(
         context,
@@ -472,6 +495,10 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
             res['order']['name']?.toString().replaceAll('#', '') ?? 'CONFIRMED';
         debugPrint('✅ Native COD order created: $orderNum');
         await CartController.clearCart();
+        
+        // Sync customer details from order
+        await AuthController.syncCustomerFromOrder(orderNum);
+
         if (mounted) {
           Navigator.pushReplacement(
             context,

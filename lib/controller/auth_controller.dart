@@ -19,15 +19,23 @@ class AuthController {
   static const String _keyState = 'user_state';
   static const String _keyAddressList = 'user_address_list';
 
-  // ─── Check if user is logged in ──────────────────────────────────────────
-  static bool isLoggedIn() {
-    final String? phone = Pref.prefs?.getString(_keyPhone);
-    return phone != null && phone.isNotEmpty;
-  }
 
   static Future<String?> getSavedPhone() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_keyPhone);
+    String? phone = prefs.getString(_keyPhone);
+    if (phone == null || phone.isEmpty) {
+      final addresses = await getStoredAddresses();
+      if (addresses.isNotEmpty) {
+        for (var addr in addresses) {
+          final p = addr['phone'];
+          if (p != null && p.trim().isNotEmpty) {
+            phone = p.trim();
+            break;
+          }
+        }
+      }
+    }
+    return phone;
   }
 
   static Future<String?> getSavedName() async {
@@ -79,6 +87,11 @@ class AuthController {
       // Background sync name to Shopify
       _updateShopifyCustomerName(name);
     }
+
+    if (phone != null && phone.isNotEmpty) {
+      await prefs.setString(_keyPhone, phone);
+      syncWithShopify(phone);
+    }
   }
 
   static Future<void> updateAddress({
@@ -109,6 +122,11 @@ class AuthController {
         'phone': phone ?? '',
       };
       await prefs.setString(_keyAddressList, jsonEncode(current));
+
+      if (phone != null && phone.isNotEmpty) {
+        await prefs.setString(_keyPhone, phone);
+        syncWithShopify(phone);
+      }
     }
   }
 
@@ -287,6 +305,91 @@ class AuthController {
             .trim());
     await prefs.setString(_keyEmail, customer['email'] ?? '');
     debugPrint('AuthController: Synced Shopify Customer ID: ${customer['id']}');
+  }
+
+  static Future<void> syncCustomerFromOrder(String orderIdOrName) async {
+    try {
+      const String baseUrl = "https://3b7f20-3.myshopify.com/admin/api/2024-10";
+      Map<String, String> headers = {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': Constants.shopifyAccessToken,
+      };
+
+      dynamic order;
+
+      // 1. Try fetching as order ID first (numeric)
+      if (RegExp(r'^\d+$').hasMatch(orderIdOrName)) {
+        var res = await http.get(
+          Uri.parse('$baseUrl/orders/$orderIdOrName.json'),
+          headers: headers,
+        );
+        if (res.statusCode == 200) {
+          order = jsonDecode(res.body)['order'];
+        }
+      }
+
+      // 2. If not found or not numeric, search by name
+      if (order == null) {
+        final encodedName = Uri.encodeComponent(orderIdOrName.startsWith('#') ? orderIdOrName : '#$orderIdOrName');
+        var res = await http.get(
+          Uri.parse('$baseUrl/orders.json?name=$encodedName&limit=1'),
+          headers: headers,
+        );
+        if (res.statusCode == 200) {
+          final orders = jsonDecode(res.body)['orders'] as List?;
+          if (orders != null && orders.isNotEmpty) {
+            order = orders[0];
+          }
+        }
+      }
+
+      // 3. Search by name without #
+      if (order == null) {
+        final encodedName = Uri.encodeComponent(orderIdOrName.replaceAll('#', ''));
+        var res = await http.get(
+          Uri.parse('$baseUrl/orders.json?name=$encodedName&limit=1'),
+          headers: headers,
+        );
+        if (res.statusCode == 200) {
+          final orders = jsonDecode(res.body)['orders'] as List?;
+          if (orders != null && orders.isNotEmpty) {
+            order = orders[0];
+          }
+        }
+      }
+
+      if (order != null) {
+        final customer = order['customer'];
+        final shipping = order['shipping_address'];
+        final billing = order['billing_address'];
+
+        String? phone;
+        if (customer != null && customer['phone'] != null) {
+          phone = customer['phone'].toString();
+        }
+        phone ??= shipping?['phone']?.toString() ?? billing?['phone']?.toString();
+
+        if (phone != null && phone.isNotEmpty) {
+          // Normalize phone number to 10 digits
+          phone = phone.replaceAll(RegExp(r'[^\d]'), '');
+          if (phone.startsWith('91') && phone.length > 10) {
+            phone = phone.substring(2);
+          }
+
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(_keyPhone, phone);
+          
+          if (customer != null && customer['id'] != null) {
+            await _saveShopifyCustomerToPrefs(customer, prefs);
+            debugPrint('AuthController: Synced Customer ID ${customer['id']} from Order successfully.');
+          } else {
+            await syncWithShopify(phone);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('AuthController: syncCustomerFromOrder error: $e');
+    }
   }
 
   // ─── Sign Out ─────────────────────────────────────────────────────────────

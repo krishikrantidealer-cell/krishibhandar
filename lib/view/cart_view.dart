@@ -1175,6 +1175,11 @@ class _CartViewState extends State<CartView> {
         context, MaterialPageRoute(builder: (_) => const AddressView()));
     if (result != null) {
       setState(() => _selectedAddress = result);
+      // Automatically open checkout after address is saved on first time,
+      // so user doesn't have to tap the button again.
+      if (mounted) {
+        _openShiprocketCheckout();
+      }
     } else {
       _loadDefaultAddress();
     }
@@ -1399,6 +1404,10 @@ class _CartViewState extends State<CartView> {
             order?['name']?.toString().replaceAll('#', '') ?? 'CONFIRMED';
 
         await CartController.clearCart();
+        
+        // Sync customer details from order
+        await AuthController.syncCustomerFromOrder(orderNumber);
+
         if (mounted) {
           Navigator.pushReplacement(
             context,

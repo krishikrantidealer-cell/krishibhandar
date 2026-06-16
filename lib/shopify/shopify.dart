@@ -1476,7 +1476,7 @@ class Shopify {
       var res = await getGraphQLData(
         context,
         body: '''
-            search(first:${isSugg ? 10 : 50},  query: "$query") {
+            search(first:${isSugg ? 10 : 50}, query: "$query", types: [PRODUCT]) {
               nodes {
                   ... on Product {
                       id
@@ -1515,6 +1515,9 @@ class Shopify {
           res['data']['search'] != null) {
         List<ProductModel> list = [];
         for (var lis in res['data']['search']['nodes']) {
+          if (lis == null || lis.isEmpty || lis['id'] == null) {
+            continue;
+          }
           List<Map<String, dynamic>> variants = [];
 
           if (lis['variants'] != null && lis['variants']['nodes'] != null) {
