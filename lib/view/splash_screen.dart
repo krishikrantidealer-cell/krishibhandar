@@ -100,6 +100,17 @@ class _SplashScreenState extends State<SplashScreen>
       await UpdateService.init();
       await Constants.fetchRemoteConfig(context);
       await TechnicalMappingController().ensureLoaded();
+
+      // Auto-heal missing Shopify Customer ID if phone is already saved
+      final phone = await AuthController.getSavedPhone();
+      final shopifyId = await AuthController.getShopifyCustomerId();
+      if (phone != null && phone.isNotEmpty && (shopifyId == null || shopifyId.isEmpty || shopifyId == "null")) {
+        debugPrint("Splash: Auto-healing missing Shopify Customer ID for phone: $phone");
+        // Run Shopify sync to fetch and save customer ID in background
+        AuthController.syncWithShopify(phone).catchError((e) {
+          debugPrint("Splash: Auto-heal error: $e");
+        });
+      }
     } catch (e) {
       debugPrint("Init Error: $e");
     }

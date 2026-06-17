@@ -79,6 +79,17 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
     }
   }
 
+  bool _isPaymentScheme(String url) {
+    final lowerUrl = url.toLowerCase();
+    return lowerUrl.startsWith('upi://') ||
+        lowerUrl.startsWith('phonepe://') ||
+        lowerUrl.startsWith('paytmmp://') ||
+        lowerUrl.startsWith('paytm://') ||
+        lowerUrl.startsWith('tez://') ||
+        lowerUrl.startsWith('gpay://') ||
+        lowerUrl.startsWith('bhim://');
+  }
+
   void _initController() {
     debugPrint("DEBUG: Initializing Shiprocket WebView Controller");
 
@@ -237,7 +248,7 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
                 if (await canLaunchUrl(uri)) {
                   if (mounted) {
                     setState(() {
-                      _isRedirecting = true;
+                      _isRedirecting = _isPaymentScheme(targetUrl);
                       _isLoading = false;
                     });
                   }
@@ -356,7 +367,7 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
                 if (await canLaunchUrl(uri)) {
                   if (mounted) {
                     setState(() {
-                      _isRedirecting = true;
+                      _isRedirecting = _isPaymentScheme(targetUrl);
                       _isLoading = false;
                     });
                   }
@@ -495,7 +506,7 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
             res['order']['name']?.toString().replaceAll('#', '') ?? 'CONFIRMED';
         debugPrint('✅ Native COD order created: $orderNum');
         await CartController.clearCart();
-        
+
         // Sync customer details from order
         await AuthController.syncCustomerFromOrder(orderNum);
 
