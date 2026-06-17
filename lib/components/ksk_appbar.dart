@@ -36,7 +36,7 @@ class KskAppbar extends StatefulWidget implements PreferredSizeWidget {
   State<KskAppbar> createState() => _KskAppbarState();
 
   @override
-  Size get preferredSize => const Size.fromHeight(125);
+  Size get preferredSize => const Size.fromHeight(138);
 }
 
 class _KskAppbarState extends State<KskAppbar> {
@@ -44,113 +44,137 @@ class _KskAppbarState extends State<KskAppbar> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.grey.withOpacity(0.1),
-            width: 1,
-          ),
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF1E88E5), // Premium Blue
+            Color(0xFF2E7D32), // Agri Green
+          ],
         ),
-      ),
-      child: AppBar(
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        systemOverlayStyle: const SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.dark,
-          statusBarBrightness: Brightness.light,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(36),
+          bottomRight: Radius.circular(36),
         ),
-        surfaceTintColor: Colors.white,
-        backgroundColor: Colors.white,
-        centerTitle: false,
-        toolbarHeight: 75,
-        leadingWidth: 60,
-        titleSpacing: 0,
-        leading: Builder(
-          builder: (context) => IconButton(
-            padding: const EdgeInsets.only(left: 12),
-            constraints: const BoxConstraints(),
-            icon:
-                Icon(Icons.menu_rounded, color: Constants.baseColor, size: 30),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
-        title: Image.asset(
-          "assets/logo-removebg-preview.png",
-          height: 60,
-          fit: BoxFit.contain,
-        ),
-        actions: [
-          if (Constants.languageList.isNotEmpty && widget.title == null)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: PopupMenuButton<String>(
-                icon: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Constants.baseColor.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border:
-                        Border.all(color: Constants.baseColor.withOpacity(0.1)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.language_rounded,
-                          size: 16, color: Constants.baseColor),
-                      const SizedBox(width: 4),
-                      Text(
-                        Constants.lang.toUpperCase(),
-                        style: TextStyle(
-                            color: Constants.baseColor,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900),
-                      ),
-                    ],
-                  ),
-                ),
-                onSelected: (String code) async {
-                  Constants.languageController.setLocale(code);
-                  Constants.lang = code;
-                },
-                itemBuilder: (context) => Constants.languageList.map((lang) {
-                  return PopupMenuItem<String>(
-                    value: lang.iso,
-                    child: Text(lang.name),
-                  );
-                }).toList(),
-              ),
-            ),
-          const Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: KskCartIcon(),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(45),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppBar(
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            systemOverlayStyle: const SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: Brightness.light,
+              statusBarBrightness: Brightness.dark,
+            ),
+            surfaceTintColor: Colors.transparent,
+            backgroundColor: Colors.transparent,
+            centerTitle: false,
+            toolbarHeight: 70,
+            leadingWidth: 56,
+            titleSpacing: 0,
+            leading: Builder(
+              builder: (context) => IconButton(
+                padding: const EdgeInsets.only(left: 16),
+                constraints: const BoxConstraints(),
+                icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 28),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
+            title: Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Image.asset(
+                "assets/logo-removebg-preview.png",
+                height: 62, // Polished size
+                color: Colors.white,
+                fit: BoxFit.contain,
+              ),
+            ),
+            actions: [
+              if (Constants.languageList.isNotEmpty && widget.title == null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: PopupMenuButton<String>(
+                    offset: const Offset(0, 50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    icon: Container(
+                      height: 40, // Micro-polished height
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withOpacity(0.2)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.language_rounded, size: 16, color: Colors.white),
+                          const SizedBox(width: 6),
+                          Text(
+                            Constants.lang.toUpperCase(),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                    onSelected: (String code) async {
+                      Constants.languageController.setLocale(code);
+                      Constants.lang = code;
+                    },
+                    itemBuilder: (context) => Constants.languageList.map((lang) {
+                      return PopupMenuItem<String>(
+                        value: lang.iso,
+                        child: Text(lang.name),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              const Padding(
+                padding: EdgeInsets.only(right: 16),
+                child: KskCartIcon(color: Colors.white),
+              ),
+            ],
+          ),
+          // --- FLOATING SEARCH BAR ---
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
             child: WidgetButton(
               onTap: () => showSearch(
                   context: context, delegate: CustomSearchDelegate()),
               child: Container(
-                height: 42,
+                height: 48,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF7F7F7),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFEEEEEE)),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.search_rounded,
-                        color: Colors.grey[500], size: 20),
+                    const Icon(Icons.search_rounded, color: Color(0xFF2E7D32), size: 22),
                     const SizedBox(width: 12),
                     Text(
                       AppLocalizations.of(context)!.searchProducts,
                       style: TextStyle(
-                          color: Colors.grey[400],
-                          fontSize: 14,
+                          color: Colors.grey[500],
+                          fontSize: 15,
                           fontWeight: FontWeight.w500),
                     ),
                   ],
@@ -158,7 +182,7 @@ class _KskAppbarState extends State<KskAppbar> {
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

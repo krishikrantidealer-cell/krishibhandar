@@ -140,22 +140,26 @@ class _SupportViewState extends State<SupportView>
             24,
           ),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
+            gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Constants.baseColor.withOpacity(0.9),
-                Constants.baseColor,
-                Constants.baseColor.withOpacity(0.8),
+                Color(0xFF1E88E5), // Premium Blue
+                Color(0xFF2E7D32), // Agri Green
               ],
             ),
             borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(16),
-              bottomRight: Radius.circular(16),
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF2E7D32).withOpacity(0.15),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-          // We wrap the child Column in a Stack as well to place the background icon
-          // inside the container so it respects the border radius and background.
           child: Stack(
             clipBehavior: Clip.none,
             children: [
@@ -365,38 +369,58 @@ class _SupportViewState extends State<SupportView>
             const SizedBox(height: 4),
 
             // Submit button
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton.icon(
-                onPressed: _isLoading ? null : _submitToWhatsApp,
-                icon: _isLoading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const FaIcon(FontAwesomeIcons.whatsapp, size: 18),
-                label: Text(
-                  _isLoading
-                      ? AppLocalizations.of(context)!.sending
-                      : AppLocalizations.of(context)!.sendWhatsApp,
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
+            GestureDetector(
+              onTap: _isLoading ? null : _submitToWhatsApp,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: double.infinity,
+                height: 52,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFFAEEA4D),
+                      Color(0xFF7BC943),
+                      Color(0xFF2E7D32),
+                    ],
                   ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF2E7D32).withOpacity(0.2),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Constants.baseColor,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+                child: Center(
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const FaIcon(FontAwesomeIcons.whatsapp,
+                                color: Colors.white, size: 20),
+                            const SizedBox(width: 10),
+                            Text(
+                              AppLocalizations.of(context)!.sendWhatsApp,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
               ),
             ),

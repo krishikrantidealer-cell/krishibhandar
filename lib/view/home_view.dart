@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:kisan_sewa_kendra/components/cart_summary_bar.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import 'package:kisan_sewa_kendra/view/support_view.dart';
@@ -134,59 +135,88 @@ class _MyHomePageState extends State<MyHomePage>
 
   Widget _buildModernDrawer(BuildContext context) {
     return Drawer(
-      backgroundColor: const Color(0xFFFDFDFD),
-      width: MediaQuery.of(context).size.width * 0.80,
+      backgroundColor: Colors.white,
+      width: MediaQuery.of(context).size.width * 0.82,
       child: Column(
         children: [
-          // Header Section
+          // Header Section - Responsive
           Container(
-            padding: EdgeInsets.zero,
-            height: 215,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF1E88E5), // Premium Blue
+                  Color(0xFF2E7D32), // Agri Green
+                ],
+              ),
+              borderRadius: const BorderRadius.only(
+                bottomRight: Radius.circular(40),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF2E7D32).withOpacity(0.15),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
             child: Stack(
               children: [
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Constants.baseColor,
-                        Constants.baseColor.withBlue(45).withGreen(100),
-                      ],
-                    ),
-                    borderRadius: const BorderRadius.only(
-                      bottomRight: Radius.circular(45),
-                    ),
-                  ),
-                ),
+                // Subtle Decorative Circle 1
                 Positioned(
-                  top: -45,
-                  right: -45,
+                  top: -30,
+                  right: -30,
                   child: Container(
-                    height: 180,
-                    width: 180,
+                    height: 140,
+                    width: 140,
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.06),
                       shape: BoxShape.circle,
                     ),
                   ),
                 ),
+                // Subtle Decorative Circle 2
+                Positioned(
+                  bottom: -20,
+                  left: -10,
+                  child: Container(
+                    height: 80,
+                    width: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.04),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
                 SafeArea(
+                  bottom: false,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 20),
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const AnimatedDrawerLogo(size: 56),
-                        const SizedBox(height: 12),
-                        const Text(
-                          "हर किसान की पहचान !",
-                          style: TextStyle(
+                        // Logo Glass Card
+                        const AnimatedDrawerLogo(),
+                        const SizedBox(height: 20),
+                        // App Branding
+                        Text(
+                          "Krishi Bhandar",
+                          style: GoogleFonts.outfit(
                             color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "हर किसान की पहचान !",
+                          style: GoogleFonts.outfit(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
                             letterSpacing: 0.2,
                           ),
                         ),
@@ -200,7 +230,7 @@ class _MyHomePageState extends State<MyHomePage>
 
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
               children: [
                 _buildSectionHeader(AppLocalizations.of(context)!.menu),
                 _drawerItem(
@@ -236,8 +266,8 @@ class _MyHomePageState extends State<MyHomePage>
                       Routers.goTO(context, toBody: const CartView());
                     }),
                 const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  child: Divider(height: 1, color: Color(0xFFF5F5F5)),
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                  child: Divider(height: 1, color: Color(0xFFF0F0F0)),
                 ),
                 _buildSectionHeader(AppLocalizations.of(context)!.support),
                 _drawerItem(
@@ -286,44 +316,46 @@ class _MyHomePageState extends State<MyHomePage>
             ),
           ),
 
-          // Bottom Version Info
+          // Footer info
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.02),
-              border: const Border(
-                top: BorderSide(color: Color(0xFFF5F5F5)),
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+            decoration: const BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Color(0xFFF0F0F0)),
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      "v3.0.0",
+                      "KrishiBhandar v3.0.0",
                       style: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: 12.5,
+                        color: Colors.grey[400],
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
                       ),
                     ),
-                    Text(
-                      AppLocalizations.of(context)!.madeWithHeartForFarmers,
-                      style: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        fontStyle: FontStyle.italic,
-                      ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.eco_rounded,
+                      color: Constants.baseColor.withOpacity(0.15),
+                      size: 14,
                     ),
                   ],
                 ),
-                Icon(
-                  Icons.eco_rounded,
-                  color: Constants.baseColor.withOpacity(0.2),
-                  size: 20,
+                const SizedBox(height: 4),
+                Text(
+                  AppLocalizations.of(context)!.madeWithHeartForFarmers,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -335,14 +367,14 @@ class _MyHomePageState extends State<MyHomePage>
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(left: 24, top: 10, bottom: 6),
+      padding: const EdgeInsets.only(left: 14, top: 10, bottom: 8),
       child: Text(
-        title,
+        title.toUpperCase(),
         style: TextStyle(
           color: Colors.grey[400],
-          fontSize: 10.5,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 1.1,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.2,
         ),
       ),
     );
@@ -356,33 +388,47 @@ class _MyHomePageState extends State<MyHomePage>
     bool isSelected = false,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 1.5),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
             color: isSelected
-                ? Constants.baseColor.withOpacity(0.08)
+                ? Constants.baseColor.withOpacity(0.1)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
+            border: isSelected
+                ? Border(
+                    left: BorderSide(color: Constants.baseColor, width: 3.5),
+                  )
+                : null,
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Constants.baseColor.withOpacity(0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    )
+                  ]
+                : null,
           ),
           child: Row(
             children: [
               Icon(
                 isSelected ? (activeIcon ?? icon) : icon,
-                size: 22,
+                size: 20,
                 color: isSelected ? Constants.baseColor : Colors.grey[600],
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                    fontSize: 14.2,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                     color: isSelected ? Constants.baseColor : Colors.black87,
                   ),
                 ),
@@ -390,7 +436,7 @@ class _MyHomePageState extends State<MyHomePage>
               if (!isSelected)
                 Icon(
                   Icons.arrow_forward_ios_rounded,
-                  size: 11,
+                  size: 10,
                   color: Colors.grey[300],
                 ),
             ],
@@ -403,7 +449,7 @@ class _MyHomePageState extends State<MyHomePage>
 
 class AnimatedDrawerLogo extends StatefulWidget {
   final double size;
-  const AnimatedDrawerLogo({super.key, this.size = 60});
+  const AnimatedDrawerLogo({super.key, this.size = 58});
 
   @override
   State<AnimatedDrawerLogo> createState() => _AnimatedDrawerLogoState();
@@ -420,7 +466,7 @@ class _AnimatedDrawerLogoState extends State<AnimatedDrawerLogo>
     _controller =
         AnimationController(vsync: this, duration: const Duration(seconds: 2))
           ..repeat(reverse: true);
-    _scale = Tween<double>(begin: 1.0, end: 1.08)
+    _scale = Tween<double>(begin: 1.0, end: 1.05)
         .animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
@@ -435,19 +481,24 @@ class _AnimatedDrawerLogoState extends State<AnimatedDrawerLogo>
     return ScaleTransition(
       scale: _scale,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
+          color: Colors.white.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withOpacity(0.18)),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withOpacity(0.12),
-                blurRadius: 12,
-                offset: const Offset(0, 4))
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            )
           ],
         ),
-        child: Image.asset(Assets.assetsLogo,
-            height: widget.size, width: widget.size),
+        child: Image.asset(
+          Assets.assetsLogo,
+          height: widget.size,
+          width: widget.size,
+        ),
       ),
     );
   }

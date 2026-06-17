@@ -585,64 +585,92 @@ class _HomeState extends State<Home> {
 
   Widget _buildDynamicSection(
       Map<String, String> data, List<String> excludeIds) {
-    if (data['image'] == null || data['image']!.isEmpty) {
+    final id = data['id'];
+    if (id == null || id.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: WidgetButton(
-              onTap: () => Routers.goTO(context,
-                  toBody: CollectionView(collectionId: data['id']!)),
-              child: AspectRatio(
-                aspectRatio: 5.0,
-                child: KskNetworkImage(
-                  data['image']!,
-                  fit: BoxFit.fill,
-                  width: double.infinity,
-                  height: double.infinity,
+    // Mapping Titles and Subtitles from instructions
+    String title = "";
+    String subtitle = "";
+
+    switch (id) {
+      case "329119367321":
+        title = "Best Seller";
+        subtitle = "Top performing farming products";
+        break;
+      case "329026371737":
+        title = "Insecticide";
+        subtitle = "Protect crops from insects";
+        break;
+      case "329026175129":
+        title = "Fungicide";
+        subtitle = "Advanced disease control";
+        break;
+      case "329026142361":
+        title = "Fertilizer";
+        subtitle = "Better nutrition for crops";
+        break;
+      case "329026240665":
+        title = "Herbicide";
+        subtitle = "Effective weed management";
+        break;
+      case "329026470041":
+        title = "Top Growth Promoters";
+        subtitle = "Faster and healthier growth";
+        break;
+      case "333391134873":
+        title = "Buy 1 Get 1 Free";
+        subtitle = "Limited time special offers";
+        break;
+      default:
+        title = "Featured Selection";
+        subtitle = "Premium quality farming essentials";
+    }
+
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 250),
+      tween: Tween(begin: 0.0, end: 1.0),
+      curve: Curves.easeOut,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 20 * (1 - value)),
+            child: child,
+          ),
+        );
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 24),
+          SectionHeader(
+            title: title,
+            subtitle: subtitle,
+            onViewAll: () => Routers.goTO(context,
+                toBody: CollectionView(collectionId: id, title: title)),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            decoration: BoxDecoration(
+              color: Constants.stringToColor(color: data['color'] ?? "#fff")
+                  .withOpacity(0.04),
+            ),
+            child: Column(
+              children: [
+                ProductsGrid(
+                  id: id,
+                  limit: 4,
+                  shrinkWrap: true,
+                  excludeIds: excludeIds,
                 ),
-              ),
+                const SizedBox(height: 12),
+              ],
             ),
           ),
-        ),
-        Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          decoration: BoxDecoration(
-            color: Constants.stringToColor(color: data['color'] ?? "#fff")
-                .withOpacity(0.04),
-          ),
-          child: Column(
-            children: [
-              ProductsGrid(
-                id: data['id']!,
-                limit: 4,
-                shrinkWrap: true,
-                excludeIds: excludeIds,
-              ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: TextButton.icon(
-                  onPressed: () => Routers.goTO(context,
-                      toBody: CollectionView(collectionId: data['id']!)),
-                  icon: Text(AppLocalizations.of(context)!.exploreMore,
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.bold)),
-                  label: const Icon(Icons.arrow_right_alt, size: 18),
-                  style: TextButton.styleFrom(
-                      foregroundColor: Constants.baseColor,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 0)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -651,24 +679,24 @@ class _HomeState extends State<Home> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           child: Row(
             children: [
               Container(
-                width: 4,
-                height: 20,
+                width: 4.5,
+                height: 28,
                 decoration: BoxDecoration(
                   color: const Color(0xFF26842c),
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Text(
                 "Collections",
                 style: GoogleFonts.outfit(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5),
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.8),
               ),
             ],
           ),
@@ -715,23 +743,12 @@ class _HomeState extends State<Home> {
           ),
         ),
         const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextButton.icon(
-              onPressed: () => Routers.goTO(context,
-                  toBody: CollectionView(
-                      collectionId: "329119367321", title: "Best Sellers")),
-              icon: Text(AppLocalizations.of(context)!.exploreMore,
-                  style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.bold)),
-              label: const Icon(Icons.arrow_right_alt, size: 18),
-              style: TextButton.styleFrom(
-                  foregroundColor: Constants.baseColor,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 0)),
-            ),
-          ],
+        Center(
+          child: _PremiumExploreButton(
+            onTap: () => Routers.goTO(context,
+                toBody: CollectionView(
+                    collectionId: "329119367321", title: "Best Sellers")),
+          ),
         ),
         const SizedBox(height: 24),
       ],
@@ -747,20 +764,20 @@ class _HomeState extends State<Home> {
           child: Row(
             children: [
               Container(
-                width: 4,
-                height: 20,
+                width: 4.5,
+                height: 28,
                 decoration: BoxDecoration(
                   color: const Color(0xFF26842c),
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Text(
                 "Exclusive",
                 style: GoogleFonts.outfit(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5),
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.8),
               ),
             ],
           ),
@@ -933,6 +950,247 @@ class _CollectionCardState extends State<_CollectionCard> {
                 fit: BoxFit.fill,
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class SectionHeader extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final VoidCallback? onViewAll;
+
+  const SectionHeader({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    this.onViewAll,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 76, // Compact height
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFAEEA4D),
+            Color(0xFF7BC943),
+            Color(0xFF2E7D32),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2E7D32).withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Stack(
+          children: [
+            // Subtle Leaf Artwork (Bottom Right)
+            Positioned(
+              right: -10,
+              bottom: -15,
+              child: Opacity(
+                opacity: 0.08,
+                child: Transform.rotate(
+                  angle: -0.2,
+                  child: const Icon(
+                    Icons.eco_rounded,
+                    size: 70,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+            // Subtle Leaf Artwork (Top Left)
+            Positioned(
+              left: 8,
+              top: -8,
+              child: Opacity(
+                opacity: 0.06,
+                child: Transform.rotate(
+                  angle: 0.5,
+                  child: const Icon(
+                    Icons.eco_rounded,
+                    size: 35,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+            // Content
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          title,
+                          style: GoogleFonts.outfit(
+                            fontSize: 21,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: -0.4,
+                          ),
+                        ),
+                        if (subtitle.isNotEmpty)
+                          Text(
+                            subtitle,
+                            style: GoogleFonts.outfit(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.white.withOpacity(0.8),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (onViewAll != null)
+                    WidgetButton(
+                      onTap: onViewAll!,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.18),
+                          borderRadius: BorderRadius.circular(16),
+                          border:
+                              Border.all(color: Colors.white.withOpacity(0.25)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              AppLocalizations.of(context)!.viewAll,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 3),
+                            const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 9,
+                              color: Colors.white,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PremiumExploreButton extends StatefulWidget {
+  final VoidCallback onTap;
+  const _PremiumExploreButton({super.key, required this.onTap});
+
+  @override
+  State<_PremiumExploreButton> createState() => _PremiumExploreButtonState();
+}
+
+class _PremiumExploreButtonState extends State<_PremiumExploreButton>
+    with SingleTickerProviderStateMixin {
+  bool _isPressed = false;
+  late AnimationController _arrowController;
+  late Animation<double> _arrowAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _arrowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..repeat(reverse: true);
+    _arrowAnimation = Tween<double>(begin: 0.0, end: 4.0).animate(
+      CurvedAnimation(parent: _arrowController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _arrowController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _isPressed ? 0.95 : 1.0,
+        duration: const Duration(milliseconds: 150),
+        child: Container(
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: Colors.grey.withOpacity(0.2),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                AppLocalizations.of(context)!.viewAll,
+                style: GoogleFonts.outfit(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Constants.baseColor,
+                ),
+              ),
+              const SizedBox(width: 8),
+              AnimatedBuilder(
+                animation: _arrowAnimation,
+                builder: (context, child) {
+                  return Transform.translate(
+                    offset: Offset(_arrowAnimation.value, 0),
+                    child: child,
+                  );
+                },
+                child: Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 13,
+                  color: Constants.baseColor,
+                ),
+              ),
+            ],
           ),
         ),
       ),
