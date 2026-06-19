@@ -369,6 +369,9 @@ class ShopifyAPI {
             o['displayFinancialStatus'] = ro['financial_status'];
             o['statusPageUrl'] = ro['order_status_url'];
             o['createdAt'] = ro['created_at'];
+            // ← Cancellation fields — critical for isCancellable to work
+            o['cancelledAt'] = ro['cancelled_at'];
+            o['closedAt'] = ro['closed_at'];
             o['totalPriceSet'] = {
               'presentmentMoney': {'amount': ro['total_price']}
             };
@@ -417,6 +420,10 @@ class ShopifyAPI {
 
             if (o['statusPageUrl'] == null)
               o['statusPageUrl'] = ro['order_status_url'];
+
+            // Fallback: GraphQL may miss cancelledAt/closedAt — fill from REST
+            o['cancelledAt'] ??= ro['cancelled_at'];
+            o['closedAt'] ??= ro['closed_at'];
           }
 
           // Merge Fulfillments - REST is superior for tracking numbers
@@ -801,6 +808,138 @@ class ShopifyAPI {
       // debugPrint("cancelOrder Error: $e");
     }
     return false;
+  }
+
+  static Future<void> updateOrderAttribution(String orderIdOrName) async {
+    try {
+      final attribution = await AttributionService().getAttribution();
+      debugPrint("📢 ShopifyAPI: Sending UTM attributes to Shopify for order $orderIdOrName: $attribution");
+      String? numericId;
+
+      // 1. Resolve numeric ID
+      if (RegExp(r'^\d+$').hasMatch(orderIdOrName)) {
+        numericId = orderIdOrName;
+      } else {
+        // A. Search matching order by checking latest orders (to handle checkout_token / cart_token / name)
+        // We poll up to 5 times (total 15 seconds) because external checkout systems (Fastrr) 
+        // create orders asynchronously via webhook/API which might take a few seconds to appear in Shopify.
+        int attempts = 5;
+        for (int i = 0; i < attempts; i++) {
+          var res = await http.get(
+            Uri.parse('$_baseUrl/orders.json?limit=30&status=any'),
+            headers: _header,
+          );
+          if (res.statusCode == 200) {
+            final orders = jsonDecode(res.body)['orders'] as List?;
+            if (orders != null && orders.isNotEmpty) {
+              for (var ord in orders) {
+                final ordToken = ord['checkout_token']?.toString() ?? '';
+                final ordCartToken = ord['cart_token']?.toString() ?? '';
+                final ordName = ord['name']?.toString() ?? '';
+
+                if (ordToken.toLowerCase() == orderIdOrName.toLowerCase() ||
+                    ordCartToken.toLowerCase() == orderIdOrName.toLowerCase() ||
+                    ordName.toLowerCase() == orderIdOrName.toLowerCase()) {
+                  numericId = ord['id']?.toString();
+                  debugPrint("🎯 Found matching order: $numericId on attempt ${i + 1}");
+                  break;
+                }
+              }
+            }
+          }
+
+          if (numericId != null) break;
+
+          if (i < attempts - 1) {
+            debugPrint("⏳ Order $orderIdOrName not found in Shopify yet (attempt ${i + 1}/$attempts). Retrying in 3 seconds...");
+            await Future.delayed(const Duration(seconds: 3));
+          }
+        }
+
+        // B. Fallback: Search latest order in the system if created in the last 10 minutes
+        if (numericId == null) {
+          var res = await http.get(
+            Uri.parse('$_baseUrl/orders.json?limit=1&status=any'),
+            headers: _header,
+          );
+          if (res.statusCode == 200) {
+            final orders = jsonDecode(res.body)['orders'] as List?;
+            if (orders != null && orders.isNotEmpty) {
+              final latestOrder = orders.first;
+              final createdAtStr = latestOrder['created_at']?.toString();
+              if (createdAtStr != null) {
+                final createdAt = DateTime.tryParse(createdAtStr);
+                if (createdAt != null) {
+                  final difference = DateTime.now().toUtc().difference(createdAt.toUtc()).inMinutes;
+                  if (difference.abs() <= 10) {
+                    numericId = latestOrder['id']?.toString();
+                    debugPrint("🎯 Matched order based on latest order fallback (created $difference min ago): $numericId");
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (numericId != null) {
+        // 2. Fetch existing order note_attributes first to preserve other metadata
+        var res = await http.get(
+          Uri.parse('$_baseUrl/orders/$numericId.json'),
+          headers: _header,
+        );
+        List<Map<String, dynamic>> existingAttributes = [];
+        if (res.statusCode == 200) {
+          final order = jsonDecode(res.body)['order'];
+          final rawAttributes = order['note_attributes'] as List? ?? [];
+          existingAttributes = rawAttributes.map((attr) {
+            return {
+              "name": attr['name']?.toString() ?? '',
+              "value": attr['value']?.toString() ?? ''
+            };
+          }).toList();
+        }
+
+        // 3. Remove any existing UTM attributes to avoid duplicates
+        existingAttributes.removeWhere((attr) =>
+            attr['name'] == 'utm_source' ||
+            attr['name'] == 'utm_medium' ||
+            attr['name'] == 'utm_campaign' ||
+            attr['name'] == 'utm_term' ||
+            attr['name'] == 'utm_content');
+
+        // 4. Add the new UTM attributes
+        existingAttributes.addAll(
+          attribution.entries.map((e) => {"name": e.key, "value": e.value}).toList()
+        );
+
+        // 5. Send PUT request to update the order
+        final payload = {
+          "order": {
+            "id": int.parse(numericId),
+            "note_attributes": existingAttributes
+          }
+        };
+
+        var updateRes = await http.put(
+          Uri.parse('$_baseUrl/orders/$numericId.json'),
+          headers: _header,
+          body: jsonEncode(payload),
+        );
+
+        if (updateRes.statusCode == 200 || updateRes.statusCode == 201) {
+          debugPrint("✅ Shopify Order Attribution Updated Successfully for Order: $numericId");
+          // Clear attribution after success
+          await AttributionService().clearAttribution();
+        } else {
+          debugPrint("❌ Failed to update Shopify Order Attribution: Status ${updateRes.statusCode} Body: ${updateRes.body}");
+        }
+      } else {
+        debugPrint("⚠️ Could not resolve numeric Order ID for updating attribution: $orderIdOrName");
+      }
+    } catch (e) {
+      debugPrint("Error in updateOrderAttribution: $e");
+    }
   }
 }
 

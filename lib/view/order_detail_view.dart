@@ -786,6 +786,15 @@ class _OrderDetailViewState extends State<OrderDetailView> {
         final success = await ShopifyAPI.cancelOrder(widget.order.id);
         if (success) {
           if (mounted) {
+            // Immediately update local state so the Cancel button hides at once,
+            // without waiting for _refreshOrder() to get the updated API response.
+            setState(() {
+              _currentOrder = _currentOrder.copyWith(
+                cancelledAt: DateTime.now().toIso8601String(),
+                financialStatus: 'voided',
+              );
+              _isLoading = false;
+            });
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(AppLocalizations.of(context)!.cancelSuccess),
@@ -793,6 +802,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                 behavior: SnackBarBehavior.floating,
               ),
             );
+            // Also refresh from API in background to get true server state
             _refreshOrder();
             Navigator.pop(context);
           }

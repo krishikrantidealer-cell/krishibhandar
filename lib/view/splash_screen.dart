@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kisan_sewa_kendra/controller/auth_controller.dart';
 import 'package:kisan_sewa_kendra/controller/technical_mapping_controller.dart';
 import 'package:kisan_sewa_kendra/view/home_view.dart';
 import '../controller/constants.dart';
@@ -22,13 +23,13 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<Offset> _titleSlide;
   late Animation<double> _taglineOpacity;
   late Animation<Offset> _taglineSlide;
-  
+
   bool _isExiting = false;
 
   @override
   void initState() {
     super.initState();
-    
+
     _controller = AnimationController(
       duration: const Duration(milliseconds: 2500),
       vsync: this,
@@ -69,7 +70,8 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
-    _titleSlide = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+    _titleSlide =
+        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.3, 0.6, curve: Curves.easeOutCubic),
@@ -84,7 +86,8 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
-    _taglineSlide = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+    _taglineSlide =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.4, 0.7, curve: Curves.easeOutCubic),
@@ -104,8 +107,11 @@ class _SplashScreenState extends State<SplashScreen>
       // Auto-heal missing Shopify Customer ID if phone is already saved
       final phone = await AuthController.getSavedPhone();
       final shopifyId = await AuthController.getShopifyCustomerId();
-      if (phone != null && phone.isNotEmpty && (shopifyId == null || shopifyId.isEmpty || shopifyId == "null")) {
-        debugPrint("Splash: Auto-healing missing Shopify Customer ID for phone: $phone");
+      if (phone != null &&
+          phone.isNotEmpty &&
+          (shopifyId == null || shopifyId.isEmpty || shopifyId == "null")) {
+        debugPrint(
+            "Splash: Auto-healing missing Shopify Customer ID for phone: $phone");
         // Run Shopify sync to fetch and save customer ID in background
         AuthController.syncWithShopify(phone).catchError((e) {
           debugPrint("Splash: Auto-heal error: $e");
@@ -119,7 +125,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (updateType == UpdateType.force && mounted) {
       UpdateService.showUpdateDialog(context, UpdateType.force);
-      return; 
+      return;
     }
 
     await Future.delayed(const Duration(milliseconds: 3200));
@@ -132,8 +138,10 @@ class _SplashScreenState extends State<SplashScreen>
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const MyHomePage(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const MyHomePage(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
             },
             transitionDuration: const Duration(milliseconds: 500),
@@ -301,7 +309,7 @@ class _SplashScreenState extends State<SplashScreen>
                   },
                 ),
               ),
-              
+
               // --- BOTTOM LOADING INDICATOR ---
               Positioned(
                 bottom: size.height * 0.08,
@@ -315,11 +323,12 @@ class _SplashScreenState extends State<SplashScreen>
                         mainAxisSize: MainAxisSize.min,
                         children: List.generate(3, (index) {
                           double delay = index * 0.2;
-                          double dotValue = ((_dotsController.value + delay) % 1.0);
-                          double opacity = dotValue < 0.5 
-                            ? (dotValue * 2) 
-                            : (1.0 - (dotValue - 0.5) * 2);
-                          
+                          double dotValue =
+                              ((_dotsController.value + delay) % 1.0);
+                          double opacity = dotValue < 0.5
+                              ? (dotValue * 2)
+                              : (1.0 - (dotValue - 0.5) * 2);
+
                           return Container(
                             margin: const EdgeInsets.symmetric(horizontal: 4),
                             width: 8,

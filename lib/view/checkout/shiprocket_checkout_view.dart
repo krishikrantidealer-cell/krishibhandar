@@ -7,9 +7,9 @@ import 'package:kisan_sewa_kendra/view/checkout/order_success_view.dart';
 import 'package:kisan_sewa_kendra/shopify/shopify.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:flutter/services.dart'; // For clipboard operations
 import 'package:kisan_sewa_kendra/utils/meta_events.dart';
 import 'package:kisan_sewa_kendra/utils/firebase_events.dart';
+import 'package:kisan_sewa_kendra/services/attribution_service.dart';
 
 class ShiprocketCheckoutView extends StatefulWidget {
   final List<CartItem> cartItems;
@@ -38,12 +38,23 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
   double _progress = 0;
   bool _isRedirecting = false;
   bool _isSuccessLogged = false;
+  Map<String, String> _utmParams = {};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initController();
+    _loadAttributionAndLoadUrl();
+  }
+
+  Future<void> _loadAttributionAndLoadUrl() async {
+    try {
+      _utmParams = await AttributionService().getAttribution();
+    } catch (e) {
+      debugPrint("Error loading attribution in checkout: $e");
+    }
+    _loadCheckoutHtml();
   }
 
   @override
@@ -92,80 +103,6 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
 
   void _initController() {
     debugPrint("DEBUG: Initializing Shiprocket WebView Controller");
-
-    final cartItemsMapped = widget.cartItems.map((item) {
-      // Extract numeric IDs from GIDs if necessary
-      final productIdStr = item.productId?.split('/').last ?? '';
-      final variantIdStr = item.id.split('/').last;
-
-      // Convert to numeric types for Shiprocket payload
-      final productId = int.tryParse(productIdStr);
-      final variantId = int.tryParse(variantIdStr);
-      final price =
-          double.tryParse(item.price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0;
-
-      return {
-        'id': productId,
-        'variant_id': variantId,
-        'quantity': item.qty,
-        'title': item.title,
-        'price': price,
-        'image': item.image,
-      };
-    }).toList();
-
-    final cartJson = jsonEncode(cartItemsMapped);
-
-    final html = '''
-   <!DOCTYPE html>
-   <html>
-    <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <script>
-        window.Shopify = {
-          shop: "krishibhandar.com"
-        };
-      </script>
-      <script src="https://fastrr-boost-ui.pickrr.com/assets/js/channels/mobileApp.js"></script>
-    </head>
-   <body style="margin:0;padding:0;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;">
-   
-   <div id="loader" style="color:#26842c; font-weight: bold;">Redirecting to checkout...</div>
-
-   <script>
-     function startCheckout() {
-       try {
-         if (typeof window.getOneClickCheckoutUrl === "function") {
-           const items = $cartJson;
-
-           const checkoutUrl = window.getOneClickCheckoutUrl({
-             items: items,
-             domain: "krishibhandar.com",
-             webUrl: "krishibhandar.com",
-             couponCode: ${widget.couponCode != null ? '"${widget.couponCode}"' : 'null'}
-           });
-
-           if (checkoutUrl) {
-             window.location.href = checkoutUrl;
-           } else {
-             document.getElementById('loader').innerHTML = "<h3>Checkout URL generation failed</h3>";
-           }
-         } else {
-           setTimeout(startCheckout, 500);
-         }
-       } catch (e) {
-         document.getElementById('loader').innerHTML = "<h3>Error: " + e.message + "</h3>";
-       }
-     }
-
-     window.onload = function() {
-       startCheckout();
-     }
-   </script>
-
-   </body>
-   </html>
-   ''';
 
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -387,6 +324,94 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
           },
         ),
       );
+  }
+
+  void _loadCheckoutHtml() {
+    final cartItemsMapped = widget.cartItems.map((item) {
+      // Extract numeric IDs from GIDs if necessary
+      final productIdStr = item.productId?.split('/').last ?? '';
+      final variantIdStr = item.id.split('/').last;
+
+      // Convert to numeric types for Shiprocket payload
+      final productId = int.tryParse(productIdStr);
+      final variantId = int.tryParse(variantIdStr);
+      final price =
+          double.tryParse(item.price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0;
+
+      return {
+        'id': productId,
+        'variant_id': variantId,
+        'quantity': item.qty,
+        'title': item.title,
+        'price': price,
+        'image': item.image,
+      };
+    }).toList();
+
+    final cartJson = jsonEncode(cartItemsMapped);
+    final utmJson = jsonEncode(_utmParams);
+
+    final html = '''
+   <!DOCTYPE html>
+   <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <script>
+        window.Shopify = {
+          shop: "krishibhandar.com"
+        };
+      </script>
+      <script src="https://fastrr-boost-ui.pickrr.com/assets/js/channels/mobileApp.js"></script>
+    </head>
+   <body style="margin:0;padding:0;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;">
+   
+   <div id="loader" style="color:#26842c; font-weight: bold;">Redirecting to checkout...</div>
+ 
+   <script>
+     function startCheckout() {
+       try {
+         if (typeof window.getOneClickCheckoutUrl === "function") {
+           const items = $cartJson;
+ 
+           let checkoutUrl = window.getOneClickCheckoutUrl({
+             items: items,
+             domain: "krishibhandar.com",
+             webUrl: "krishibhandar.com",
+             couponCode: ${widget.couponCode != null ? '"${widget.couponCode}"' : 'null'},
+             note_attributes: $utmJson,
+             attributes: $utmJson,
+             cart_attributes: $utmJson
+           });
+ 
+           if (checkoutUrl) {
+             const utmParams = $utmJson;
+             let separator = checkoutUrl.includes('?') ? '&' : '?';
+             for (const [key, value] of Object.entries(utmParams)) {
+               if (value && value !== 'None') {
+                 checkoutUrl += separator + encodeURIComponent(key) + '=' + encodeURIComponent(value);
+                 separator = '&';
+               }
+             }
+             window.location.href = checkoutUrl;
+           } else {
+             document.getElementById('loader').innerHTML = "<h3>Checkout URL generation failed</h3>";
+           }
+         } else {
+           setTimeout(startCheckout, 500);
+         }
+       } catch (e) {
+         document.getElementById('loader').innerHTML = "<h3>Error: " + e.message + "</h3>";
+       }
+     }
+ 
+     window.onload = function() {
+       startCheckout();
+     }
+   </script>
+ 
+   </body>
+   </html>
+   ''';
 
     _controller.loadHtmlString(html);
   }
@@ -419,29 +444,15 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
     final paymentId = _resolvePaymentId(successUrl);
     debugPrint(
         "DEBUG: Success Pattern Detected. Clearing Cart for Order: $orderNumber ($paymentId)");
+    
+    // Clear cart synchronously/awaited since it's local and needs to be done before showing success page
     await CartController.clearCart();
 
-    // 1. Try to sync customer from the Shopify order (works when URL has /orders/<id>)
-    await AuthController.syncCustomerFromOrder(orderNumber);
+    // Extract shipping address phone before the widget is disposed/screen popped
+    final shippingPhone = widget.shippingAddress?['phone']?.toString();
 
-    // 2. Fallback: if customer ID still not saved, sync using phone from shipping address.
-    //    This handles cases where Shiprocket's success URL is just "thank-you" with no order ID.
-    final existingId = await AuthController.getShopifyCustomerId();
-    if (existingId == null) {
-      final phone = widget.shippingAddress?['phone']?.toString() ??
-          await AuthController.getSavedPhone();
-      if (phone != null && phone.isNotEmpty) {
-        // Normalize to 10-digit
-        final normalized = phone.replaceAll(RegExp(r'[^\d]'), '');
-        final digits = normalized.length > 10
-            ? normalized.substring(normalized.length - 10)
-            : normalized;
-        if (digits.length == 10) {
-          debugPrint('DEBUG: Fallback — syncing customer by phone: $digits');
-          await AuthController.syncWithShopify(digits);
-        }
-      }
-    }
+    // Run Shopify attribution update and customer syncing in background without blocking the UI
+    _runBackgroundSync(orderNumber, shippingPhone);
 
     if (mounted) {
       Navigator.pushReplacement(
@@ -454,6 +465,40 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
           ),
         ),
       );
+    }
+  }
+
+  void _runBackgroundSync(String orderNumber, String? shippingPhone) async {
+    // Direct background update of order UTM parameters in Shopify notes via Admin API
+    try {
+      await ShopifyAPI.updateOrderAttribution(orderNumber);
+    } catch (e) {
+      debugPrint("Error updating Shopify order notes: $e");
+    }
+
+    try {
+      // 1. Try to sync customer from the Shopify order (works when URL has /orders/<id>)
+      await AuthController.syncCustomerFromOrder(orderNumber);
+
+      // 2. Fallback: if customer ID still not saved, sync using phone from shipping address.
+      //    This handles cases where Shiprocket's success URL is just "thank-you" with no order ID.
+      final existingId = await AuthController.getShopifyCustomerId();
+      if (existingId == null) {
+        final phone = shippingPhone ?? await AuthController.getSavedPhone();
+        if (phone != null && phone.isNotEmpty) {
+          // Normalize to 10-digit
+          final normalized = phone.replaceAll(RegExp(r'[^\d]'), '');
+          final digits = normalized.length > 10
+              ? normalized.substring(normalized.length - 10)
+              : normalized;
+          if (digits.length == 10) {
+            debugPrint('DEBUG: Fallback — syncing customer by phone: $digits');
+            await AuthController.syncWithShopify(digits);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error syncing customer in background: $e");
     }
   }
 

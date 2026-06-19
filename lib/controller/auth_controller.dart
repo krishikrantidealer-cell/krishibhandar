@@ -90,7 +90,6 @@ class AuthController {
 
     if (phone != null && phone.isNotEmpty) {
       await prefs.setString(_keyPhone, phone);
-      syncWithShopify(phone);
     }
   }
 
@@ -125,7 +124,6 @@ class AuthController {
 
       if (phone != null && phone.isNotEmpty) {
         await prefs.setString(_keyPhone, phone);
-        syncWithShopify(phone);
       }
     }
   }
@@ -239,6 +237,25 @@ class AuthController {
 
       final prefs = await SharedPreferences.getInstance();
 
+      // ── User-switch guard ────────────────────────────────────────────────
+      // If a different phone is logging in (e.g. app update, shared device),
+      // wipe the previous user's data so their orders/addresses don't leak.
+      final savedPhone = prefs.getString(_keyPhone);
+      final normalizedIncoming = phone.replaceAll(RegExp(r'[^\d]'), '');
+      final normalizedSaved = savedPhone?.replaceAll(RegExp(r'[^\d]'), '') ?? '';
+      if (normalizedSaved.isNotEmpty && normalizedSaved != normalizedIncoming) {
+        debugPrint('AuthController: New user detected ($normalizedSaved → $normalizedIncoming). Clearing old user data.');
+        await Future.wait([
+          prefs.remove(_keyPhone),
+          prefs.remove(_keyName),
+          prefs.remove(_keyShopifyId),
+          prefs.remove(_keyEmail),
+          prefs.remove(_keyAddressList),
+          prefs.remove(_keyState),
+        ]);
+      }
+      // ────────────────────────────────────────────────────────────────────
+
       // 1. Consolidated Search (Faster: 1 request instead of 3)
       // We search for E.164, local format, and raw digits in one go using OR
       final String query = 'phone:"+91$phone" OR phone:"$phone" OR "$phone"';
@@ -326,34 +343,65 @@ class AuthController {
         if (res.statusCode == 200) {
           order = jsonDecode(res.body)['order'];
         }
-      }
+      } else {
+        // A. Search matching order by checking latest orders (to handle checkout_token / cart_token / name)
+        // We poll up to 5 times (total 15 seconds) because external checkout systems (Fastrr) 
+        // create orders asynchronously.
+        int attempts = 5;
+        for (int i = 0; i < attempts; i++) {
+          var res = await http.get(
+            Uri.parse('$baseUrl/orders.json?limit=30&status=any'),
+            headers: headers,
+          );
+          if (res.statusCode == 200) {
+            final orders = jsonDecode(res.body)['orders'] as List?;
+            if (orders != null && orders.isNotEmpty) {
+              for (var ord in orders) {
+                final ordToken = ord['checkout_token']?.toString() ?? '';
+                final ordCartToken = ord['cart_token']?.toString() ?? '';
+                final ordName = ord['name']?.toString() ?? '';
 
-      // 2. If not found or not numeric, search by name
-      if (order == null) {
-        final encodedName = Uri.encodeComponent(orderIdOrName.startsWith('#') ? orderIdOrName : '#$orderIdOrName');
-        var res = await http.get(
-          Uri.parse('$baseUrl/orders.json?name=$encodedName&limit=1'),
-          headers: headers,
-        );
-        if (res.statusCode == 200) {
-          final orders = jsonDecode(res.body)['orders'] as List?;
-          if (orders != null && orders.isNotEmpty) {
-            order = orders[0];
+                if (ordToken.toLowerCase() == orderIdOrName.toLowerCase() ||
+                    ordCartToken.toLowerCase() == orderIdOrName.toLowerCase() ||
+                    ordName.toLowerCase() == orderIdOrName.toLowerCase()) {
+                  order = ord;
+                  debugPrint("🎯 syncCustomerFromOrder: Found matching order: ${ord['id']} on attempt ${i + 1}");
+                  break;
+                }
+              }
+            }
+          }
+
+          if (order != null) break;
+
+          if (i < attempts - 1) {
+            debugPrint("⏳ syncCustomerFromOrder: Order $orderIdOrName not found in Shopify yet (attempt ${i + 1}/$attempts). Retrying in 3 seconds...");
+            await Future.delayed(const Duration(seconds: 3));
           }
         }
-      }
 
-      // 3. Search by name without #
-      if (order == null) {
-        final encodedName = Uri.encodeComponent(orderIdOrName.replaceAll('#', ''));
-        var res = await http.get(
-          Uri.parse('$baseUrl/orders.json?name=$encodedName&limit=1'),
-          headers: headers,
-        );
-        if (res.statusCode == 200) {
-          final orders = jsonDecode(res.body)['orders'] as List?;
-          if (orders != null && orders.isNotEmpty) {
-            order = orders[0];
+        // B. Fallback: Search latest order in the system if created in the last 10 minutes
+        if (order == null) {
+          var res = await http.get(
+            Uri.parse('$baseUrl/orders.json?limit=1&status=any'),
+            headers: headers,
+          );
+          if (res.statusCode == 200) {
+            final orders = jsonDecode(res.body)['orders'] as List?;
+            if (orders != null && orders.isNotEmpty) {
+              final latestOrder = orders.first;
+              final createdAtStr = latestOrder['created_at']?.toString();
+              if (createdAtStr != null) {
+                final createdAt = DateTime.tryParse(createdAtStr);
+                if (createdAt != null) {
+                  final difference = DateTime.now().toUtc().difference(createdAt.toUtc()).inMinutes;
+                  if (difference.abs() <= 10) {
+                    order = latestOrder;
+                    debugPrint("🎯 syncCustomerFromOrder: Matched order based on latest order fallback (created $difference min ago): ${order['id']}");
+                  }
+                }
+              }
+            }
           }
         }
       }

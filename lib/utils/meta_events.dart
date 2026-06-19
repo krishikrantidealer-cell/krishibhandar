@@ -103,4 +103,40 @@ class MetaEvents {
       valueToSum: totalValue,
     );
   }
+
+  /// Trigger: When user logs in
+  static void login() {
+    // debugPrint("MetaEvents: Logging login");
+    _facebookAppEvents.logEvent(name: 'fb_mobile_login_complete');
+  }
+
+  /// Trigger: When user searches
+  static void search({required String query}) {
+    // debugPrint("MetaEvents: Logging search for '$query'");
+    _facebookAppEvents.logEvent(
+      name: 'fb_mobile_search',
+      parameters: {
+        'fb_search_string': query,
+        'fb_success': true,
+      },
+    );
+  }
+
+  /// Trigger: When user removes product from cart
+  static void removeFromCart({
+    required String id,
+    required double price,
+  }) {
+    // debugPrint("MetaEvents: Logging removeFromCart for ID: $id, Price: $price");
+    _facebookAppEvents.logEvent(
+      name: 'remove_from_cart',
+      parameters: {
+        'fb_content_type': 'product',
+        'fb_content_id': id,
+        'fb_currency': 'INR',
+        'fb_value': price,
+      },
+      valueToSum: price,
+    );
+  }
 }

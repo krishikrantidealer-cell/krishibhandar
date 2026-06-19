@@ -99,9 +99,13 @@ class OrderModel {
   }
 
   bool get isCancellable {
-    return cancelledAt == null && 
-           fulfillments.isEmpty && 
-           !hasTrackingNumber && 
+    // Also check financialStatus: Shopify sets it to 'voided' or 'refunded'
+    // immediately on cancel, sometimes before cancelled_at propagates in the API.
+    final fs = financialStatus.toLowerCase();
+    if (fs == 'voided' || fs == 'refunded') return false;
+    return cancelledAt == null &&
+           fulfillments.isEmpty &&
+           !hasTrackingNumber &&
            trackingStatus != 'Cancelled' &&
            trackingStatus != 'Shipped' &&
            trackingStatus != 'Delivered';
@@ -135,6 +139,35 @@ class OrderModel {
     } catch (e) {
       return createdAt.split('T')[0];
     }
+  }
+
+  OrderModel copyWith({
+    String? cancelledAt,
+    String? financialStatus,
+    String? fulfillmentStatus,
+  }) {
+    return OrderModel(
+      id: id,
+      orderNumber: orderNumber,
+      createdAt: createdAt,
+      totalPrice: totalPrice,
+      currency: currency,
+      fulfillmentStatus: fulfillmentStatus ?? this.fulfillmentStatus,
+      financialStatus: financialStatus ?? this.financialStatus,
+      cancelledAt: cancelledAt ?? this.cancelledAt,
+      closedAt: closedAt,
+      confirmed: confirmed,
+      lineItems: lineItems,
+      fulfillments: fulfillments,
+      subtotalPrice: subtotalPrice,
+      totalTax: totalTax,
+      totalShipping: totalShipping,
+      shippingAddress: shippingAddress,
+      firstName: firstName,
+      lastName: lastName,
+      customerPhone: customerPhone,
+      orderStatusUrl: orderStatusUrl,
+    );
   }
 
   int get totalQuantity {

@@ -89,9 +89,20 @@ class _OrderViewState extends State<OrderView>
   /// Fetch orders using the Shopify customer ID saved after checkout.
   /// No login required — customer ID is set automatically via syncCustomerFromOrder.
   Future<void> _fetchOrders() async {
-    final customerId = await AuthController.getShopifyCustomerId();
+    var customerId = await AuthController.getShopifyCustomerId();
+
+    // Auto-heal missing customer ID if phone is saved when loading the screen
+    if (customerId == null || customerId.isEmpty || customerId == "null") {
+      final phone = await AuthController.getSavedPhone();
+      if (phone != null && phone.isNotEmpty) {
+        if (mounted) setState(() => _isLoadingOrders = true);
+        await AuthController.syncWithShopify(phone);
+        customerId = await AuthController.getShopifyCustomerId();
+      }
+    }
+
     // No customer ID means user hasn't placed an order yet — show empty state.
-    if (customerId == null) {
+    if (customerId == null || customerId.isEmpty || customerId == "null") {
       if (mounted) setState(() => _isLoadingOrders = false);
       return;
     }

@@ -1,66 +1,15 @@
-import 'package:appsflyer_sdk/appsflyer_sdk.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:kisan_sewa_kendra/main.dart';
+import 'package:kisan_sewa_kendra/utils/meta_events.dart';
 
 class AttributionService {
   static final AttributionService _instance = AttributionService._internal();
   factory AttributionService() => _instance;
   AttributionService._internal();
 
-  static AppsflyerSdk? _sdk;
-
-  // Call once on app start — captures install + re-open attribution
-  Future<void> init(AppsflyerSdk sdk) async {
-    _sdk = sdk;
-    // For NEW installs (first open after ad click)
-    sdk.onInstallConversionData((data) async {
-      final prefs = await SharedPreferences.getInstance();
-      final attrs = data['payload'] ?? {};
-      final source = attrs['media_source'] ?? 'organic';
-      print("🚀 AppsFlyer Install Data: $source | Campaign: ${attrs['campaign']}");
-      
-      // ONLY overwrite if it's a REAL campaign (not organic)
-      if (source != 'organic' && source != 'None') {
-        await prefs.setString('utm_source', source);
-        await prefs.setString('utm_campaign', attrs['campaign'] ?? '');
-        await prefs.setString('utm_term', attrs['adset'] ?? '');
-        await prefs.setString('utm_content', attrs['ad'] ?? '');
-        await prefs.setString('utm_medium', 'app');
-      }
-
-      // Step 6.2 — Deferred deep link navigation
-      final deepLinkValue = attrs['deep_link_value'];
-      final productId = attrs['product_id'];
-      final category = attrs['category'];
-
-      if (deepLinkValue == 'product' && productId != null) {
-        navigatorKey.currentState?.pushNamed('/product/$productId');
-      } else if (deepLinkValue == 'category' && category != null) {
-        navigatorKey.currentState?.pushNamed('/category/$category');
-      } else if (deepLinkValue == 'offer') {
-        navigatorKey.currentState?.pushNamed('/offers');
-      } else if (deepLinkValue == 'cart') {
-        navigatorKey.currentState?.pushNamed('/cart');
-      }
-    });
-
-    // For EXISTING users opening app via ad
-    sdk.onAppOpenAttribution((data) async {
-      final prefs = await SharedPreferences.getInstance();
-      final attrs = data['payload'] ?? {};
-      final source = attrs['media_source'] ?? 'organic';
-      print("📱 AppsFlyer App Open Data: $source | Campaign: ${attrs['campaign']}");
-
-      // ONLY overwrite if it's a REAL campaign (not organic)
-      if (source != 'organic' && source != 'None') {
-        await prefs.setString('utm_source', source);
-        await prefs.setString('utm_campaign', attrs['campaign'] ?? '');
-        await prefs.setString('utm_term', attrs['adset'] ?? '');
-        await prefs.setString('utm_content', attrs['ad'] ?? '');
-        await prefs.setString('utm_medium', 'app');
-      }
-    });
+  // Call once on app start — initializes attribution logic
+  Future<void> init() async {
+    print("🚀 Attribution Service Initialized (Meta SDK Mode)");
   }
 
   // Call this when building checkout — returns all attribution values
@@ -81,13 +30,26 @@ class AttributionService {
 
     final prefs = await SharedPreferences.getInstance();
     final campaign = message.data['campaign'] ?? 'push_campaign';
-    print("🔔 Push Notification Tapped: $campaign");
+    print("🔔 Push Campaign Tracked: $campaign");
 
     await prefs.setString('utm_source', 'push_notification');
     await prefs.setString('utm_medium', 'app');
     await prefs.setString('utm_campaign', campaign);
     await prefs.setString('utm_content', message.data['notification_id'] ?? '');
-    await prefs.setString('utm_term', '');
+  }
+
+  // Save UTM parameters directly from map (e.g. from deep link query params)
+  Future<void> saveAttributionFromMap(Map<String, String> queryParams) async {
+    final prefs = await SharedPreferences.getInstance();
+    final source = queryParams['utm_source'];
+    if (source != null && source.isNotEmpty && source != 'organic' && source != 'None') {
+      await prefs.setString('utm_source', source);
+      await prefs.setString('utm_campaign', queryParams['utm_campaign'] ?? '');
+      await prefs.setString('utm_medium', queryParams['utm_medium'] ?? 'app');
+      await prefs.setString('utm_content', queryParams['utm_content'] ?? '');
+      await prefs.setString('utm_term', queryParams['utm_term'] ?? '');
+      print("🎯 UTM Attribution Saved: $source | Campaign: ${queryParams['utm_campaign']}");
+    }
   }
 
   // Clear attribution after a successful order to prevent multi-order attribution to same click
@@ -101,74 +63,45 @@ class AttributionService {
     print("🧹 Attribution Data Cleared");
   }
 
-  // Track Purchase/Revenue in AppsFlyer
+  // Track Purchase/Revenue in Meta SDK
   static void logPurchase(double amount, String orderId) {
-    if (_sdk == null) {
-      print("⚠️ AppsFlyer logPurchase failed: SDK not initialized");
-      return;
-    }
-
-    _sdk!.logEvent("af_purchase", {
-      "af_revenue": amount,
-      "af_currency": "INR",
-      "af_order_id": orderId,
-      "af_quantity": 1, // Default to 1 if list is not provided
-    });
-    print("💰 AppsFlyer Revenue Logged: ₹$amount for Order $orderId");
+    MetaEvents.purchase(totalValue: amount, contentIds: orderId);
+    print("💰 Meta SDK Purchase Logged: ₹$amount for Order $orderId");
   }
 
   // Track Add to Cart
   static void logAddToCart(String id, double price) {
-    _sdk?.logEvent("af_add_to_cart", {
-      "af_content_id": id,
-      "af_currency": "INR",
-      "af_price": price,
-    });
-    print("🛒 AppsFlyer AddToCart: $id | ₹$price");
+    MetaEvents.addToCart(id: id, name: null, price: price.toString());
+    print("🛒 Meta SDK AddToCart Logged: $id | ₹$price");
   }
 
   // Track Initiate Checkout
   static void logInitiateCheckout(double amount) {
-    _sdk?.logEvent("af_initiated_checkout", {
-      "af_revenue": amount,
-      "af_currency": "INR",
-    });
-    print("💳 AppsFlyer Initiate Checkout: ₹$amount");
+    MetaEvents.initiateCheckout(totalValue: amount);
+    print("💳 Meta SDK Initiate Checkout Logged: ₹$amount");
   }
 
   // Track Login
   static void logLogin() {
-    _sdk?.logEvent("af_login", {});
-    print("🔑 AppsFlyer Login Logged");
+    MetaEvents.login();
+    print("🔑 Meta SDK Login Logged");
   }
 
   // Track View Content (Product View)
   static void logViewContent(String id, String name, String price) {
-    _sdk?.logEvent("af_content_view", {
-      "af_content_id": id,
-      "af_content_type": "product",
-      "af_price": double.tryParse(price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0,
-      "af_currency": "INR",
-      "af_content": name,
-    });
-    print("👁️ AppsFlyer ViewContent: $name (₹$price)");
+    MetaEvents.viewContent(id: id, name: name, price: price);
+    print("👁️ Meta SDK ViewContent Logged: $name (₹$price)");
   }
 
   // Track Search
   static void logSearch(String query) {
-    _sdk?.logEvent("af_search", {
-      "af_search_string": query,
-    });
-    print("🔍 AppsFlyer Search: $query");
+    MetaEvents.search(query: query);
+    print("🔍 Meta SDK Search Logged: $query");
   }
 
   // Track Remove from Cart
   static void logRemoveFromCart(String id, double price) {
-    _sdk?.logEvent("af_remove_from_cart", {
-      "af_content_id": id,
-      "af_price": price,
-      "af_currency": "INR",
-    });
-    print("🗑️ AppsFlyer RemoveFromCart: $id | ₹$price");
+    MetaEvents.removeFromCart(id: id, price: price);
+    print("🗑️ Meta SDK RemoveFromCart Logged: $id | ₹$price");
   }
 }

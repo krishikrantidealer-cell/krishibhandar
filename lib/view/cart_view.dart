@@ -9,11 +9,9 @@ import '../controller/constants.dart';
 import '../services/attribution_service.dart';
 import '../controller/cart_controller.dart';
 import '../controller/auth_controller.dart';
-import '../shopify/shopify.dart';
 import 'checkout/address_view.dart';
 import 'checkout/coupons_view.dart';
 import 'checkout/shiprocket_checkout_view.dart';
-import 'checkout/order_success_view.dart';
 
 class CartView extends StatefulWidget {
   const CartView({super.key});
@@ -22,7 +20,7 @@ class CartView extends StatefulWidget {
   State<CartView> createState() => _CartViewState();
 }
 
-class _CartViewState extends State<CartView> {
+class _CartViewState extends State<CartView> with WidgetsBindingObserver {
   Map<String, dynamic>? _selectedAddress;
   Map<String, dynamic>? _appliedDiscount;
   bool _isProcessingOrder = false;
@@ -32,8 +30,19 @@ class _CartViewState extends State<CartView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _init();
     _loadDefaultAddress();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Reload cart when returning to foreground — catches the case where
+    // clearCart() was called in ShiprocketCheckoutView (underneath in stack)
+    // and the in-memory _cartItems list still holds stale data.
+    if (state == AppLifecycleState.resumed) {
+      _init(skipValidation: true);
+    }
   }
 
   Future<void> _loadDefaultAddress() async {
@@ -51,6 +60,7 @@ class _CartViewState extends State<CartView> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -1327,110 +1337,13 @@ class _CartViewState extends State<CartView> {
               : 0.0,
         ),
       ),
-    );
-  }
-
-  void _openCodCheckout() async {
-    if (_selectedAddress == null) {
-      _selectAddress();
-      return;
-    }
-
-    setState(() => _isProcessingOrder = true);
-
-    try {
-      final customerId = await AuthController.getShopifyCustomerId();
-      final email = await AuthController.getSavedEmail();
-      final phone = await AuthController.getSavedPhone();
-
-      // Ensure phone is added to shipping address if missing
-      final address = Map<String, dynamic>.from(_selectedAddress!);
-      if (address['phone'] == null || address['phone'].toString().isEmpty) {
-        address['phone'] = phone ?? '';
-      }
-
-      // Map cart items
-      final List<Map<String, dynamic>> items = _cartItems.map((item) {
-        final price =
-            double.tryParse(item.price.replaceAll(RegExp(r'[^\d.]'), '')) ??
-                0.0;
-        return {
-          'variant_id': item.id,
-          'quantity': item.qty,
-          'price': price,
-        };
-      }).toList();
-
-      double discountAmount = 0.0;
-      String? discountCode;
-      if (_appliedDiscount != null) {
-        discountCode = _appliedDiscount!['code']?.toString();
-        discountAmount =
-            double.tryParse(_appliedDiscount!['value']?.toString() ?? '') ??
-                0.0;
-      }
-
-      final res = await ShopifyAPI.createOrder(
-        customerId: customerId,
-        email: email,
-        lineItems: items,
-        shippingAddress: address,
-        totalAmount: _getFinalTotal(),
-        discountCode: discountCode,
-        discountAmount: discountAmount,
-        isCod: true,
-      );
-
-      if (res['error'] != null) {
-        final errMsg = res['error'].toString();
-        debugPrint('COD Order Error: $errMsg');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Order Failed: $errMsg"),
-              duration: const Duration(seconds: 8),
-              action: SnackBarAction(
-                label: 'OK',
-                onPressed: () =>
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-              ),
-            ),
-          );
-        }
-      } else {
-        // Success
-        final order = res['order'];
-        final orderNumber =
-            order?['name']?.toString().replaceAll('#', '') ?? 'CONFIRMED';
-
-        await CartController.clearCart();
-        
-        // Sync customer details from order
-        await AuthController.syncCustomerFromOrder(orderNumber);
-
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => OrderSuccessView(
-                orderNumber: orderNumber,
-                totalAmount: _getFinalTotal(),
-                paymentId: "Cash on Delivery",
-              ),
-            ),
-          );
-        }
-      }
-    } catch (e) {
+    ).then((_) {
+      // Reload cart from SharedPreferences when returning from checkout.
+      // Handles the case where clearCart() was called on order success
+      // but CartView was still alive in the stack with stale in-memory data.
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e")),
-        );
+        _init(skipValidation: true);
       }
-    } finally {
-      if (mounted) {
-        setState(() => _isProcessingOrder = false);
-      }
-    }
+    });
   }
 }

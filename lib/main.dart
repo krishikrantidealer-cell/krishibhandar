@@ -1,8 +1,8 @@
-import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:appsflyer_sdk/appsflyer_sdk.dart';
+import 'package:app_links/app_links.dart';
 import 'package:kisan_sewa_kendra/controller/pref.dart';
 import 'package:kisan_sewa_kendra/services/attribution_service.dart';
 import 'package:flutter/material.dart';
@@ -98,69 +98,94 @@ void main() async {
       debugPrint("Meta Events Error: $e");
     }
 
-    // 6. Initialize AppsFlyer and Attribution
+    // 6. Initialize Attribution Service
     try {
-      AppsFlyerOptions afOptions = AppsFlyerOptions(
-        afDevKey: "uphcn8e9ZxH7a38qCXQEcd",
-        showDebug: false,
-        timeToWaitForATTUserAuthorization: 15,
-      );
-
-      AppsflyerSdk appsflyerSdk = AppsflyerSdk(afOptions);
-      await appsflyerSdk.initSdk(
-        registerConversionDataCallback: true,
-        registerOnAppOpenAttributionCallback: true,
-        registerOnDeepLinkingCallback: true,
-      );
-
-      // Sync FCM Token for Uninstall Tracking
-      FirebaseMessaging.instance.getToken().then((token) {
-        if (token != null) {
-          appsflyerSdk.updateServerUninstallToken(token);
-          debugPrint("🚀 AppsFlyer Uninstall Token Updated");
-        }
-      });
-
-      appsflyerSdk.onDeepLinking((DeepLinkResult dp) {
-        if (dp.status == Status.FOUND) {
-          final deepLinkValue = dp.deepLink?.deepLinkValue;
-          final params = dp.deepLink?.clickEvent;
-
-          switch (deepLinkValue) {
-            case 'product':
-              final productId = params?['product_id'];
-              if (productId != null) {
-                navigatorKey.currentState?.pushNamed('/product/$productId');
-              }
-              break;
-            case 'category':
-              final category = params?['category'];
-              if (category != null) {
-                navigatorKey.currentState?.pushNamed('/category/$category');
-              }
-              break;
-            case 'offer':
-              navigatorKey.currentState?.pushNamed('/offers');
-              break;
-            case 'cart':
-              navigatorKey.currentState?.pushNamed('/cart');
-              break;
-            default:
-              break;
-          }
-        }
-      });
-
-      await AttributionService().init(appsflyerSdk);
+      await AttributionService().init();
+      _initDeepLinks();
     } catch (e) {
-      // debugPrint("AppsFlyer/Attribution Error: $e");
+      debugPrint("Attribution Service Error: $e");
     }
   } catch (e) {
-    // debugPrint("Core Firebase Error: $e");
+    debugPrint("Core Firebase Error: $e");
   }
 
   // 7. Always run the app
   runApp(MyApp(languageController: Constants.languageController));
+}
+
+void _initDeepLinks() {
+  final appLinks = AppLinks();
+
+  // Listen to incoming links while app is open
+  appLinks.uriLinkStream.listen((uri) {
+    _handleDeepLink(uri);
+  }, onError: (err) {
+    debugPrint("Deep Link Stream Error: $err");
+  });
+
+  // Handle link that opened the app from terminated state
+  appLinks.getInitialLink().then((uri) {
+    if (uri != null) {
+      _handleDeepLink(uri);
+    }
+  }).catchError((err) {
+    debugPrint("Deep Link Initial Link Error: $err");
+  });
+}
+
+void _handleDeepLink(Uri uri) {
+  debugPrint("🔗 Received Deep Link: $uri");
+
+  // 1. Parse UTM parameters
+  final queryParams = uri.queryParameters;
+  if (queryParams.isNotEmpty) {
+    AttributionService().saveAttributionFromMap(queryParams);
+  }
+
+  // 2. Route Navigation
+  // Scheme can be 'krishibhandar' or 'https'/'http'
+  final pathSegments = uri.pathSegments;
+  final host = uri.host;
+
+  String? route;
+  String? parameter;
+
+  if (uri.scheme == 'krishibhandar') {
+    route = host;
+    if (pathSegments.isNotEmpty) {
+      parameter = pathSegments.first;
+    }
+  } else if (uri.scheme == 'https' || uri.scheme == 'http') {
+    if (pathSegments.isNotEmpty) {
+      route = pathSegments.first;
+      if (pathSegments.length > 1) {
+        parameter = pathSegments[1];
+      }
+    }
+  }
+
+  if (route != null) {
+    switch (route) {
+      case 'product':
+        if (parameter != null) {
+          navigatorKey.currentState?.pushNamed('/product/$parameter');
+        }
+        break;
+      case 'category':
+        if (parameter != null) {
+          navigatorKey.currentState?.pushNamed('/category/$parameter');
+        }
+        break;
+      case 'offer':
+        navigatorKey.currentState?.pushNamed('/offers');
+        break;
+      case 'cart':
+        navigatorKey.currentState?.pushNamed('/cart');
+        break;
+      default:
+        break;
+    }
+  }
 }
 
 class MyApp extends StatelessWidget {
