@@ -20,6 +20,7 @@ class CartView extends StatefulWidget {
   State<CartView> createState() => _CartViewState();
 }
 
+//new sffsfsf
 class _CartViewState extends State<CartView> with WidgetsBindingObserver {
   Map<String, dynamic>? _selectedAddress;
   Map<String, dynamic>? _appliedDiscount;
