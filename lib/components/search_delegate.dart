@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:kisan_sewa_kendra/model/order_model.dart';
 import '../controller/constants.dart';
 import '../controller/routers.dart';
 import '../controller/technical_mapping_controller.dart';
@@ -11,16 +12,21 @@ import 'network_image.dart';
 import '../services/attribution_service.dart';
 
 class CustomSearchDelegate extends SearchDelegate<String> {
-  final ValueNotifier<int> _searchMode = ValueNotifier<int>(0); // 0: Product, 1: Technical
-  final ValueNotifier<TechnicalMappingModel?> _selectedTechnical = ValueNotifier<TechnicalMappingModel?>(null);
-  final TechnicalMappingController _techController = TechnicalMappingController();
+  final ValueNotifier<int> _searchMode =
+      ValueNotifier<int>(0); // 0: Product, 1: Technical
+  final ValueNotifier<TechnicalMappingModel?> _selectedTechnical =
+      ValueNotifier<TechnicalMappingModel?>(null);
+  final TechnicalMappingController _techController =
+      TechnicalMappingController();
 
   CustomSearchDelegate() {
     _techController.ensureLoaded();
   }
 
   @override
-  String get searchFieldLabel => _searchMode.value == 0 ? "Search by Product Name" : "Search by Technical Name";
+  String get searchFieldLabel => _searchMode.value == 0
+      ? "Search by Product Name"
+      : "Search by Technical Name";
 
   @override
   ThemeData appBarTheme(BuildContext context) {
@@ -107,13 +113,15 @@ class CustomSearchDelegate extends SearchDelegate<String> {
         children: [
           _buildSegmentItem(context, "Search by\nProduct Name", 0, currentMode),
           const SizedBox(width: 8),
-          _buildSegmentItem(context, "Search by\nTechnical Name", 1, currentMode),
+          _buildSegmentItem(
+              context, "Search by\nTechnical Name", 1, currentMode),
         ],
       ),
     );
   }
 
-  Widget _buildSegmentItem(BuildContext context, String title, int mode, int currentMode) {
+  Widget _buildSegmentItem(
+      BuildContext context, String title, int mode, int currentMode) {
     final isSelected = mode == currentMode;
     final lines = title.split('\n');
 
@@ -138,7 +146,9 @@ class CustomSearchDelegate extends SearchDelegate<String> {
                 style: GoogleFonts.outfit(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  color: isSelected ? Colors.white.withOpacity(0.9) : const Color(0xFF616161),
+                  color: isSelected
+                      ? Colors.white.withOpacity(0.9)
+                      : const Color(0xFF616161),
                 ),
               ),
               Text(
@@ -156,7 +166,8 @@ class CustomSearchDelegate extends SearchDelegate<String> {
     );
   }
 
-  Widget _buildSuggestionsContent(BuildContext context, TechnicalMappingModel? selectedTech) {
+  Widget _buildSuggestionsContent(
+      BuildContext context, TechnicalMappingModel? selectedTech) {
     if (_searchMode.value == 1) {
       return _buildTechnicalBrowser(context, selectedTech);
     }
@@ -184,7 +195,8 @@ class CustomSearchDelegate extends SearchDelegate<String> {
     );
   }
 
-  Widget _buildSearchContent(BuildContext context, TechnicalMappingModel? selectedTech) {
+  Widget _buildSearchContent(
+      BuildContext context, TechnicalMappingModel? selectedTech) {
     if (_searchMode.value == 1) {
       return _buildTechnicalBrowser(context, selectedTech);
     }
@@ -207,13 +219,15 @@ class CustomSearchDelegate extends SearchDelegate<String> {
     );
   }
 
-  Widget _buildTechnicalBrowser(BuildContext context, TechnicalMappingModel? selectedTech) {
+  Widget _buildTechnicalBrowser(
+      BuildContext context, TechnicalMappingModel? selectedTech) {
     if (!_techController.isLoaded) {
       return const Center(child: CircularProgressIndicator());
     }
 
     if (selectedTech != null) {
-      final products = _techController.getProductsForTechnical(selectedTech.technicalName);
+      final products =
+          _techController.getProductsForTechnical(selectedTech.technicalName);
       return _buildProductList(context, products, selectedTech.technicalName);
     }
 
@@ -234,7 +248,9 @@ class CustomSearchDelegate extends SearchDelegate<String> {
           final m = results[index];
           return ListTile(
             dense: true,
-            title: Text(m.technicalName, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 15)),
+            title: Text(m.technicalName,
+                style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w600, fontSize: 15)),
             onTap: () {
               _selectedTechnical.value = m;
               query = '';
@@ -263,33 +279,52 @@ class CustomSearchDelegate extends SearchDelegate<String> {
     );
   }
 
-  Widget _buildProductList(BuildContext context, List<ProductModel> products, [String? title]) {
+  Widget _buildProductList(BuildContext context, List<ProductModel> products,
+      [String? title]) {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: products.length + (title != null ? 1 : 0),
-      separatorBuilder: (context, index) => const Divider(height: 24, color: Color(0xFFF0F0F0)),
+      separatorBuilder: (context, index) =>
+          const Divider(height: 24, color: Color(0xFFF0F0F0)),
       itemBuilder: (context, index) {
         if (title != null && index == 0) {
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+            child: Text(title,
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5)),
           );
         }
         final product = products[title != null ? index - 1 : index];
         return ListTile(
           contentPadding: EdgeInsets.zero,
           leading: Container(
-            width: 55, height: 55,
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFF5F5F5))),
-            child: ClipRRect(borderRadius: BorderRadius.circular(12), child: KskNetworkImage(product.image ?? '', fit: BoxFit.contain)),
+            width: 55,
+            height: 55,
+            decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFF5F5F5))),
+            child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child:
+                    KskNetworkImage(product.image ?? '', fit: BoxFit.contain)),
           ),
-          title: Text(product.title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+          title: Text(product.title,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: Text("${Constants.inr}${product.variants.isNotEmpty ? product.variants.first.price : '0'}",
-                style: TextStyle(color: Constants.baseColor, fontWeight: FontWeight.w900, fontSize: 15)),
+            child: Text(
+                "${Constants.inr}${product.variants.isNotEmpty ? product.variants.first.price : '0'}",
+                style: TextStyle(
+                    color: Constants.baseColor,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 15)),
           ),
-          trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+          trailing: const Icon(Icons.arrow_forward_ios_rounded,
+              size: 14, color: Colors.grey),
           onTap: () async {
             // SAME Product Details Page for both modes
             await Routers.goTO(context, toBody: ProductView(product: product));
@@ -308,7 +343,8 @@ class _AlphabetRow extends StatefulWidget {
   final List<TechnicalMappingModel> mappings;
   final Function(TechnicalMappingModel) onTap;
 
-  const _AlphabetRow({required this.letter, required this.mappings, required this.onTap});
+  const _AlphabetRow(
+      {required this.letter, required this.mappings, required this.onTap});
 
   @override
   State<_AlphabetRow> createState() => _AlphabetRowState();
@@ -323,17 +359,22 @@ class _AlphabetRowState extends State<_AlphabetRow> {
       children: [
         ListTile(
           minTileHeight: 60,
-          title: Text(widget.letter, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w900)),
-          trailing: Icon(_isExpanded ? Icons.remove : Icons.add, color: Colors.black87),
+          title: Text(widget.letter,
+              style: GoogleFonts.outfit(
+                  fontSize: 18, fontWeight: FontWeight.w900)),
+          trailing: Icon(_isExpanded ? Icons.remove : Icons.add,
+              color: Colors.black87),
           onTap: () => setState(() => _isExpanded = !_isExpanded),
         ),
         if (_isExpanded)
           ...widget.mappings.map((m) => ListTile(
-            dense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-            title: Text(m.technicalName, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 15)),
-            onTap: () => widget.onTap(m),
-          )),
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+                title: Text(m.technicalName,
+                    style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.w600, fontSize: 15)),
+                onTap: () => widget.onTap(m),
+              )),
       ],
     );
   }
