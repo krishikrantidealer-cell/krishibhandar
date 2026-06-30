@@ -113,8 +113,8 @@ class _CollectionViewState extends State<CollectionView>
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
       ),
       child: Scaffold(
         body: Stack(
@@ -123,18 +123,23 @@ class _CollectionViewState extends State<CollectionView>
             Positioned(
               top: -50,
               right: -30,
-              child: _buildShape(200, 0.04),
+              child: _buildShape(200, 0.02),
             ),
             Positioned(
               top: 220,
               left: -40,
-              child: _buildShape(120, 0.03),
+              child: _buildShape(120, 0.02),
+            ),
+            Positioned(
+              bottom: 150,
+              right: -50,
+              child: _buildShape(180, 0.02),
             ),
 
             // Products Grid — takes the main space
             Positioned.fill(
               child: Padding(
-                padding: EdgeInsets.only(top: topPad + 66),
+                padding: EdgeInsets.only(top: topPad + 100),
                 child: ProductsGrid(
                   key: _gridKey,
                   isFilter: false,
@@ -171,61 +176,72 @@ class _CollectionViewState extends State<CollectionView>
   /// Frosted glass header with back button and sort
 
   Widget _buildFrostedHeader(double topPad) {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          padding: EdgeInsets.fromLTRB(16, topPad + 8, 12, 12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.85),
-            border: Border(
-              bottom: BorderSide(color: Colors.grey.withOpacity(0.05)),
+    return Container(
+      padding: EdgeInsets.fromLTRB(16, topPad + 8, 12, 16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF1E88E5),
+            Color(0xFF0F9D8A),
+            Color(0xFF2E7D32),
+          ],
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _circleIconBtn(
+            icon: Icons.arrow_back_rounded,
+            onTap: () => Navigator.pop(context),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _title.isNotEmpty
+                      ? _title
+                      : AppLocalizations.of(context)!.collection,
+                  style: GoogleFonts.outfit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  AppLocalizations.of(context)!.pureSelection,
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white.withOpacity(0.8),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
             ),
           ),
-          child: Row(
-            children: [
-              _circleIconBtn(
-                icon: Icons.arrow_back_rounded,
-                onTap: () => Navigator.pop(context),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _title.isNotEmpty
-                          ? _title
-                          : AppLocalizations.of(context)!.collection,
-                      style: GoogleFonts.outfit(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: Constants.baseColor,
-                        letterSpacing: -0.5,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      AppLocalizations.of(context)!.pureSelection,
-                      style: GoogleFonts.inter(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        color: Constants.baseColor,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const KskCartIcon(showBackground: true),
-              const SizedBox(width: 8),
-              // Sort button
-              _buildSortButton(),
-            ],
-          ),
-        ),
+          const KskCartIcon(showBackground: true),
+          const SizedBox(width: 8),
+          // Sort button
+          _buildSortButton(),
+        ],
       ),
     );
   }
@@ -283,8 +299,15 @@ class _CollectionViewState extends State<CollectionView>
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Constants.baseColor.withOpacity(0.06),
+          color: Colors.white,
           shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child:
             Icon(Icons.swap_vert_rounded, size: 20, color: Constants.baseColor),
@@ -298,8 +321,15 @@ class _CollectionViewState extends State<CollectionView>
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(0.05),
+          color: Colors.white,
           shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Icon(icon, size: 20, color: const Color(0xFF1E1E1E)),
       ),

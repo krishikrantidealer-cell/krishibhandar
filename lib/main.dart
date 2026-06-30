@@ -23,6 +23,8 @@ import 'view/collection_view.dart';
 import 'view/cart_view.dart';
 import 'view/home_view.dart';
 
+import 'package:flutter_native_splash/flutter_native_splash.dart';
+
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 @pragma('vm:entry-point')
@@ -33,81 +35,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 //this is the dev branch
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  // 1. Load Environment Variables
-  try {
-    // --- OPTIMIZATION FOR 3GB RAM DEVICES ---
-    // Aggressively limit in-memory image cache
-    // A 3GB device usually only has ~200MB available for the app after OS overhead
-    PaintingBinding.instance.imageCache.maximumSizeBytes =
-        8 * 1024 * 1024; // 8 MB
-    PaintingBinding.instance.imageCache.maximumSize = 15; // 15 images
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-    await dotenv.load(fileName: ".env");
-    await Pref.ensureInitialized();
-  } catch (e) {
-    debugPrint("Dotenv loading error: $e");
-  }
-
-  // 2. Initialize Firebase Core
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-
-    // 3. Activate App Check (Optional, don't let failure stop the app)
-    try {
-      await FirebaseAppCheck.instance.activate(
-        androidProvider:
-            kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
-      );
-    } catch (e) {
-      debugPrint("Firebase App Check Error: $e");
-    }
-
-    // 4. Initialize Messaging and Notifications
-    try {
-      FirebaseMessaging.onBackgroundMessage(
-          _firebaseMessagingBackgroundHandler);
-      await NotificationService.init();
-
-      FirebaseMessaging.instance.getToken().then((token) {
-        debugPrint("📱 YOUR FCM TOKEN: $token");
-      });
-
-      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        AttributionService().handlePushNotification(message);
-      });
-
-      FirebaseMessaging.instance
-          .getInitialMessage()
-          .then((RemoteMessage? message) {
-        if (message != null) {
-          AttributionService().handlePushNotification(message);
-        }
-      });
-    } catch (e) {
-      debugPrint("Messaging Initialization Error: $e");
-    }
-
-    // 5. Initialize Meta Events
-    try {
-      await MetaEvents.init();
-    } catch (e) {
-      debugPrint("Meta Events Error: $e");
-    }
-
-    // 6. Initialize Attribution Service
-    try {
-      await AttributionService().init();
-      _initDeepLinks();
-    } catch (e) {
-      debugPrint("Attribution Service Error: $e");
-    }
-  } catch (e) {
-    debugPrint("Core Firebase Error: $e");
-  }
+  // 1. Lightweight critical setup ONLY
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 8 * 1024 * 1024; // 8 MB
+  PaintingBinding.instance.imageCache.maximumSize = 15; // 15 images
 
   // 7. Always run the app
   runApp(MyApp(languageController: Constants.languageController));

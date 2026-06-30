@@ -11,6 +11,7 @@ class TechnicalMappingController {
 
   List<TechnicalMappingModel> _allMappings = [];
   bool _isLoaded = false;
+  Future<void>? _loadingFuture;
   Map<String, List<TechnicalMappingModel>> _cachedGroups = {};
   
   // Precomputed for fast search and navigation
@@ -21,6 +22,13 @@ class TechnicalMappingController {
 
   Future<void> ensureLoaded() async {
     if (_isLoaded) return;
+    if (_loadingFuture != null) return _loadingFuture;
+
+    _loadingFuture = _loadData();
+    return _loadingFuture;
+  }
+
+  Future<void> _loadData() async {
     try {
       final sw = Stopwatch()..start();
       debugPrint('JSON load started');
@@ -64,6 +72,7 @@ class TechnicalMappingController {
       _isLoaded = true;
     } catch (e) {
       debugPrint('Error loading technical mappings: $e');
+      _loadingFuture = null; // Allow retry on failure
     }
   }
 

@@ -39,6 +39,9 @@ class _HomeState extends State<Home> {
   bool _isLoadingBanners = true;
   List<String> _bestSellerIds = [];
 
+  // Press state for Phase 2 Button Polish
+  bool _isWhatsAppPressed = false;
+
   @override
   void initState() {
     super.initState();
@@ -447,10 +450,10 @@ class _HomeState extends State<Home> {
                               baseColor: Colors.grey.shade100,
                               highlightColor: Colors.white,
                               child: Container(
-                                height: 140,
+                                height: 180, // Matching 2.1 aspect ratio height
                                 decoration: BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(24),
                                 ),
                               ),
                             ),
@@ -523,13 +526,13 @@ class _HomeState extends State<Home> {
                     )
                   else
                     SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                       sliver: SliverGrid(
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 3,
-                          crossAxisSpacing: 0,
-                          mainAxisSpacing: 0,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
                           childAspectRatio: 1.0,
                         ),
                         delegate: SliverChildBuilderDelegate(
@@ -853,21 +856,53 @@ class _HomeState extends State<Home> {
                 Image.asset('assets/logo.png',
                     height: 60, opacity: const AlwaysStoppedAnimation(0.6)),
                 const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  onPressed: () =>
-                      launchUrlString("https://wa.me/919399022060"),
-                  icon: const Icon(Icons.chat_bubble_outline, size: 16),
-                  label: Text(AppLocalizations.of(context)!.whatsAppSupport),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF25D366),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 10),
-                    elevation: 0,
-                    textStyle: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.bold),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                GestureDetector(
+                  onTapDown: (_) => setState(() => _isWhatsAppPressed = true),
+                  onTapUp: (_) => setState(() => _isWhatsAppPressed = false),
+                  onTapCancel: () => setState(() => _isWhatsAppPressed = false),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    launchUrlString("https://wa.me/919399022060");
+                  },
+                  child: AnimatedScale(
+                    scale: _isWhatsAppPressed ? 0.97 : 1.0,
+                    duration: const Duration(milliseconds: 120),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFFAEEA4D),
+                            Color(0xFF7BC943),
+                            Color(0xFF2E7D32),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF2E7D32).withOpacity(0.15),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.chat_bubble_outline, size: 16, color: Colors.white),
+                          const SizedBox(width: 10),
+                          Text(
+                            AppLocalizations.of(context)!.whatsAppSupport,
+                            style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 25),
@@ -1220,24 +1255,24 @@ class _HomeCarouselState extends State<HomeCarousel> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(24),
         child: Stack(
           alignment: Alignment.bottomCenter,
           children: [
             CarouselSlider(
               carouselController: _controller,
               options: CarouselOptions(
-                aspectRatio: 2.6,
+                aspectRatio: 2.1, // Reverted to original production aspect ratio
                 viewportFraction: 1.0, // Full width slider
                 autoPlay: true,
                 autoPlayInterval: const Duration(seconds: 5),
@@ -1254,9 +1289,8 @@ class _HomeCarouselState extends State<HomeCarousel> {
                   onTap: () => widget.onBannerClick(banner),
                   child: KskNetworkImage(
                     banner.image,
-                    fit: BoxFit.fill,
-                    width: 600,
-                    height: 230,
+                    fit: BoxFit.fill, // Ensures image fills the larger hero container
+                    width: double.infinity,
                   ),
                 );
               }).toList(),

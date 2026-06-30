@@ -82,7 +82,13 @@ class _MyHomePageState extends State<MyHomePage>
                       Home(scrollController: _scrollController),
                       const Categories(),
                       const OrderView(),
-                      const SupportView(),
+                      SupportView(
+                        onBack: () {
+                          setState(() {
+                            _currentIndex = 0;
+                          });
+                        },
+                      ),
                     ],
                   ),
                   const Positioned(
@@ -97,6 +103,7 @@ class _MyHomePageState extends State<MyHomePage>
               ),
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
+            color: Colors.white,
             boxShadow: [
               BoxShadow(
                   color: Colors.black.withOpacity(0.08),
@@ -104,30 +111,115 @@ class _MyHomePageState extends State<MyHomePage>
                   offset: const Offset(0, -2))
             ],
           ),
-          child: BottomNavigationBar(
-            currentIndex: _currentIndex,
-            onTap: (value) {
-              setState(() => _currentIndex = value);
-            },
-            selectedFontSize: 12,
-            unselectedFontSize: 12,
-            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w900),
-            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
-            items: [
-              BottomNavigationBarItem(
-                  icon: const FaIcon(FontAwesomeIcons.house, size: 18),
-                  label: AppLocalizations.of(context)!.home),
-              BottomNavigationBarItem(
-                  icon: const FaIcon(FontAwesomeIcons.list, size: 18),
-                  label: AppLocalizations.of(context)!.categories),
-              BottomNavigationBarItem(
-                  icon: const FaIcon(FontAwesomeIcons.bagShopping, size: 18),
-                  label: AppLocalizations.of(context)!.myOrders),
-              BottomNavigationBarItem(
-                  icon: const FaIcon(FontAwesomeIcons.headset, size: 18),
-                  label: AppLocalizations.of(context)!.support),
-            ],
+          child: SafeArea(
+            child: Container(
+              height: 68,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  double itemWidth = constraints.maxWidth / 4;
+                  return Stack(
+                    children: [
+                      // Animated Active Pill
+                      AnimatedPositioned(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOutCubic,
+                        left: itemWidth * _currentIndex,
+                        width: itemWidth,
+                        top: 0,
+                        bottom: 0,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 4),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Color(0xFF1E88E5), // Premium Blue
+                                Color(0xFF0F9D8A), // Teal Bridge
+                                Color(0xFF2E7D32), // Agri Green
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(25),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF2E7D32).withOpacity(0.15),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Navigation Items
+                      Row(
+                        children: [
+                          _buildNavItem(
+                              0,
+                              FontAwesomeIcons.house,
+                              AppLocalizations.of(context)!.home),
+                          _buildNavItem(
+                              1,
+                              FontAwesomeIcons.list,
+                              AppLocalizations.of(context)!.categories),
+                          _buildNavItem(
+                              2,
+                              FontAwesomeIcons.bagShopping,
+                              AppLocalizations.of(context)!.myOrders),
+                          _buildNavItem(
+                              3,
+                              FontAwesomeIcons.headset,
+                              AppLocalizations.of(context)!.support),
+                        ],
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, dynamic icon, String label) {
+    bool isSelected = _currentIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          if (_currentIndex != index) {
+            HapticFeedback.lightImpact();
+            setState(() => _currentIndex = index);
+          }
+        },
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedScale(
+              scale: isSelected ? 1.08 : 1.0,
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutBack,
+              child: FaIcon(
+                icon,
+                size: 18,
+                color: isSelected ? Colors.white : Colors.grey[500],
+              ),
+            ),
+            const SizedBox(height: 2),
+            FittedBox(
+              child: Text(
+                label,
+                style: GoogleFonts.outfit(
+                  fontSize: 10,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  color: isSelected ? Colors.white : Colors.grey[500],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

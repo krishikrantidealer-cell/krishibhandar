@@ -84,6 +84,11 @@ class _ProductViewState extends State<ProductView>
   List<dynamic> _cartItems = [];
   Timer? _timer;
 
+  // Press state for Phase 2 Button Polish
+  bool _isBuyNowPressed = false;
+  bool _isAddToCartPressed = false;
+  bool _isSubmitReviewPressed = false;
+
   // Review states
   double _userRating = 0;
   final TextEditingController _reviewController = TextEditingController();
@@ -706,15 +711,24 @@ class _ProductViewState extends State<ProductView>
                                   horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? const Color(0xFFF1F8F6)
+                                    ? const Color(0xFFE8F5E9)
                                     : Colors.white,
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
                                   color: isSelected
-                                      ? Colors.green
+                                      ? const Color(0xFF2E7D32)
                                       : Colors.grey[300]!,
-                                  width: isSelected ? 1.5 : 1,
+                                  width: isSelected ? 2 : 1,
                                 ),
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.08),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 4),
+                                        )
+                                      ]
+                                    : null,
                               ),
                               child: Opacity(
                                 opacity: isOutOfStock ? 0.3 : 1.0,
@@ -726,9 +740,11 @@ class _ProductViewState extends State<ProductView>
                                       v.title,
                                       style: TextStyle(
                                         color: isSelected
-                                            ? Colors.green[800]
+                                            ? const Color(0xFF1B5E20)
                                             : Colors.black87,
-                                        fontWeight: FontWeight.w800,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w700
+                                            : FontWeight.w800,
                                         fontSize: 13,
                                       ),
                                     ),
@@ -737,10 +753,12 @@ class _ProductViewState extends State<ProductView>
                                       "${Constants.inr}${v.price}",
                                       style: TextStyle(
                                         color: isSelected
-                                            ? Colors.green[800]
+                                            ? const Color(0xFF2E7D32)
                                             : Colors.grey[700],
                                         fontSize: 13,
-                                        fontWeight: FontWeight.w600,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w700
+                                            : FontWeight.w600,
                                       ),
                                     ),
                                   ],
@@ -902,8 +920,15 @@ class _ProductViewState extends State<ProductView>
                 height: 52,
                 child: _getCartQuantity() > 0
                     ? _buildQuantitySelector(_getCartQuantity())
-                    : ElevatedButton(
-                        onPressed: () async {
+                    : GestureDetector(
+                        onTapDown: (_) =>
+                            setState(() => _isAddToCartPressed = true),
+                        onTapUp: (_) =>
+                            setState(() => _isAddToCartPressed = false),
+                        onTapCancel: () =>
+                            setState(() => _isAddToCartPressed = false),
+                        onTap: () async {
+                          HapticFeedback.lightImpact();
                           final p = _localizedProduct ?? widget.product;
                           if (p == null) return;
                           final v = p.variants.length > _varientIndex
@@ -918,7 +943,11 @@ class _ProductViewState extends State<ProductView>
                           );
 
                           // AppsFlyer Event: Add to Cart
-                          AttributionService.logAddToCart(p.id, double.tryParse(v.price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0);
+                          AttributionService.logAddToCart(
+                              p.id,
+                              double.tryParse(v.price
+                                      .replaceAll(RegExp(r'[^\d.]'), '')) ??
+                                  0.0);
 
                           // Firebase Event: add_to_cart
                           FirebaseEvents.addToCart(p.id, v.price);
@@ -950,22 +979,44 @@ class _ProductViewState extends State<ProductView>
                             ),
                           );
                         },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF7941D),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: EdgeInsets.zero, // Prevent text overflow
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 8.0),
-                            child: Text(AppLocalizations.of(context)!.addToCart,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w800, fontSize: 16)),
+                        child: AnimatedScale(
+                          scale: _isAddToCartPressed ? 0.97 : 1.0,
+                          duration: const Duration(milliseconds: 120),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF1E88E5),
+                                  Color(0xFF0F9D8A),
+                                  Color(0xFF2E7D32),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.15),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8.0),
+                                  child: Text(
+                                      AppLocalizations.of(context)!.addToCart,
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 16)),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -975,8 +1026,12 @@ class _ProductViewState extends State<ProductView>
             Expanded(
               child: SizedBox(
                 height: 52,
-                child: ElevatedButton(
-                  onPressed: () async {
+                child: GestureDetector(
+                  onTapDown: (_) => setState(() => _isBuyNowPressed = true),
+                  onTapUp: (_) => setState(() => _isBuyNowPressed = false),
+                  onTapCancel: () => setState(() => _isBuyNowPressed = false),
+                  onTap: () async {
+                    HapticFeedback.lightImpact();
                     final p = _localizedProduct ?? widget.product;
                     if (p == null) return;
                     final v = p.variants.length > _varientIndex
@@ -1014,21 +1069,42 @@ class _ProductViewState extends State<ProductView>
                     if (!context.mounted) return;
                     Routers.goTO(context, toBody: const CartView());
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Constants.baseColor,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: EdgeInsets.zero, // Prevent text overflow
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Text(AppLocalizations.of(context)!.buyNow,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w800, fontSize: 16)),
+                  child: AnimatedScale(
+                    scale: _isBuyNowPressed ? 0.97 : 1.0,
+                    duration: const Duration(milliseconds: 120),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFFAEEA4D),
+                            Color(0xFF7BC943),
+                            Color(0xFF2E7D32),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF2E7D32).withOpacity(0.15),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                            child: Text(AppLocalizations.of(context)!.buyNow,
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 16)),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -1395,8 +1471,12 @@ class _ProductViewState extends State<ProductView>
           SizedBox(
             width: double.infinity,
             height: 50,
-            child: ElevatedButton(
-              onPressed: () {
+            child: GestureDetector(
+              onTapDown: (_) => setState(() => _isSubmitReviewPressed = true),
+              onTapUp: (_) => setState(() => _isSubmitReviewPressed = false),
+              onTapCancel: () =>
+                  setState(() => _isSubmitReviewPressed = false),
+              onTap: () {
                 if (_userRating == 0) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text("Please select a rating")),
@@ -1434,19 +1514,33 @@ class _ProductViewState extends State<ProductView>
                   ),
                 );
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Constants.baseColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
-              ),
-              child: Text(
-                AppLocalizations.of(context)!.submitReview,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 14,
-                    letterSpacing: 1),
+              child: AnimatedScale(
+                scale: _isSubmitReviewPressed ? 0.97 : 1.0,
+                duration: const Duration(milliseconds: 120),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFF1E88E5),
+                        Color(0xFF0F9D8A),
+                        Color(0xFF2E7D32),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Text(
+                      AppLocalizations.of(context)!.submitReview,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          letterSpacing: 1),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

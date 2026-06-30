@@ -24,6 +24,9 @@ class _OrderDetailViewState extends State<OrderDetailView> {
   late OrderModel _currentOrder;
   bool _isLoading = false;
 
+  // Press state for Phase 2 Button Polish
+  bool _isReorderPressed = false;
+
   @override
   void initState() {
     super.initState();
@@ -78,7 +81,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
+      backgroundColor: const Color(0xffF9FBF9),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -99,14 +102,19 @@ class _OrderDetailViewState extends State<OrderDetailView> {
       body: _isLoading && _currentOrder.shippingAddress == null
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 40),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
               child: Column(
                 children: [
                   _buildOrderInfoSection(),
+                  const SizedBox(height: 16),
                   _buildTrackingTimeline(),
+                  const SizedBox(height: 16),
                   _buildItemList(),
+                  const SizedBox(height: 16),
                   _buildBillSummary(),
+                  const SizedBox(height: 16),
                   _buildHelpAction(),
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
@@ -122,67 +130,78 @@ class _OrderDetailViewState extends State<OrderDetailView> {
       {
         'title': AppLocalizations.of(context)!.orderPlaced,
         'key': 'placed',
-        'active': true
+        'active': true,
+        'icon': Icons.check_circle_outline,
       },
       {
         'title': AppLocalizations.of(context)!.processing,
         'key': 'processing',
         'active': _currentOrder.confirmed ||
             ['Shipped', 'Out for Delivery', 'Delivered', 'Completed']
-                .contains(status)
+                .contains(status),
+        'icon': Icons.inventory_2_outlined,
       },
       {
         'title': AppLocalizations.of(context)!.shipped,
         'key': 'shipped',
         'active': ['Shipped', 'Out for Delivery', 'Delivered', 'Completed']
-            .contains(status)
-      },
-      {
-        'title': AppLocalizations.of(context)!.outForDelivery,
-        'key': 'out',
-        'active':
-            ['Out for Delivery', 'Delivered', 'Completed'].contains(status)
+            .contains(status),
+        'icon': Icons.local_shipping_outlined,
       },
       {
         'title': AppLocalizations.of(context)!.delivered,
         'key': 'delivered',
-        'active': ['Delivered', 'Completed'].contains(status)
+        'active': ['Delivered', 'Completed'].contains(status),
+        'icon': Icons.task_alt,
       },
     ];
 
     if (isCancelled) {
       stages = [
-        {'title': AppLocalizations.of(context)!.orderPlaced, 'active': true},
+        {
+          'title': AppLocalizations.of(context)!.orderPlaced,
+          'active': true,
+          'icon': Icons.check_circle_outline
+        },
         {
           'title': AppLocalizations.of(context)!.cancelled,
           'active': true,
-          'isError': true
+          'isError': true,
+          'icon': Icons.cancel_outlined
         },
       ];
     }
 
     return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(20),
-      color: Colors.white,
-      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(AppLocalizations.of(context)!.trackOrder,
-              style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
+              style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
                   color: Constants.baseColor,
-                  letterSpacing: 1)),
-          const SizedBox(height: 20),
+                  letterSpacing: 0.5)),
+          const SizedBox(height: 24),
           Column(
             children: List.generate(stages.length, (index) {
               final stage = stages[index];
               bool isActive = stage['active'];
               bool isError = stage['isError'] ?? false;
               bool isLast = index == stages.length - 1;
-              Color activeColor = isError ? Colors.red : Constants.baseColor;
+              Color activeColor = isError ? Colors.red : const Color(0xFF2E7D32);
 
               return IntrinsicHeight(
                 child: Row(
@@ -190,33 +209,36 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                     Column(
                       children: [
                         Container(
-                          width: 14,
-                          height: 14,
+                          width: 28,
+                          height: 28,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border: Border.all(
-                                color:
-                                    isActive ? activeColor : Colors.grey[300]!,
-                                width: 2),
-                            color: isActive ? activeColor : Colors.white,
+                            color: isActive
+                                ? activeColor.withOpacity(0.1)
+                                : Colors.grey[50],
                           ),
-                          child: isActive
-                              ? const Icon(Icons.check,
-                                  size: 8, color: Colors.white)
-                              : null,
+                          child: Icon(
+                            stage['icon'],
+                            size: 16,
+                            color: isActive ? activeColor : Colors.grey[300],
+                          ),
                         ),
                         if (!isLast)
                           Expanded(
                             child: Container(
                               width: 2,
-                              color: isActive
-                                  ? activeColor.withOpacity(0.3)
-                                  : Colors.grey[200],
+                              margin: const EdgeInsets.symmetric(vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isActive
+                                    ? activeColor.withOpacity(0.2)
+                                    : Colors.grey[100],
+                                borderRadius: BorderRadius.circular(2),
+                              ),
                             ),
                           ),
                       ],
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 20),
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.only(bottom: 24),
@@ -224,10 +246,10 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(stage['title'],
-                                style: GoogleFonts.inter(
-                                    fontSize: 13,
+                                style: GoogleFonts.outfit(
+                                    fontSize: 14,
                                     fontWeight: isActive
-                                        ? FontWeight.w800
+                                        ? FontWeight.w700
                                         : FontWeight.w600,
                                     color: isActive
                                         ? (isError
@@ -236,7 +258,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                                         : Colors.grey[400])),
                             if (isActive && !isLast && !isError)
                               Padding(
-                                padding: const EdgeInsets.only(top: 2.0),
+                                padding: const EdgeInsets.only(top: 4.0),
                                 child: Text(
                                     AppLocalizations.of(context)!
                                         .statusUpdatedRecently,
@@ -259,8 +281,9 @@ class _OrderDetailViewState extends State<OrderDetailView> {
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
+              child: ElevatedButton.icon(
                 onPressed: () async {
+                  HapticFeedback.lightImpact();
                   final url = Uri.parse(_currentOrder.orderStatusUrl!);
                   if (await canLaunchUrl(url)) {
                     await launchUrl(url, mode: LaunchMode.externalApplication);
@@ -268,149 +291,21 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                 },
                 icon: const Icon(Icons.open_in_new_rounded, size: 16),
                 label: Text(AppLocalizations.of(context)!.trackOnShopify),
-                style: OutlinedButton.styleFrom(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Constants.baseColor.withOpacity(0.05),
                   foregroundColor: Constants.baseColor,
-                  side: BorderSide(color: Constants.baseColor, width: 1.5),
+                  elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  textStyle: GoogleFonts.inter(
+                  textStyle: GoogleFonts.outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ),
-          ],
-          if (_currentOrder.fulfillmentStatus.toLowerCase() != 'unfulfilled' ||
-              _currentOrder.hasTrackingNumber) ...[
-            (() {
-              final fulfillment = _currentOrder.validFulfillment;
-              final hasTrack = _currentOrder.hasTrackingNumber;
-              return Column(
-                children: [
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[200]!),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.local_shipping_outlined,
-                                size: 18, color: Constants.baseColor),
-                            const SizedBox(width: 8),
-                            Text(AppLocalizations.of(context)!.shippingInfo,
-                                style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                    color: const Color(0xFF1E1E1E))),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text("AWB / Tracking ID",
-                                      style: GoogleFonts.inter(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.grey[500])),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                      hasTrack
-                                          ? (fulfillment?.trackingNumber ?? "")
-                                          : "Updating Tracking Details",
-                                      style: GoogleFonts.inter(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w800,
-                                          color: hasTrack
-                                              ? const Color(0xFF1E1E1E)
-                                              : Colors.grey[400])),
-                                ],
-                              ),
-                            ),
-                            if (hasTrack)
-                              IconButton(
-                                onPressed: () {
-                                  Clipboard.setData(ClipboardData(
-                                      text: fulfillment?.trackingNumber ?? ""));
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text("Tracking ID copied!")),
-                                  );
-                                },
-                                icon: const Icon(Icons.copy_rounded, size: 18),
-                                color: Constants.baseColor,
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                              ),
-                          ],
-                        ),
-                        if (hasTrack &&
-                            fulfillment?.trackingCompany != null) ...[
-                          const Divider(height: 20),
-                          Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                      "Courier: ${fulfillment?.trackingCompany}",
-                                      style: GoogleFonts.inter(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.grey[600])),
-                                ),
-                                if (fulfillment?.trackingUrl != null) ...[
-                                  const SizedBox(width: 8),
-                                  TextButton.icon(
-                                    onPressed: () async {
-                                      final urlString =
-                                          fulfillment!.trackingUrl!;
-                                      final url = Uri.parse(urlString);
-                                      if (await canLaunchUrl(url)) {
-                                        await launchUrl(url,
-                                            mode:
-                                                LaunchMode.externalApplication);
-                                      }
-                                    },
-                                    icon: const Icon(
-                                        Icons.track_changes_rounded,
-                                        size: 14),
-                                    label: const Text("Track Order",
-                                        style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700)),
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: Constants.baseColor,
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 4),
-                                      backgroundColor:
-                                          Constants.baseColor.withOpacity(0.05),
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8)),
-                                    ),
-                                  ),
-                                ],
-                              ]),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            })(),
           ],
         ],
       ),
@@ -419,37 +314,50 @@ class _OrderDetailViewState extends State<OrderDetailView> {
 
   Widget _buildOrderInfoSection() {
     return Container(
-      margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(20),
-      color: Colors.white,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Text(AppLocalizations.of(context)!.orderInfo,
-                    style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                        color: Constants.baseColor,
-                        letterSpacing: 1)),
-              ),
-              const SizedBox(width: 8),
-              Text("#${_currentOrder.orderNumber}",
+              Text(AppLocalizations.of(context)!.orderInfo,
                   style: GoogleFonts.outfit(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFF1E1E1E))),
+                      color: Constants.baseColor,
+                      letterSpacing: 0.5)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Constants.baseColor.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text("#${_currentOrder.orderNumber}",
+                    style: GoogleFonts.outfit(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Constants.baseColor)),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _infoRow(
               Icons.calendar_today_rounded,
               AppLocalizations.of(context)!.placedOn,
               _currentOrder.formattedDate),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _infoRow(
               Icons.payment_rounded,
               AppLocalizations.of(context)!.payment,
@@ -463,26 +371,35 @@ class _OrderDetailViewState extends State<OrderDetailView> {
 
   Widget _buildItemList() {
     return Container(
-      margin: const EdgeInsets.only(top: 8),
-      color: Colors.white,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
             child: Text(AppLocalizations.of(context)!.yourOrderItems,
-                style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
+                style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
                     color: Constants.baseColor,
-                    letterSpacing: 1)),
+                    letterSpacing: 0.5)),
           ),
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: _currentOrder.lineItems.length,
             separatorBuilder: (_, __) => Divider(
-                height: 1, indent: 20, endIndent: 20, color: Colors.grey[100]),
+                height: 1, indent: 20, endIndent: 20, color: Colors.grey[50]),
             itemBuilder: (context, index) {
               final item = _currentOrder.lineItems[index];
               return Padding(
@@ -491,20 +408,22 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 50,
-                      height: 50,
+                      width: 60,
+                      height: 60,
                       decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.grey[100]!)),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                         child: item.image != null
                             ? KskNetworkImage(item.image!, fit: BoxFit.cover)
-                            : Icon(Icons.shopping_bag_outlined,
-                                color: Colors.grey[200]),
+                            : Container(
+                                color: Colors.grey[50],
+                                child: Icon(Icons.shopping_bag_outlined,
+                                    color: Colors.grey[200])),
                       ),
                     ),
-                    const SizedBox(width: 15),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -512,11 +431,11 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                           Text(item.title,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.outfit(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
                                   color: const Color(0xFF1E1E1E))),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 6),
                           Text(
                               "Qty: ${item.quantity} • ${item.variantTitle ?? 'Standard'}",
                               style: GoogleFonts.inter(
@@ -526,7 +445,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 15),
+                    const SizedBox(width: 16),
                     Text("${Constants.inr}${item.price}",
                         style: GoogleFonts.outfit(
                             fontSize: 15,
@@ -544,46 +463,52 @@ class _OrderDetailViewState extends State<OrderDetailView> {
 
   Widget _buildBillSummary() {
     return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(20),
-      color: Colors.white,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(AppLocalizations.of(context)!.billSummary,
-              style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
+              style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
                   color: Constants.baseColor,
-                  letterSpacing: 1)),
-          const SizedBox(height: 20),
+                  letterSpacing: 0.5)),
+          const SizedBox(height: 24),
           _billRow(AppLocalizations.of(context)!.itemTotal,
               _currentOrder.subtotalPrice ?? '0.00'),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           _billRow(AppLocalizations.of(context)!.deliveryCharge,
               _currentOrder.totalShipping ?? 'FREE',
               isFree: _currentOrder.totalShipping == '0.00' ||
                   _currentOrder.totalShipping == null),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           _billRow(AppLocalizations.of(context)!.handlingFee, "0.00"),
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Divider(height: 1),
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Divider(height: 1, color: Color(0xFFF5F5F5)),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Text(AppLocalizations.of(context)!.grandTotal,
-                    style: GoogleFonts.outfit(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: const Color(0xFF1E1E1E))),
-              ),
-              const SizedBox(width: 8),
+              Text(AppLocalizations.of(context)!.grandTotal,
+                  style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF1E1E1E))),
               Text("${Constants.inr}${_currentOrder.totalPrice}",
                   style: GoogleFonts.outfit(
-                      fontSize: 20,
+                      fontSize: 22,
                       fontWeight: FontWeight.w900,
                       color: Constants.baseColor)),
             ],
@@ -595,29 +520,38 @@ class _OrderDetailViewState extends State<OrderDetailView> {
 
   Widget _buildHelpAction() {
     return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(20),
-      color: Colors.white,
-      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           OutlinedButton.icon(
             onPressed: () {
+              HapticFeedback.lightImpact();
               Routers.goTO(context, toBody: const SupportView());
             },
             style: OutlinedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 48),
-              side: BorderSide(color: Colors.grey[200]!),
+              minimumSize: const Size(double.infinity, 50),
+              side: const BorderSide(color: Color(0xFFEEEEEE)),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(14)),
             ),
-            icon: Icon(Icons.headset_mic_outlined,
+            icon: Icon(Icons.headset_mic_rounded,
                 size: 18, color: Constants.baseColor),
             label: Text(AppLocalizations.of(context)!.needHelp,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.outfit(
                     color: const Color(0xFF1E1E1E),
                     fontWeight: FontWeight.w700,
-                    fontSize: 13)),
+                    fontSize: 14)),
           ),
           const SizedBox(height: 20),
           Text(
@@ -627,9 +561,9 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                     : _currentOrder.financialStatus.toUpperCase()),
             style: GoogleFonts.inter(
                 fontSize: 11,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
                 color: Colors.grey[300],
-                letterSpacing: 0.5),
+                letterSpacing: 0.8),
           ),
         ],
       ),
@@ -676,7 +610,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
               Text(
                 AppLocalizations.of(context)!.cancelOrder,
                 style: GoogleFonts.outfit(
-                  fontSize: 20,
+                  fontSize: 22,
                   fontWeight: FontWeight.w800,
                   color: const Color(0xFF1E1E1E),
                 ),
@@ -687,22 +621,26 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               ...reasons.map((reason) => InkWell(
-                    onTap: () => setModalState(() => selectedReason = reason),
-                    borderRadius: BorderRadius.circular(12),
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setModalState(() => selectedReason = reason);
+                    },
+                    borderRadius: BorderRadius.circular(14),
                     child: Container(
-                      margin: const EdgeInsets.only(bottom: 8),
+                      margin: const EdgeInsets.only(bottom: 10),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                          horizontal: 16, vertical: 14),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                         border: Border.all(
                           color: selectedReason == reason
                               ? Colors.red
-                              : Colors.grey[200]!,
+                              : const Color(0xFFF0F0F0),
                         ),
                         color: selectedReason == reason
                             ? Colors.red.withOpacity(0.05)
@@ -725,7 +663,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                             ),
                           ),
                           if (selectedReason == reason)
-                            const Icon(Icons.check_circle,
+                            const Icon(Icons.check_circle_rounded,
                                 size: 20, color: Colors.red),
                         ],
                       ),
@@ -738,11 +676,11 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                     child: TextButton(
                       onPressed: () => Navigator.pop(context),
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
                       child: Text(
                         AppLocalizations.of(context)!.goBack,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w700,
                           color: Colors.grey[600],
                         ),
@@ -754,21 +692,24 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                     child: ElevatedButton(
                       onPressed: selectedReason == null
                           ? null
-                          : () => Navigator.pop(context, true),
+                          : () {
+                              HapticFeedback.mediumImpact();
+                              Navigator.pop(context, true);
+                            },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
                         elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                        disabledBackgroundColor: Colors.grey[200],
-                        disabledForegroundColor: Colors.grey[500],
+                        disabledBackgroundColor: Colors.grey[100],
+                        disabledForegroundColor: Colors.grey[400],
                       ),
                       child: Text(
                         AppLocalizations.of(context)!.cancelOrder,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -824,13 +765,13 @@ class _OrderDetailViewState extends State<OrderDetailView> {
 
   Widget _buildBottomActions() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
               color: Colors.black.withOpacity(0.04),
-              blurRadius: 10,
+              blurRadius: 15,
               offset: const Offset(0, -5))
         ],
       ),
@@ -844,17 +785,16 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.red,
                     side: BorderSide(
-                        color: Colors.red.withOpacity(0.5), width: 1.2),
+                        color: Colors.red.withOpacity(0.2), width: 1.5),
                     backgroundColor: Colors.red.withOpacity(0.02),
-                    minimumSize: const Size(double.infinity, 48),
-                    padding: const EdgeInsets.symmetric(vertical: 0),
+                    minimumSize: const Size(double.infinity, 52),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(14)),
                   ),
                   child: _isLoading
                       ? const SizedBox(
-                          width: 18,
-                          height: 18,
+                          width: 20,
+                          height: 20,
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.red),
                         )
@@ -864,17 +804,21 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                             const Icon(Icons.cancel_outlined, size: 16),
                             const SizedBox(width: 8),
                             Text(AppLocalizations.of(context)!.cancelOrder,
-                                style: GoogleFonts.inter(
-                                    fontWeight: FontWeight.w700, fontSize: 13)),
+                                style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.w700, fontSize: 14)),
                           ],
                         ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
             ],
             Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () async {
+              child: GestureDetector(
+                onTapDown: (_) => setState(() => _isReorderPressed = true),
+                onTapUp: (_) => setState(() => _isReorderPressed = false),
+                onTapCancel: () => setState(() => _isReorderPressed = false),
+                onTap: () async {
+                  HapticFeedback.lightImpact();
                   final messenger = ScaffoldMessenger.of(context);
                   for (var item in _currentOrder.lineItems) {
                     if (item.variantId != null) {
@@ -892,19 +836,44 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                       content: Text("Order items added to bag")));
                   Routers.goTO(context, toBody: const CartView());
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Constants.baseColor,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  minimumSize: const Size(double.infinity, 48),
-                  padding: const EdgeInsets.symmetric(vertical: 0),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                child: AnimatedScale(
+                  scale: _isReorderPressed ? 0.97 : 1.0,
+                  duration: const Duration(milliseconds: 120),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFFAEEA4D),
+                          Color(0xFF7BC943),
+                          Color(0xFF2E7D32),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF2E7D32).withOpacity(0.15),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.refresh_rounded, size: 18, color: Colors.white),
+                        const SizedBox(width: 8),
+                        Text(AppLocalizations.of(context)!.reorder,
+                            style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14)),
+                      ],
+                    ),
+                  ),
                 ),
-                icon: const Icon(Icons.refresh_rounded, size: 18),
-                label: Text(AppLocalizations.of(context)!.reorder,
-                    style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w900, fontSize: 13)),
               ),
             ),
           ],
@@ -916,19 +885,26 @@ class _OrderDetailViewState extends State<OrderDetailView> {
   Widget _infoRow(IconData icon, String label, String value) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: Colors.grey[400]),
-        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 16, color: Colors.grey[400]),
+        ),
+        const SizedBox(width: 14),
         Expanded(
           child: Text(label,
               style: GoogleFonts.inter(
                   fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                   color: Colors.grey[500])),
         ),
         const SizedBox(width: 8),
         Text(value,
-            style: GoogleFonts.inter(
-                fontSize: 13,
+            style: GoogleFonts.outfit(
+                fontSize: 14,
                 fontWeight: FontWeight.w700,
                 color: const Color(0xFF1E1E1E))),
       ],
@@ -939,57 +915,17 @@ class _OrderDetailViewState extends State<OrderDetailView> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Expanded(
-          child: Text(label,
-              style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[600])),
-        ),
-        const SizedBox(width: 8),
-        Text(isFree ? "FREE" : "${Constants.inr}$value",
+        Text(label,
             style: GoogleFonts.inter(
                 fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey[600])),
+        Text(isFree ? "FREE" : "${Constants.inr}$value",
+            style: GoogleFonts.outfit(
+                fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: isFree ? Colors.green : const Color(0xFF1E1E1E))),
+                color: isFree ? const Color(0xFF2E7D32) : const Color(0xFF1E1E1E))),
       ],
     );
-  }
-
-  Color _getStatusColor(String status) {
-    status = status.toLowerCase();
-    if (status.contains('delivered') || status.contains('completed')) {
-      return const Color(0xFF43A047);
-    }
-    if (status.contains('cancelled')) return const Color(0xFFE53935);
-    if (status.contains('pending') || status.contains('processing')) {
-      return const Color(0xFFFB8C00);
-    }
-    return Constants.baseColor;
-  }
-
-  IconData _getStatusIcon(String status) {
-    status = status.toLowerCase();
-    if (status.contains('delivered') || status.contains('completed')) {
-      return Icons.check_circle_rounded;
-    }
-    if (status.contains('cancelled')) return Icons.cancel_rounded;
-    if (status.contains('out for delivery'))
-      return Icons.delivery_dining_rounded;
-    if (status.contains('shipped')) return Icons.local_shipping_rounded;
-    return Icons.access_time_filled_rounded;
-  }
-
-  String _getFriendlyStatusMsg(String status) {
-    status = status.toLowerCase();
-    if (status.contains('delivered'))
-      return AppLocalizations.of(context)!.statusDeliveredMsg;
-    if (status.contains('shipped'))
-      return AppLocalizations.of(context)!.statusShippedMsg;
-    if (status.contains('processing'))
-      return AppLocalizations.of(context)!.statusProcessingMsg;
-    if (status.contains('cancelled'))
-      return AppLocalizations.of(context)!.statusCancelledMsg;
-    return AppLocalizations.of(context)!.statusDefaultMsg;
   }
 }

@@ -39,6 +39,9 @@ class _AddressViewState extends State<AddressView> {
   String? _savedName;
   String? _savedPhone;
 
+  // Press state for Phase 2 Button Polish
+  bool _isButtonPressed = false;
+
   @override
   void initState() {
     super.initState();
@@ -767,45 +770,73 @@ class _AddressViewState extends State<AddressView> {
               offset: const Offset(0, -5))
         ],
       ),
-      child: InkWell(
+      child: GestureDetector(
+        onTapDown: (_selectedIndex == null && !_isAddingAddress) || _isProcessingCod
+            ? null
+            : (_) => setState(() => _isButtonPressed = true),
+        onTapUp: (_selectedIndex == null && !_isAddingAddress) || _isProcessingCod
+            ? null
+            : (_) => setState(() => _isButtonPressed = false),
+        onTapCancel: (_selectedIndex == null && !_isAddingAddress) || _isProcessingCod
+            ? null
+            : () => setState(() => _isButtonPressed = false),
         onTap: (_selectedIndex == null && !_isAddingAddress) || _isProcessingCod
             ? null
-            : _proceed,
-        child: Container(
-          height: 56,
-          decoration: BoxDecoration(
-            color: (_selectedIndex == null && !_isAddingAddress) ||
-                    _isProcessingCod
-                ? Colors.grey[300]
-                : Constants.baseColor,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              if (!((_selectedIndex == null && !_isAddingAddress) ||
-                  _isProcessingCod))
-                BoxShadow(
-                  color: Constants.baseColor.withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-            ],
-          ),
-          child: Center(
-            child: _isProcessingCod
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2.5))
-                : Text(
-                    _isAddingAddress
-                        ? AppLocalizations.of(context)!.saveAndConfirm
-                        : AppLocalizations.of(context)!.confirmAddress,
-                    style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15,
-                        color: Colors.white,
-                        letterSpacing: 0.5),
+            : () {
+                HapticFeedback.lightImpact();
+                _proceed();
+              },
+        child: AnimatedScale(
+          scale: _isButtonPressed ? 0.97 : 1.0,
+          duration: const Duration(milliseconds: 120),
+          child: Container(
+            height: 56,
+            decoration: BoxDecoration(
+              color: (_selectedIndex == null && !_isAddingAddress) ||
+                      _isProcessingCod
+                  ? Colors.grey[300]
+                  : null,
+              gradient: (_selectedIndex == null && !_isAddingAddress) ||
+                      _isProcessingCod
+                  ? null
+                  : const LinearGradient(
+                      colors: [
+                        Color(0xFFAEEA4D),
+                        Color(0xFF7BC943),
+                        Color(0xFF2E7D32),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                if (!((_selectedIndex == null && !_isAddingAddress) ||
+                    _isProcessingCod))
+                  BoxShadow(
+                    color: const Color(0xFF2E7D32).withOpacity(0.15),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
                   ),
+              ],
+            ),
+            child: Center(
+              child: _isProcessingCod
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2.5))
+                  : Text(
+                      _isAddingAddress
+                          ? AppLocalizations.of(context)!.saveAndConfirm
+                          : AppLocalizations.of(context)!.confirmAddress,
+                      style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: Colors.white,
+                          letterSpacing: 0.5),
+                    ),
+            ),
           ),
         ),
       ),

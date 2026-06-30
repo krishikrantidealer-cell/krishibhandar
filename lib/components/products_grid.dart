@@ -148,15 +148,13 @@ class ProductsGridState extends State<ProductsGrid>
     super.build(context);
     final width = MediaQuery.of(context).size.width;
 
-    // Industry Standard: Dynamic Aspect Ratio
     // Industry Standard: Dynamic Aspect Ratio for feature-rich cards
-    // We use a taller ratio (0.56) to fit ratings, titles, and steppers comfortably
-    double aspectRatio =
-        0.63; // Slightly more height to fix 0.2px Hindi overflow
+    // Taller ratio (0.54) to fit ratings, titles, and steppers comfortably without overflow
+    double aspectRatio = 0.54;
     if (width < 360) {
-      aspectRatio = 0.60;
+      aspectRatio = 0.51;
     } else if (width > 420) {
-      aspectRatio = 0.68;
+      aspectRatio = 0.59;
     }
 
     // Main Grid/List content
@@ -182,10 +180,33 @@ class ProductsGridState extends State<ProductsGrid>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey[300]),
-            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 20,
+                  )
+                ],
+              ),
+              child:
+                  Icon(Icons.inventory_2_outlined, size: 56, color: Colors.grey[200]),
+            ),
+            const SizedBox(height: 32),
             Text(
               AppLocalizations.of(context)!.noProductsFound,
+              style: GoogleFonts.outfit(
+                color: Colors.grey[800],
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Try searching with different keywords",
               style: GoogleFonts.inter(
                 color: Colors.grey[500],
                 fontSize: 14,
@@ -407,6 +428,7 @@ class _ProductCardState extends State<ProductCard> {
   int _qty = 0;
   Timer? _timer;
   VariantModel? _activeVariant;
+  bool _isPressed = false;
 
   @override
   void initState() {
@@ -486,11 +508,17 @@ class _ProductCardState extends State<ProductCard> {
 
   Widget _buildRatingPill(double rating) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F8F6),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.green.withOpacity(0.1)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -498,13 +526,13 @@ class _ProductCardState extends State<ProductCard> {
           Text(
             rating.toStringAsFixed(1),
             style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
               color: Color(0xFF2E7D32),
             ),
           ),
           const SizedBox(width: 2),
-          const Icon(Icons.star_rounded, color: Color(0xFF2E7D32), size: 10),
+          const Icon(Icons.star_rounded, color: Color(0xFFFABE3C), size: 12),
         ],
       ),
     );
@@ -517,164 +545,193 @@ class _ProductCardState extends State<ProductCard> {
 
     double fakeRating = 4.0 + (widget.product.id.hashCode % 11) / 10.0;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 15,
-            offset: const Offset(0, 6),
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Routers.goTO(context, toBody: ProductView(product: widget.product));
+      },
+      child: AnimatedScale(
+        scale: _isPressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-        border: Border.all(color: Colors.grey[100]!),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 65,
-            child: WidgetButton(
-              onTap: () => Routers.goTO(context,
-                  toBody: ProductView(product: widget.product)),
-              child: Stack(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    height: double.infinity,
-                    color: Colors.white,
-                    padding: const EdgeInsets.all(10),
-                    child: KskNetworkImage(
-                      widget.product.image ?? '',
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 58,
+                child: Stack(
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9FAFB),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
                       width: double.infinity,
                       height: double.infinity,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                  _buildDiscountBadge(variant),
-                ],
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 35,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 2, 10, 2),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildRatingPill(fakeRating),
-                  const SizedBox(height: 1),
-                  GestureDetector(
-                    onTap: () => Routers.goTO(context,
-                        toBody: ProductView(product: widget.product)),
-                    child: Text(
-                      widget.product.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                        height: 1.2,
+                      padding: const EdgeInsets.all(4),
+                      child: KskNetworkImage(
+                        widget.product.image ?? '',
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.contain,
                       ),
                     ),
-                  ),
-                  const Spacer(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                    _buildDiscountBadge(variant),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 42,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => Routers.goTO(context,
-                              toBody: ProductView(product: widget.product)),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (variant.compareAtPrice != null &&
-                                  variant.compareAtPrice!.isNotEmpty)
-                                Text(
-                                  "${Constants.inr}${variant.compareAtPrice}",
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey,
-                                    decoration: TextDecoration.lineThrough,
-                                  ),
-                                ),
-                              Text(
-                                "${Constants.inr}${variant.price}",
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: Constants.baseColor,
-                                ),
-                              ),
-                            ],
+                      _buildRatingPill(fakeRating),
+                      const SizedBox(height: 2),
+                      Flexible(
+                        child: Text(
+                          widget.product.title,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                            height: 1.2,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 4),
-                      _qty > 0
-                          ? (widget.product.variants.length > 1
-                              ? GestureDetector(
-                                  onTap: () => _showVariantBottomSheet(context),
-                                  child: _buildStepper(variant),
-                                )
-                              : _buildStepper(variant))
-                          : GestureDetector(
-                              onTap: () async {
-                                HapticFeedback.lightImpact();
-                                if (widget.product.variants.length > 1) {
-                                  _showVariantBottomSheet(context);
-                                } else {
-                                  _addToCart(variant);
-                                }
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  border: Border.all(
-                                      color: Constants.baseColor, width: 1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(
-                                        AppLocalizations.of(context)!.add,
-                                        style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w900,
-                                            color: Constants.baseColor),
-                                      ),
+                      const Spacer(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (variant.compareAtPrice != null &&
+                                    variant.compareAtPrice!.isNotEmpty)
+                                  Text(
+                                    "${Constants.inr}${variant.compareAtPrice}",
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey,
+                                      decoration: TextDecoration.lineThrough,
                                     ),
-                                    if (widget.product.variants.length > 1)
-                                      Text(
-                                        AppLocalizations.of(context)!.options,
-                                        style: TextStyle(
-                                            fontSize: 7,
-                                            fontWeight: FontWeight.bold,
-                                            color: Constants.baseColor
-                                                .withOpacity(0.6)),
-                                      ),
-                                  ],
+                                  ),
+                                Text(
+                                  "${Constants.inr}${variant.price}",
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF2E7D32),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
+                          ),
+                          const SizedBox(width: 4),
+                          _qty > 0
+                              ? (widget.product.variants.length > 1
+                                  ? GestureDetector(
+                                      onTap: () {
+                                        HapticFeedback.lightImpact();
+                                        _showVariantBottomSheet(context);
+                                      },
+                                      child: _buildStepper(variant),
+                                    )
+                                  : _buildStepper(variant))
+                              : _buildAddButton(variant),
+                        ],
+                      ),
                     ],
                   ),
-                ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddButton(VariantModel variant) {
+    return GestureDetector(
+      onTap: () async {
+        HapticFeedback.lightImpact();
+        if (widget.product.variants.length > 1) {
+          _showVariantBottomSheet(context);
+        } else {
+          _addToCart(variant);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFF1E88E5),
+              Color(0xFF0F9D8A),
+              Color(0xFF2E7D32),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.10),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                AppLocalizations.of(context)!.add.toUpperCase(),
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white),
               ),
             ),
-          ),
-        ],
+            if (widget.product.variants.length > 1)
+              Text(
+                AppLocalizations.of(context)!.options,
+                style: const TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white70),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -847,19 +904,32 @@ class _ProductCardState extends State<ProductCard> {
                                             padding: const EdgeInsets.symmetric(
                                                 horizontal: 18, vertical: 8),
                                             decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              border: Border.all(
-                                                  color: Constants.baseColor,
-                                                  width: 1.5),
+                                              gradient: const LinearGradient(
+                                                colors: [
+                                                  Color(0xFF1E88E5),
+                                                  Color(0xFF0F9D8A),
+                                                  Color(0xFF2E7D32),
+                                                ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                              ),
                                               borderRadius:
-                                                  BorderRadius.circular(8),
+                                                  BorderRadius.circular(10),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black
+                                                      .withOpacity(0.10),
+                                                  blurRadius: 12,
+                                                  offset: const Offset(0, 4),
+                                                ),
+                                              ],
                                             ),
                                             child: Text(
                                               AppLocalizations.of(context)!.add,
-                                              style: TextStyle(
+                                              style: const TextStyle(
                                                 fontSize: 14,
-                                                fontWeight: FontWeight.w900,
-                                                color: Constants.baseColor,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.white,
                                               ),
                                             ),
                                           ),
@@ -928,8 +998,23 @@ class _ProductCardState extends State<ProductCard> {
     return Container(
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: Constants.baseColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(10),
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF1E88E5),
+            Color(0xFF0F9D8A),
+            Color(0xFF2E7D32),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.10),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -947,7 +1032,7 @@ class _ProductCardState extends State<ProductCard> {
             child: Text(
               "$qty",
               style: GoogleFonts.outfit(
-                  color: Constants.baseColor,
+                  color: Colors.white,
                   fontWeight: FontWeight.w900,
                   fontSize: 14),
             ),
@@ -964,72 +1049,63 @@ class _ProductCardState extends State<ProductCard> {
   }
 
   Widget _buildStepper(VariantModel variant) {
-    // If multiple variants exist, the entire stepper acts as a button
-    if (widget.product.variants.length > 1) {
-      return GestureDetector(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          _showVariantBottomSheet(context);
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-          decoration: BoxDecoration(
-            color: Constants.baseColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _cartStyleBtn(Icons.remove_rounded, null),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Text(
-                  "$_qty",
-                  style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 14,
-                    color: Constants.baseColor,
-                  ),
-                ),
-              ),
-              _cartStyleBtn(Icons.add_rounded, null),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+      padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: Constants.baseColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(10),
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF1E88E5),
+            Color(0xFF0F9D8A),
+            Color(0xFF2E7D32),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.10),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           _cartStyleBtn(
-              _qty == 1 ? Icons.delete_outline_rounded : Icons.remove_rounded,
-              () async {
+              widget.product.variants.length > 1
+                  ? Icons.remove_rounded
+                  : (_qty == 1
+                      ? Icons.delete_outline_rounded
+                      : Icons.remove_rounded), () async {
             HapticFeedback.mediumImpact();
-            await CartController.updateQty(variant.id, _qty - 1);
-            _updateQty();
+            if (widget.product.variants.length > 1) {
+              _showVariantBottomSheet(context);
+            } else {
+              await CartController.updateQty(variant.id, _qty - 1);
+              _updateQty();
+            }
           }),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Text(
               "$_qty",
               style: GoogleFonts.outfit(
                 fontWeight: FontWeight.w900,
                 fontSize: 14,
-                color: Constants.baseColor,
+                color: Colors.white,
               ),
             ),
           ),
           _cartStyleBtn(Icons.add_rounded, () async {
             HapticFeedback.lightImpact();
-            await CartController.updateQty(variant.id, _qty + 1);
-            _updateQty();
+            if (widget.product.variants.length > 1) {
+              _showVariantBottomSheet(context);
+            } else {
+              await CartController.updateQty(variant.id, _qty + 1);
+              _updateQty();
+            }
           }),
         ],
       ),
@@ -1040,19 +1116,12 @@ class _ProductCardState extends State<ProductCard> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(6),
+        padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          color: Colors.white.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(icon, size: 16, color: Constants.baseColor),
+        child: Icon(icon, size: 16, color: Colors.white),
       ),
     );
   }
@@ -1069,8 +1138,8 @@ class _ProductCardState extends State<ProductCard> {
       double per = (100 * (mrp - sp)) / mrp;
       if (per > 1) {
         return Positioned(
-          top: 0,
-          left: 0,
+          top: 8,
+          left: 8,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
@@ -1079,17 +1148,12 @@ class _ProductCardState extends State<ProductCard> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(14),
-                bottomRight: Radius.circular(14),
-                topRight: Radius.zero,
-                bottomLeft: Radius.zero,
-              ),
+              borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.15),
-                  blurRadius: 4,
-                  offset: const Offset(1, 1),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),

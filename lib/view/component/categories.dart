@@ -1,11 +1,11 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../components/network_image.dart';
-import '../../components/widget_button.dart';
 import '../../controller/constants.dart';
-import '../../controller/routers.dart';
 import '../../model/categories_model.dart';
 import '../../shopify/shopify.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
@@ -44,26 +44,22 @@ class _CategoriesState extends State<Categories>
 
   Future<void> _init({bool isRefresh = false}) async {
     if (!mounted) return;
-    // On first load show full spinner; on refresh keep list & show indicator
     if (!isRefresh) {
       setState(() => _isLoading = true);
     }
 
     final all = await Shopify.getCategories(context);
 
-    // 1. Filter out meta-categories, promotional banners, and irrelevant sections
-    // 2. Ensure only categories with valid images are shown
     final filtered = all.where((cat) {
-      final title = cat.title.toLowerCase().trim();
+      final handle = cat.handle.toLowerCase().trim();
       final hasImage = cat.image.isNotEmpty;
 
-      // Extended Blacklist for non-category/promotional sections
-      final isNotHomePage = title != "home page";
-      final isNotHydroponics = !title.contains('hydroponics');
+      final isNotHomePage = handle != "home-page" && handle != "frontpage";
+      final isNotHydroponics = !handle.contains('hydroponics');
       final isNotSale =
-          !title.contains('sale') && !title.contains('republic day');
+          !handle.contains('sale') && !handle.contains('republic-day');
       final isNotBanner =
-          !title.contains('banner') && !title.contains('best seller');
+          !handle.contains('banner') && !handle.contains('best-seller');
 
       return hasImage &&
           isNotHomePage &&
@@ -97,98 +93,65 @@ class _CategoriesState extends State<Categories>
     } else {
       innerContent = Column(
         children: [
-          // Fixed Header (Not affected by refresh pull)
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned(
-                top: -50,
-                right: -30,
-                child: Container(
-                  width: 200,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: Constants.baseColor.withOpacity(0.05),
-                    shape: BoxShape.circle,
-                  ),
-                ),
+          // --- MODERN REFINED HEADER ---
+          Container(
+            height: 100,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF1E88E5), // Premium Blue
+                  Color(0xFF0F9D8A), // Teal Bridge
+                  Color(0xFF2E7D32), // Agri Green
+                ],
               ),
-              Positioned(
-                top: 40,
-                left: -20,
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: Constants.baseColor.withOpacity(0.03),
-                    shape: BoxShape.circle,
-                  ),
-                ),
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(28),
+                bottomRight: Radius.circular(28),
               ),
-              Container(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                decoration: const BoxDecoration(
-                  color: Colors.transparent,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          AppLocalizations.of(context)!.shopByCategory,
-                          style: GoogleFonts.outfit(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                            color: Constants.baseColor,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: Constants.baseColor,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                AppLocalizations.of(context)!
-                                    .categoryCount(_categories.length),
-                                style: GoogleFonts.inter(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              AppLocalizations.of(context)!.premiumSelection,
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    _buildStatIndicator(),
-                  ],
-                ),
+              boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 20,
+                spreadRadius: 0,
+                offset: const Offset(0, 6),
               ),
             ],
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    AppLocalizations.of(context)!.categories,
+                    style: GoogleFonts.outfit(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  Text(
+                    "Explore Agricultural Products",
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withOpacity(0.85),
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          // Refreshable Category List
+
+          // --- REFRESHABLE GRID ---
           Expanded(
             child: RefreshIndicator(
-              color: Constants.baseColor,
+              color: const Color(0xFF26842c),
               backgroundColor: Colors.white,
               onRefresh: () => _init(isRefresh: true),
               child: CustomScrollView(
@@ -197,30 +160,27 @@ class _CategoriesState extends State<Categories>
                 ),
                 slivers: [
                   SliverPadding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 20),
+                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 40),
                     sliver: SliverGrid(
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 3,
                         crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 0.85,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: 0.82,
                       ),
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
                           final category = _categories[index];
                           return TweenAnimationBuilder<double>(
                             duration:
-                                Duration(milliseconds: 300 + (index * 50)),
+                                Duration(milliseconds: 250 + (index * 20)),
                             tween: Tween(begin: 0.0, end: 1.0),
                             curve: Curves.easeOutCubic,
-                            child: RepaintBoundary(
-                              child: _buildCategoryCard(category),
-                            ),
+                            child: _buildCategoryCard(category),
                             builder: (context, value, child) {
                               return Transform.translate(
-                                offset: Offset(0, 20 * (1 - value)),
+                                offset: Offset(0, 15 * (1 - value)),
                                 child: Opacity(
                                   opacity: value,
                                   child: child,
@@ -244,143 +204,280 @@ class _CategoriesState extends State<Categories>
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
       ),
-      child: Container(
-        color: const Color(0xffF9FBF9),
-        child: SafeArea(child: innerContent),
+      child: Scaffold(
+        backgroundColor: const Color(0xffF9FBF9),
+        body: Stack(
+          children: [
+            _buildBackgroundDecor(),
+            innerContent,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBackgroundDecor() {
+    return Positioned.fill(
+      child: Stack(
+        children: [
+          Positioned(
+            top: 150,
+            right: -100,
+            child: _blurCircle(300, const Color(0xFF1E88E5).withOpacity(0.02)),
+          ),
+          Positioned(
+            bottom: 100,
+            left: -80,
+            child: _blurCircle(250, const Color(0xFF2E7D32).withOpacity(0.02)),
+          ),
+          Positioned(
+            top: 450,
+            left: -50,
+            child: _blurCircle(200, const Color(0xFF0F9D8A).withOpacity(0.02)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _blurCircle(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
+      ),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+        child: Container(color: Colors.transparent),
       ),
     );
   }
 
   Widget _buildCategoryCard(CategoriesModel category) {
-    return WidgetButton(
+    return _PremiumCategoryCard(
       onTap: () {
-        Routers.goTO(
+        HapticFeedback.lightImpact();
+        Navigator.push(
           context,
-          toBody: CollectionView(
-              collectionId: category.id.toString(), title: category.title),
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 250),
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                CollectionView(
+              collectionId: category.id.toString(),
+              title: category.title,
+            ),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0.1, 0),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  ),
+                  child: child,
+                ),
+              );
+            },
+          ),
         );
       },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Constants.baseColor.withOpacity(0.08),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-          border: Border.all(
-            color: Constants.baseColor.withOpacity(0.05),
-            width: 1.5,
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: KskNetworkImage(
-            category.image,
-            fit: BoxFit.cover,
-          ),
-        ),
-      ),
+      image: category.image,
+      title: category.title,
     );
   }
 
   Widget _buildShimmerGrid() {
-    return SafeArea(
-      child: Container(
-        color: const Color(0xffF9FBF9),
-        child: SingleChildScrollView(
-          physics: const NeverScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Refined Shimmer Header
+        Container(
+          height: 100,
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(28),
+              bottomRight: Radius.circular(28),
+            ),
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Constants.shimmer(height: 20, width: 140),
+                const SizedBox(height: 6),
+                Constants.shimmer(height: 10, width: 100),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 16,
+              childAspectRatio: 0.82,
+            ),
+            itemCount: 12,
+            itemBuilder: (context, index) {
+              return Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: Colors.white,
+                  boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+                ),
+                child: Column(
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Expanded(
+                      flex: 82,
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF9FAFB),
+                          borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(20)),
+                        ),
+                        child: Constants.shimmer(),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 18,
+                      child: Center(
+                        child: Constants.shimmer(height: 10, width: 60),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PremiumCategoryCard extends StatefulWidget {
+  final VoidCallback onTap;
+  final String image;
+  final String title;
+
+  const _PremiumCategoryCard({
+    required this.onTap,
+    required this.image,
+    required this.title,
+  });
+
+  @override
+  State<_PremiumCategoryCard> createState() => _PremiumCategoryCardState();
+}
+
+class _PremiumCategoryCardState extends State<_PremiumCategoryCard> {
+  double _scale = 1.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _scale = 0.96),
+      onTapUp: (_) => setState(() => _scale = 1.0),
+      onTapCancel: () => setState(() => _scale = 1.0),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOutCubic,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // IMAGE SECTION (82%)
+              Expanded(
+                flex: 82,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF9FAFB),
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  child: ClipRRect(
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(20)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(0.0), // Micro-adjustment for 2-3% larger visual image
+                      child: KskNetworkImage(
+                        widget.image,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // EXPLORE SECTION (18%)
+              Expanded(
+                flex: 18,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    borderRadius:
+                        BorderRadius.vertical(bottom: Radius.circular(20)),
+                  ),
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Constants.shimmer(height: 24, width: 180),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Constants.shimmer(height: 6, width: 6),
-                            const SizedBox(width: 6),
-                            Constants.shimmer(height: 12, width: 100),
-                          ],
+                        Text(
+                          "Explore",
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF2E7D32),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 13,
+                          color: Color(0xFF2E7D32),
                         ),
                       ],
                     ),
-                    Constants.shimmer(height: 36, width: 36),
-                  ],
+                  ),
                 ),
-              ),
-              GridView.builder(
-                shrinkWrap: true,
-                padding: const EdgeInsets.all(16),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 0.85,
-                ),
-                itemCount: 9,
-                itemBuilder: (context, index) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: Colors.white,
-                      border: Border.all(color: Colors.grey.withOpacity(0.1)),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Constants.shimmer(),
-                    ),
-                  );
-                },
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildStatIndicator() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: Constants.baseColor.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            _categories.length.toString(),
-            style: GoogleFonts.outfit(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: Constants.baseColor,
-            ),
-          ),
-          Text(
-            AppLocalizations.of(context)!.total,
-            style: GoogleFonts.inter(
-              fontSize: 7,
-              fontWeight: FontWeight.w900,
-              color: Constants.baseColor,
-              letterSpacing: 0.8,
-            ),
-          ),
-        ],
       ),
     );
   }

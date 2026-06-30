@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:kisan_sewa_kendra/model/order_model.dart';
 import '../controller/constants.dart';
 import '../controller/routers.dart';
 import '../controller/technical_mapping_controller.dart';
@@ -19,9 +18,7 @@ class CustomSearchDelegate extends SearchDelegate<String> {
   final TechnicalMappingController _techController =
       TechnicalMappingController();
 
-  CustomSearchDelegate() {
-    _techController.ensureLoaded();
-  }
+  CustomSearchDelegate();
 
   @override
   String get searchFieldLabel => _searchMode.value == 0
@@ -221,58 +218,64 @@ class CustomSearchDelegate extends SearchDelegate<String> {
 
   Widget _buildTechnicalBrowser(
       BuildContext context, TechnicalMappingModel? selectedTech) {
-    if (!_techController.isLoaded) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    return FutureBuilder(
+      future: _techController.ensureLoaded(),
+      builder: (context, snapshot) {
+        if (!_techController.isLoaded) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    if (selectedTech != null) {
-      final products =
-          _techController.getProductsForTechnical(selectedTech.technicalName);
-      return _buildProductList(context, products, selectedTech.technicalName);
-    }
+        if (selectedTech != null) {
+          final products = _techController
+              .getProductsForTechnical(selectedTech.technicalName);
+          return _buildProductList(
+              context, products, selectedTech.technicalName);
+        }
 
-    if (query.isNotEmpty) {
-      final results = _techController.searchMappings(query);
-      if (results.isEmpty) {
-        return Center(
-          child: Text(
-            "No technical names found for '$query'",
-            style: GoogleFonts.outfit(color: Colors.grey),
-          ),
-        );
-      }
-      return ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: results.length,
-        itemBuilder: (context, index) {
-          final m = results[index];
-          return ListTile(
-            dense: true,
-            title: Text(m.technicalName,
-                style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.w600, fontSize: 15)),
-            onTap: () {
-              _selectedTechnical.value = m;
-              query = '';
+        if (query.isNotEmpty) {
+          final results = _techController.searchMappings(query);
+          if (results.isEmpty) {
+            return Center(
+              child: Text(
+                "No technical names found for '$query'",
+                style: GoogleFonts.outfit(color: Colors.grey),
+              ),
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            itemCount: results.length,
+            itemBuilder: (context, index) {
+              final m = results[index];
+              return ListTile(
+                dense: true,
+                title: Text(m.technicalName,
+                    style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.w600, fontSize: 15)),
+                onTap: () {
+                  _selectedTechnical.value = m;
+                  query = '';
+                },
+              );
             },
           );
-        },
-      );
-    }
+        }
 
-    final groups = _techController.getAlphabeticalGroups();
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: groups.length,
-      itemBuilder: (context, index) {
-        final letter = groups.keys.elementAt(index);
-        final mappings = groups[letter]!;
-        return _AlphabetRow(
-          letter: letter,
-          mappings: mappings,
-          onTap: (m) {
-            _selectedTechnical.value = m;
-            query = '';
+        final groups = _techController.getAlphabeticalGroups();
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          itemCount: groups.length,
+          itemBuilder: (context, index) {
+            final letter = groups.keys.elementAt(index);
+            final mappings = groups[letter]!;
+            return _AlphabetRow(
+              letter: letter,
+              mappings: mappings,
+              onTap: (m) {
+                _selectedTechnical.value = m;
+                query = '';
+              },
+            );
           },
         );
       },

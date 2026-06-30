@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
@@ -243,16 +244,40 @@ class _AgriAdvisorState extends State<AgriAdvisor> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Constants.baseColor,
-        shape: CircleBorder(),
-        onPressed: () {
+      floatingActionButton: GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
           launchUrlString("https://wa.me/919399022060?text=Hi");
         },
-        child: FaIcon(
-          FontAwesomeIcons.whatsapp,
-          size: 35,
-          color: Colors.white,
+        child: Container(
+          width: 65,
+          height: 65,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFFAEEA4D),
+                Color(0xFF7BC943),
+                Color(0xFF2E7D32),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF2E7D32).withOpacity(0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: const Center(
+            child: FaIcon(
+              FontAwesomeIcons.whatsapp,
+              size: 35,
+              color: Colors.white,
+            ),
+          ),
         ),
       ),
     );

@@ -1,6 +1,16 @@
+import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:kisan_sewa_kendra/controller/auth_controller.dart';
-import 'package:kisan_sewa_kendra/controller/technical_mapping_controller.dart';
+import 'package:kisan_sewa_kendra/controller/pref.dart';
+import 'package:kisan_sewa_kendra/firebase_options.dart';
+import 'package:kisan_sewa_kendra/services/attribution_service.dart';
+import 'package:kisan_sewa_kendra/utils/meta_events.dart';
+import 'package:kisan_sewa_kendra/utils/notification_service.dart';
 import 'package:kisan_sewa_kendra/view/home_view.dart';
 import '../controller/constants.dart';
 import '../controller/update_service.dart';
@@ -31,7 +41,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
 
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 2500),
+      duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
 
@@ -40,15 +50,15 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
     )..repeat();
 
-    // 1. Logo Sequence
-    _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+    // 1. Logo Continuity - Start at 1.0 opacity
+    _logoOpacity = Tween<double>(begin: 1.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.4, curve: Curves.easeIn),
+        curve: const Interval(0.0, 0.4, curve: Curves.linear),
       ),
     );
 
-    _logoScale = Tween<double>(begin: 0.85, end: 1.0).animate(
+    _logoScale = Tween<double>(begin: 1.0, end: 1.1).animate(
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.0, 0.5, curve: Curves.easeOutCubic),
@@ -66,7 +76,7 @@ class _SplashScreenState extends State<SplashScreen>
     _titleOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.3, 0.6, curve: Curves.easeIn),
+        curve: const Interval(0.2, 0.5, curve: Curves.easeIn),
       ),
     );
 
@@ -74,7 +84,7 @@ class _SplashScreenState extends State<SplashScreen>
         Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.3, 0.6, curve: Curves.easeOutCubic),
+        curve: const Interval(0.2, 0.5, curve: Curves.easeOutCubic),
       ),
     );
 
@@ -82,7 +92,7 @@ class _SplashScreenState extends State<SplashScreen>
     _taglineOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.4, 0.7, curve: Curves.easeIn),
+        curve: const Interval(0.3, 0.6, curve: Curves.easeIn),
       ),
     );
 
@@ -90,29 +100,43 @@ class _SplashScreenState extends State<SplashScreen>
         Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.4, 0.7, curve: Curves.easeOutCubic),
+        curve: const Interval(0.3, 0.6, curve: Curves.easeOutCubic),
       ),
     );
 
-    _controller.forward();
     _initApp();
+
+    // Remove native splash as soon as first frame of Premium Splash is ready
+    // and ONLY THEN start the animation for a perfect synchronized transition.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FlutterNativeSplash.remove();
+      _controller.forward();
+    });
   }
 
   _initApp() async {
     try {
-      await UpdateService.init();
-      await Constants.fetchRemoteConfig(context);
-      await TechnicalMappingController().ensureLoaded();
+      // Step 1: Initialize Core I/O and Firebase Core in parallel
+      await Future.wait([
+        dotenv.load(fileName: ".env"),
+        Pref.ensureInitialized(),
+        Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        ),
+      ]);
 
-      // Auto-heal missing Shopify Customer ID if phone is already saved
+      // Step 2: Deferred and Parallelized Initialization
+      await Future.wait([
+        UpdateService.init(),
+        Constants.fetchRemoteConfig(context),
+        _initNonCriticalServices(),
+      ]);
+
       final phone = await AuthController.getSavedPhone();
       final shopifyId = await AuthController.getShopifyCustomerId();
       if (phone != null &&
           phone.isNotEmpty &&
           (shopifyId == null || shopifyId.isEmpty || shopifyId == "null")) {
-        debugPrint(
-            "Splash: Auto-healing missing Shopify Customer ID for phone: $phone");
-        // Run Shopify sync to fetch and save customer ID in background
         AuthController.syncWithShopify(phone).catchError((e) {
           debugPrint("Splash: Auto-heal error: $e");
         });
@@ -128,11 +152,12 @@ class _SplashScreenState extends State<SplashScreen>
       return;
     }
 
-    await Future.delayed(const Duration(milliseconds: 3200));
+    // Phase 4: Optimized Duration (Total ~1.1s including animation)
+    await Future.delayed(const Duration(milliseconds: 900));
 
     if (mounted) {
       setState(() => _isExiting = true);
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 200));
 
       if (mounted) {
         Navigator.pushReplacement(
@@ -144,7 +169,7 @@ class _SplashScreenState extends State<SplashScreen>
                 (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
             },
-            transitionDuration: const Duration(milliseconds: 500),
+            transitionDuration: const Duration(milliseconds: 200),
           ),
         ).then((_) {
           if (updateType == UpdateType.optional && mounted) {
@@ -152,6 +177,20 @@ class _SplashScreenState extends State<SplashScreen>
           }
         });
       }
+    }
+  }
+
+  Future<void> _initNonCriticalServices() async {
+    try {
+      await FirebaseAppCheck.instance.activate(
+        androidProvider:
+            kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+      );
+      await NotificationService.init();
+      await MetaEvents.init();
+      await AttributionService().init();
+    } catch (e) {
+      debugPrint("Non-critical init error: $e");
     }
   }
 
@@ -167,7 +206,7 @@ class _SplashScreenState extends State<SplashScreen>
     final size = MediaQuery.of(context).size;
     return Scaffold(
       body: AnimatedOpacity(
-        duration: const Duration(milliseconds: 500),
+        duration: const Duration(milliseconds: 200),
         opacity: _isExiting ? 0.0 : 1.0,
         child: Container(
           width: double.infinity,

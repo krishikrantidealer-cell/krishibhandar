@@ -3,7 +3,7 @@ description: "Krishi Bhandar shopify website's App"
 
 publish_to: 'none'
 
-version: 3.0.13+36
+version: 3.0.14+40
 
 environment:
   sdk: ^3.5.3
@@ -22,6 +22,8 @@ dependencies:
   share_plus: ^12.0.1
   shared_preferences: ^2.5.5
   package_info_plus: ^8.1.2
+  path_provider: ^2.1.5
+  path: ^1.9.0
 
   cached_network_image: ^3.4.1
   cached_network_image_plus: ^0.0.5
@@ -49,6 +51,7 @@ dependencies:
   carousel_slider: ^5.1.2
   font_awesome_flutter: ^11.0.0
   pinput: ^6.0.2
+  animations: ^2.0.11
 
 dev_dependencies:
   flutter_test:
@@ -74,10 +77,10 @@ flutter_launcher_icons:
   adaptive_icon_foreground: "assets/icon_foreground.png"
 
 flutter_native_splash:
-  color: "#26842c"
-  image: assets/logo_splash.png
+  color: "#FFFFFF"
+  image: assets/logo_native_splash.png
 
   android_12:
-    color: "#26842c"
-    image: assets/logo_splash.png
+    color: "#FFFFFF"
+    image: assets/logo_native_splash.png
   fullscreen: true

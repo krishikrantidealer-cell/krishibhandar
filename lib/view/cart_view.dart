@@ -27,6 +27,10 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
   List<CartItem> _cartItems = [];
   bool _isLoading = true;
 
+  // Press states for Phase 2 Button Polish
+  bool _isStartShoppingPressed = false;
+  bool _isCheckoutPressed = false;
+
   @override
   void initState() {
     super.initState();
@@ -363,7 +367,10 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
         ),
         bottomNavigationBar: _isLoading || _cartItems.isEmpty
             ? null
-            : _buildIntegratedCheckoutBar(),
+            : Padding(
+                padding: const EdgeInsets.only(bottom: 0),
+                child: _buildIntegratedCheckoutBar(),
+              ),
       ),
     );
   }
@@ -394,77 +401,92 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
   }
 
   Widget _buildAdvancedHeader() {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          padding: EdgeInsets.fromLTRB(
-              16, MediaQuery.of(context).padding.top + 8, 16, 12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.85),
-            border: Border(
-              bottom: BorderSide(color: Colors.grey.withOpacity(0.05)),
-            ),
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+          16, MediaQuery.of(context).padding.top + 8, 16, 20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF1E88E5), // Premium Blue
+            Color(0xFF0F9D8A), // Teal Bridge
+            Color(0xFF2E7D32), // Agri Green
+          ],
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  _circleIconBtn(
-                    icon: Icons.arrow_back_rounded,
-                    onTap: () => Navigator.pop(context),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          AppLocalizations.of(context)!.checkout,
-                          style: GoogleFonts.outfit(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            color: Constants.baseColor,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        Text(
-                          "${AppLocalizations.of(context)!.appBrandName} • Agri-Business",
-                          style: GoogleFonts.inter(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            color: Constants.baseColor,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (_cartItems.isNotEmpty)
-                    TextButton(
-                      onPressed: _clearCart,
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: Text(
-                        AppLocalizations.of(context)!.clearCart.toUpperCase(),
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.redAccent,
-                        ),
-                      ),
-                    ),
-                ],
+              _circleIconBtn(
+                icon: Icons.arrow_back_rounded,
+                onTap: () => Navigator.pop(context),
               ),
-              const SizedBox(height: 10),
-              _buildProgressSteps(),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppLocalizations.of(context)!.checkout,
+                      style: GoogleFonts.outfit(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    Text(
+                      "Krishi Bhandar • Agri Business",
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withOpacity(0.85),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_cartItems.isNotEmpty)
+                TextButton(
+                  onPressed: _clearCart,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    backgroundColor: Colors.white.withOpacity(0.15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    AppLocalizations.of(context)!.clearCart.toUpperCase(),
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
             ],
           ),
-        ),
+          const SizedBox(height: 18),
+          _buildProgressSteps(),
+        ],
       ),
     );
   }
@@ -475,59 +497,72 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(0.05),
+          color: Colors.white.withOpacity(0.15),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, size: 20, color: const Color(0xFF1E1E1E)),
+        child: Icon(icon, size: 20, color: Colors.white),
       ),
     );
   }
 
   Widget _buildProgressSteps() {
-    return Row(
-      children: [
-        _stepItem(AppLocalizations.of(context)!.cart, true),
-        _stepDivider(true),
-        _stepItem(
-            AppLocalizations.of(context)!.address, _selectedAddress != null),
-        _stepDivider(_selectedAddress != null),
-        _stepItem(AppLocalizations.of(context)!.payment, false),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        children: [
+          _stepItem(AppLocalizations.of(context)!.cart, true, true),
+          _stepDivider(true),
+          _stepItem(
+              AppLocalizations.of(context)!.address, _selectedAddress != null, false),
+          _stepDivider(_selectedAddress != null),
+          _stepItem(AppLocalizations.of(context)!.payment, false, false),
+        ],
+      ),
     );
   }
 
   Widget _stepDivider(bool active) {
     return Expanded(
       child: Container(
-        height: 1.5,
-        margin: const EdgeInsets.symmetric(horizontal: 6),
+        height: 2.5,
+        margin: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
-          color: active ? Constants.baseColor : Colors.grey[200],
-          borderRadius: BorderRadius.circular(1),
+          color: active ? Colors.white : Colors.white.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(2),
         ),
       ),
     );
   }
 
-  Widget _stepItem(String label, bool active) {
+  Widget _stepItem(String label, bool active, bool isCurrent) {
     return Column(
       children: [
         Container(
-          width: 6,
-          height: 6,
+          width: 12,
+          height: 12,
           decoration: BoxDecoration(
-            color: active ? Constants.baseColor : Colors.grey[300],
+            color: active ? Colors.white : Colors.transparent,
             shape: BoxShape.circle,
+            border: Border.all(
+              color: active ? Colors.white : Colors.white.withOpacity(0.4),
+              width: 2,
+            ),
+            boxShadow: active ? [
+              BoxShadow(
+                color: Colors.white.withOpacity(0.3),
+                blurRadius: 8,
+              )
+            ] : null,
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
         Text(
           label,
           style: GoogleFonts.inter(
-            fontSize: 7,
-            fontWeight: FontWeight.w900,
-            color: active ? Constants.baseColor : Colors.grey[400],
-            letterSpacing: 0.5,
+            fontSize: 9,
+            fontWeight: active ? FontWeight.w900 : FontWeight.w600,
+            color: active ? Colors.white : Colors.white.withOpacity(0.6),
+            letterSpacing: 0.2,
           ),
         ),
       ],
@@ -542,40 +577,80 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(30),
+              padding: const EdgeInsets.all(40),
               decoration: BoxDecoration(
-                color: Constants.baseColor.withOpacity(0.05),
+                color: Colors.white,
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Constants.baseColor.withOpacity(0.1),
+                    blurRadius: 30,
+                    spreadRadius: 5,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 15,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
               child: Icon(Icons.shopping_basket_outlined,
-                  size: 80, color: Constants.baseColor.withOpacity(0.2)),
+                  size: 80, color: Constants.baseColor),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 40),
             Text(AppLocalizations.of(context)!.basketEmpty,
                 style: GoogleFonts.outfit(
-                    fontSize: 24, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 12),
+                    fontSize: 26, fontWeight: FontWeight.w900, color: const Color(0xFF1E1E1E))),
+            const SizedBox(height: 14),
             Text(AppLocalizations.of(context)!.basketEmptyMsg,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
-                    fontSize: 14, color: Colors.grey[500], height: 1.5)),
-            const SizedBox(height: 40),
+                    fontSize: 15, color: Colors.grey[600], height: 1.6)),
+            const SizedBox(height: 48),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Constants.baseColor,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                  padding: const EdgeInsets.symmetric(vertical: 18),
+              child: GestureDetector(
+                onTapDown: (_) => setState(() => _isStartShoppingPressed = true),
+                onTapUp: (_) => setState(() => _isStartShoppingPressed = false),
+                onTapCancel: () => setState(() => _isStartShoppingPressed = false),
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.pop(context);
+                },
+                child: AnimatedScale(
+                  scale: _isStartShoppingPressed ? 0.97 : 1.0,
+                  duration: const Duration(milliseconds: 120),
+                  child: Container(
+                    height: 56,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFFAEEA4D),
+                          Color(0xFF7BC943),
+                          Color(0xFF2E7D32),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF2E7D32).withOpacity(0.15),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(AppLocalizations.of(context)!.startShopping,
+                          style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              fontSize: 16,
+                              letterSpacing: 1)),
+                    ),
+                  ),
                 ),
-                child: Text(AppLocalizations.of(context)!.startShopping,
-                    style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 1)),
               ),
             ),
           ],
@@ -953,10 +1028,17 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
     double total = _getFinalTotal();
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFF9FAFB),
         borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
         border: Border.all(color: Colors.grey.withOpacity(0.05)),
       ),
       child: Column(
@@ -966,11 +1048,11 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
             AppLocalizations.of(context)!.billSummary,
             style: GoogleFonts.outfit(
               fontWeight: FontWeight.w800,
-              fontSize: 15,
+              fontSize: 16,
               color: const Color(0xFF1E1E1E),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _summaryRow(AppLocalizations.of(context)!.itemTotal, subtotal),
           if (_appliedDiscount != null)
             _summaryRow(AppLocalizations.of(context)!.couponDiscount, -discount,
@@ -978,42 +1060,42 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
           _summaryRow(AppLocalizations.of(context)!.deliveryFee, 0,
               isFree: true),
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Divider(height: 1),
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Divider(height: 1, color: Color(0xFFE0E0E0)),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(AppLocalizations.of(context)!.grandTotal,
                   style: GoogleFonts.outfit(
-                      fontWeight: FontWeight.w800, fontSize: 16)),
+                      fontWeight: FontWeight.w800, fontSize: 18)),
               Text("${Constants.inr}${total.toStringAsFixed(2)}",
                   style: GoogleFonts.outfit(
                       fontWeight: FontWeight.w900,
-                      fontSize: 20,
-                      color: Constants.baseColor)),
+                      fontSize: 22,
+                      color: const Color(0xFF2E7D32))),
             ],
           ),
           if (discount > 0) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               decoration: BoxDecoration(
-                color: Constants.baseColor.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(8),
+                color: const Color(0xFF2E7D32).withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.stars_rounded,
-                      color: Constants.baseColor, size: 14),
-                  const SizedBox(width: 6),
+                  const Icon(Icons.stars_rounded,
+                      color: Color(0xFF2E7D32), size: 16),
+                  const SizedBox(width: 8),
                   Text(
                     AppLocalizations.of(context)!.youSaved(
                         "${Constants.inr}${discount.toStringAsFixed(0)}"),
                     style: GoogleFonts.inter(
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: FontWeight.w800,
-                      color: Constants.baseColor,
+                      color: const Color(0xFF2E7D32),
                     ),
                   ),
                 ],
@@ -1058,6 +1140,13 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
         border: Border.all(color: Colors.grey.withOpacity(0.05)),
       ),
       child: Column(
@@ -1066,54 +1155,57 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Constants.baseColor.withOpacity(0.05),
+                  color: const Color(0xFF2E7D32).withOpacity(0.08),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.location_on_rounded,
-                    color: Constants.baseColor, size: 16),
+                child: const Icon(Icons.location_on_rounded,
+                    color: Color(0xFF2E7D32), size: 18),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(AppLocalizations.of(context)!.deliveryAddress,
                         style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.w800, fontSize: 15)),
+                            fontWeight: FontWeight.w800, fontSize: 16)),
                     if (_selectedAddress != null)
                       Text(
                           AppLocalizations.of(context)!.deliveringTo(
                               _selectedAddress!['label'] ?? "Home"),
                           style: GoogleFonts.inter(
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                               fontSize: 10,
-                              color: Constants.baseColor)),
+                              color: const Color(0xFF2E7D32))),
                   ],
                 ),
               ),
               TextButton(
                   onPressed: _selectAddress,
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    backgroundColor: const Color(0xFF2E7D32).withOpacity(0.08),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   child: Text(AppLocalizations.of(context)!.change,
                       style: GoogleFonts.inter(
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w800,
                           fontSize: 11,
-                          color: Constants.baseColor))),
+                          color: const Color(0xFF2E7D32)))),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           if (_selectedAddress != null) ...[
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF9FBF9),
-                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.grey.withOpacity(0.08)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1122,24 +1214,24 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                     children: [
                       Text(_selectedAddress!['name'] ?? '',
                           style: GoogleFonts.inter(
-                              fontWeight: FontWeight.w800, fontSize: 13)),
-                      const SizedBox(width: 4),
-                      Text("•", style: TextStyle(color: Colors.grey[300])),
-                      const SizedBox(width: 4),
+                              fontWeight: FontWeight.w800, fontSize: 14, color: const Color(0xFF1E1E1E))),
+                      const SizedBox(width: 6),
+                      const Text("•", style: TextStyle(color: Color(0xFFBDBDBD))),
+                      const SizedBox(width: 6),
                       Text("${_selectedAddress!['phone'] ?? ''}",
                           style: GoogleFonts.inter(
                               fontWeight: FontWeight.w600,
-                              fontSize: 11,
-                              color: Colors.grey[500])),
+                              fontSize: 12,
+                              color: Colors.grey[600])),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 8),
                   Text(
                     "${_selectedAddress!['address1']}, ${_selectedAddress!['address2']}, ${_selectedAddress!['city']}, ${_selectedAddress!['state']} - ${_selectedAddress!['pincode']}",
                     style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: Colors.grey[500],
-                        height: 1.4,
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        height: 1.5,
                         fontWeight: FontWeight.w500),
                   ),
                 ],
@@ -1246,11 +1338,21 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
             if (!hasAddress)
               Expanded(
                 child: GestureDetector(
-                  onTap: _isProcessingOrder ? null : _selectAddress,
-                  child: _checkoutButton(
-                    label: AppLocalizations.of(context)!.addDeliveryAddress,
-                    color: Colors.black,
-                    icon: Icons.add_location_alt_rounded,
+                  onTapDown: (_) => setState(() => _isCheckoutPressed = true),
+                  onTapUp: (_) => setState(() => _isCheckoutPressed = false),
+                  onTapCancel: () => setState(() => _isCheckoutPressed = false),
+                  onTap: _isProcessingOrder ? null : () {
+                    HapticFeedback.lightImpact();
+                    _selectAddress();
+                  },
+                  child: AnimatedScale(
+                    scale: _isCheckoutPressed ? 0.97 : 1.0,
+                    duration: const Duration(milliseconds: 120),
+                    child: _checkoutButton(
+                      label: AppLocalizations.of(context)!.addDeliveryAddress,
+                      color: Colors.black,
+                      icon: Icons.add_location_alt_rounded,
+                    ),
                   ),
                 ),
               )
@@ -1258,11 +1360,21 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
               // Online Payment
               Expanded(
                 child: GestureDetector(
-                  onTap: _isProcessingOrder ? null : _openShiprocketCheckout,
-                  child: _checkoutButton(
-                    label: AppLocalizations.of(context)!.onlinePayment,
-                    color: Constants.baseColor,
-                    icon: Icons.payment_rounded,
+                  onTapDown: (_) => setState(() => _isCheckoutPressed = true),
+                  onTapUp: (_) => setState(() => _isCheckoutPressed = false),
+                  onTapCancel: () => setState(() => _isCheckoutPressed = false),
+                  onTap: _isProcessingOrder ? null : () {
+                    HapticFeedback.lightImpact();
+                    _openShiprocketCheckout();
+                  },
+                  child: AnimatedScale(
+                    scale: _isCheckoutPressed ? 0.97 : 1.0,
+                    duration: const Duration(milliseconds: 120),
+                    child: _checkoutButton(
+                      label: AppLocalizations.of(context)!.onlinePayment,
+                      color: Constants.baseColor,
+                      icon: Icons.payment_rounded,
+                    ),
                   ),
                 ),
               ),
@@ -1272,20 +1384,27 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
 
   Widget _checkoutButton({
     required String label,
-    required Color color,
+    required Color color, // Kept for logic if needed, but using gradient now
     required IconData icon,
   }) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
+    return Container(
       height: 54,
       decoration: BoxDecoration(
-        color: color,
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFFAEEA4D),
+            Color(0xFF7BC943),
+            Color(0xFF2E7D32),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-              color: color.withOpacity(0.2),
-              blurRadius: 10,
-              offset: const Offset(0, 4))
+              color: const Color(0xFF2E7D32).withOpacity(0.15),
+              blurRadius: 14,
+              offset: const Offset(0, 6))
         ],
       ),
       child: Center(

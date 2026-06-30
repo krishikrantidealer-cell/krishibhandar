@@ -6,7 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../controller/constants.dart';
 
 class SupportView extends StatefulWidget {
-  const SupportView({super.key});
+  final VoidCallback? onBack;
+  const SupportView({super.key, this.onBack});
 
   @override
   State<SupportView> createState() => _SupportViewState();
@@ -21,12 +22,16 @@ class _SupportViewState extends State<SupportView>
   final _messageController = TextEditingController();
   bool _isLoading = false;
 
+  // Press state for Phase 2 Button Polish
+  bool _isButtonPressed = false;
+
   @override
   bool get wantKeepAlive => true;
 
   Future<void> _submitToWhatsApp() async {
     if (!_formKey.currentState!.validate()) return;
 
+    HapticFeedback.lightImpact();
     setState(() => _isLoading = true);
 
     final name = _nameController.text.trim();
@@ -183,7 +188,13 @@ class _SupportViewState extends State<SupportView>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       GestureDetector(
-                        onTap: () => Scaffold.of(context).openDrawer(),
+                        onTap: () {
+                          if (widget.onBack != null) {
+                            widget.onBack!();
+                          } else {
+                            Scaffold.of(context).openDrawer();
+                          }
+                        },
                         child: Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
@@ -191,7 +202,7 @@ class _SupportViewState extends State<SupportView>
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
-                            Icons.menu_rounded,
+                            Icons.arrow_back_rounded,
                             color: Colors.white,
                             size: 20,
                           ),
@@ -370,57 +381,63 @@ class _SupportViewState extends State<SupportView>
 
             // Submit button
             GestureDetector(
+              onTapDown: _isLoading ? null : (_) => setState(() => _isButtonPressed = true),
+              onTapUp: _isLoading ? null : (_) => setState(() => _isButtonPressed = false),
+              onTapCancel: _isLoading ? null : () => setState(() => _isButtonPressed = false),
               onTap: _isLoading ? null : _submitToWhatsApp,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: double.infinity,
-                height: 52,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFFAEEA4D),
-                      Color(0xFF7BC943),
-                      Color(0xFF2E7D32),
+              child: AnimatedScale(
+                scale: _isButtonPressed ? 0.97 : 1.0,
+                duration: const Duration(milliseconds: 120),
+                child: Container(
+                  width: double.infinity,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFFAEEA4D),
+                        Color(0xFF7BC943),
+                        Color(0xFF2E7D32),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF2E7D32).withOpacity(0.15),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF2E7D32).withOpacity(0.2),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const FaIcon(FontAwesomeIcons.whatsapp,
-                                color: Colors.white, size: 20),
-                            const SizedBox(width: 10),
-                            Text(
-                              AppLocalizations.of(context)!.sendWhatsApp,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
-                              ),
+                  child: Center(
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
                             ),
-                          ],
-                        ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const FaIcon(FontAwesomeIcons.whatsapp,
+                                  color: Colors.white, size: 20),
+                              const SizedBox(width: 10),
+                              Text(
+                                AppLocalizations.of(context)!.sendWhatsApp,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
                 ),
               ),
             ),

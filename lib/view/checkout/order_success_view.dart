@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../home_view.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import '../../controller/constants.dart';
@@ -27,6 +28,9 @@ class _OrderSuccessViewState extends State<OrderSuccessView>
   late AnimationController _animController;
   late Animation<double> _scaleAnim;
   late Animation<double> _fadeAnim;
+
+  // Press state for Phase 2 Button Polish
+  bool _isButtonPressed = false;
 
   @override
   void initState() {
@@ -190,26 +194,51 @@ class _OrderSuccessViewState extends State<OrderSuccessView>
                 SizedBox(
                   width: double.infinity,
                   height: 58,
-                  child: ElevatedButton(
-                    onPressed: () {
+                  child: GestureDetector(
+                    onTapDown: (_) => setState(() => _isButtonPressed = true),
+                    onTapUp: (_) => setState(() => _isButtonPressed = false),
+                    onTapCancel: () => setState(() => _isButtonPressed = false),
+                    onTap: () {
+                      HapticFeedback.lightImpact();
                       Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(builder: (_) => const MyHomePage()),
                         (route) => false,
                       );
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Constants.baseColor,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                    child: AnimatedScale(
+                      scale: _isButtonPressed ? 0.97 : 1.0,
+                      duration: const Duration(milliseconds: 120),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFFAEEA4D),
+                              Color(0xFF7BC943),
+                              Color(0xFF2E7D32),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF2E7D32).withOpacity(0.15),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            AppLocalizations.of(context)!.continueShopping,
+                            style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white),
+                          ),
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      AppLocalizations.of(context)!.continueShopping,
-                      style:
-                          const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),

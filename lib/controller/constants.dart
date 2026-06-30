@@ -16,11 +16,11 @@ class Constants {
       "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/";
   static String inr = "₹", title = "Krishi Bhandar";
   static Color baseColor = const Color(0xff26842c);
-  static String razorpayKey = dotenv.get('RAZORPAY_KEY', fallback: "");
+  static String get razorpayKey => dotenv.get('RAZORPAY_KEY', fallback: "");
 
-  static String shopifyAccessToken =
+  static String get shopifyAccessToken =>
       dotenv.get('SHOPIFY_ADMIN_ACCESS_TOKEN', fallback: "");
-  static String storefrontAccessToken =
+  static String get storefrontAccessToken =>
       dotenv.get('SHOPIFY_STOREFRONT_ACCESS_TOKEN', fallback: "");
 
   static String lang = 'EN';
