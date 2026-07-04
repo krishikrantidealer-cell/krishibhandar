@@ -51,15 +51,15 @@ class _CategoriesState extends State<Categories>
     final all = await Shopify.getCategories(context);
 
     final filtered = all.where((cat) {
-      final handle = cat.handle.toLowerCase().trim();
+      final title = cat.title.toLowerCase().trim();
       final hasImage = cat.image.isNotEmpty;
 
-      final isNotHomePage = handle != "home-page" && handle != "frontpage";
-      final isNotHydroponics = !handle.contains('hydroponics');
+      final isNotHomePage = title != "home page";
+      final isNotHydroponics = !title.contains('hydroponics');
       final isNotSale =
-          !handle.contains('sale') && !handle.contains('republic-day');
+          !title.contains('sale') && !title.contains('republic day');
       final isNotBanner =
-          !handle.contains('banner') && !handle.contains('best-seller');
+          !title.contains('banner') && !title.contains('best seller');
 
       return hasImage &&
           isNotHomePage &&

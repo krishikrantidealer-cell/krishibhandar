@@ -1440,7 +1440,8 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
 
   /// Opens Shiprocket checkout — user picks online payment or COD inside Shiprocket.
   void _openShiprocketCheckout() {
-    AttributionService.logInitiateCheckout(_getFinalTotal());
+    final productIds = _cartItems.map((item) => item.productId ?? item.id).toList();
+    AttributionService.logInitiateCheckout(_getFinalTotal(), productIds);
     Navigator.push(
       context,
       MaterialPageRoute(

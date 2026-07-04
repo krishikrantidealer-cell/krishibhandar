@@ -51,14 +51,11 @@ class _OrderSuccessViewState extends State<OrderSuccessView>
 
   void _trackRevenue() {
     try {
-      // 1. AppsFlyer Revenue Tracking
-      AttributionService.logPurchase(widget.totalAmount, widget.orderNumber);
-
-      // 2. Firebase Revenue Tracking
+      // Revenue tracking is now handled in ShiprocketCheckoutView 
+      // before navigation to ensure all product IDs are captured correctly.
+      
+      // 1. Firebase Revenue Tracking (Keep as is if needed, though likely duplicate)
       FirebaseEvents.purchase(widget.totalAmount);
-
-      // 3. Meta (Facebook) Revenue Tracking
-      MetaEvents.purchase(totalValue: widget.totalAmount);
     } catch (e) {
       debugPrint("Revenue Tracking Error: $e");
     }

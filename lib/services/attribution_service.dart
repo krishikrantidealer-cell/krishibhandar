@@ -1,4 +1,5 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kisan_sewa_kendra/utils/meta_events.dart';
 
@@ -15,13 +16,17 @@ class AttributionService {
   // Call this when building checkout — returns all attribution values
   Future<Map<String, String>> getAttribution() async {
     final prefs = await SharedPreferences.getInstance();
-    return {
+    final data = {
       'utm_source': prefs.getString('utm_source') ?? 'organic',
       'utm_medium': prefs.getString('utm_medium') ?? 'app',
       'utm_campaign': prefs.getString('utm_campaign') ?? '',
       'utm_term': prefs.getString('utm_term') ?? '',
       'utm_content': prefs.getString('utm_content') ?? '',
     };
+    if (kDebugMode) {
+      debugPrint("📦 Loaded UTM Attribution: $data");
+    }
+    return data;
   }
 
   // Call this when a push notification is tapped
@@ -30,12 +35,16 @@ class AttributionService {
 
     final prefs = await SharedPreferences.getInstance();
     final campaign = message.data['campaign'] ?? 'push_campaign';
-    print("🔔 Push Campaign Tracked: $campaign");
-
+    
     await prefs.setString('utm_source', 'push_notification');
     await prefs.setString('utm_medium', 'app');
     await prefs.setString('utm_campaign', campaign);
     await prefs.setString('utm_content', message.data['notification_id'] ?? '');
+    await prefs.setString('utm_term', ''); // Term not typically in push, but cleared for consistency
+
+    if (kDebugMode) {
+      debugPrint("🔔 Captured UTM Push Notification: push_notification | Campaign: $campaign");
+    }
   }
 
   // Save UTM parameters directly from map (e.g. from deep link query params)
@@ -48,7 +57,10 @@ class AttributionService {
       await prefs.setString('utm_medium', queryParams['utm_medium'] ?? 'app');
       await prefs.setString('utm_content', queryParams['utm_content'] ?? '');
       await prefs.setString('utm_term', queryParams['utm_term'] ?? '');
-      print("🎯 UTM Attribution Saved: $source | Campaign: ${queryParams['utm_campaign']}");
+      
+      if (kDebugMode) {
+        debugPrint("🎯 Stored UTM Attribution: $source | Campaign: ${queryParams['utm_campaign']}");
+      }
     }
   }
 
@@ -64,21 +76,21 @@ class AttributionService {
   }
 
   // Track Purchase/Revenue in Meta SDK
-  static void logPurchase(double amount, String orderId) {
-    MetaEvents.purchase(totalValue: amount, contentIds: orderId);
-    print("💰 Meta SDK Purchase Logged: ₹$amount for Order $orderId");
+  static void logPurchase(double amount, List<String> productIds) {
+    MetaEvents.purchase(totalValue: amount, contentIds: productIds);
+    print("💰 Meta SDK Purchase Logged: ₹$amount for Products $productIds");
   }
 
   // Track Add to Cart
-  static void logAddToCart(String id, double price) {
-    MetaEvents.addToCart(id: id, name: null, price: price.toString());
+  static void logAddToCart(String id, String? name, double price) {
+    MetaEvents.addToCart(id: id, name: name, price: price.toString());
     print("🛒 Meta SDK AddToCart Logged: $id | ₹$price");
   }
 
   // Track Initiate Checkout
-  static void logInitiateCheckout(double amount) {
-    MetaEvents.initiateCheckout(totalValue: amount);
-    print("💳 Meta SDK Initiate Checkout Logged: ₹$amount");
+  static void logInitiateCheckout(double amount, List<String> productIds) {
+    MetaEvents.initiateCheckout(totalValue: amount, contentIds: productIds);
+    print("💳 Meta SDK Initiate Checkout Logged: ₹$amount | Products: $productIds");
   }
 
   // Track Login

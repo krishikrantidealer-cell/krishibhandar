@@ -120,27 +120,18 @@ class _ProductViewState extends State<ProductView>
 
     // If we only have an ID, we'll fetch the full product in _init
     if (widget.product != null) {
-      // FB Event: View Content
-      MetaEvents.viewContent(
-        id: widget.product!.id,
-        name: widget.product!.title,
-        price: widget.product!.variants.isNotEmpty
-            ? widget.product!.variants.first.price
-            : '0',
-      );
-
-      // Firebase Event: view_item
-      FirebaseEvents.viewItem(
+      // 1. Attribution & Meta tracking (Consolidated via AttributionService)
+      AttributionService.logViewContent(
         widget.product!.id,
+        widget.product!.title,
         widget.product!.variants.isNotEmpty
             ? widget.product!.variants.first.price
             : '0',
       );
 
-      // AppsFlyer Event: View Content
-      AttributionService.logViewContent(
+      // 2. Firebase tracking
+      FirebaseEvents.viewItem(
         widget.product!.id,
-        widget.product!.title,
         widget.product!.variants.isNotEmpty
             ? widget.product!.variants.first.price
             : '0',
@@ -218,10 +209,10 @@ class _ProductViewState extends State<ProductView>
 
     if (widget.product == null && localized != null) {
       // Log events for deep-linked product once loaded
-      MetaEvents.viewContent(
-        id: localized.id,
-        name: localized.title,
-        price: localized.variants.isNotEmpty
+      AttributionService.logViewContent(
+        localized.id,
+        localized.title,
+        localized.variants.isNotEmpty
             ? localized.variants.first.price
             : '0',
       );
@@ -935,16 +926,10 @@ class _ProductViewState extends State<ProductView>
                               ? p.variants[_varientIndex]
                               : p.variants.first;
 
-                          // Meta Event: Add to Cart
-                          MetaEvents.addToCart(
-                            id: p.id,
-                            name: p.title,
-                            price: v.price,
-                          );
-
-                          // AppsFlyer Event: Add to Cart
+                          // Consolidated Event tracking via AttributionService (Meta + AppsFlyer)
                           AttributionService.logAddToCart(
                               p.id,
+                              p.title,
                               double.tryParse(v.price
                                       .replaceAll(RegExp(r'[^\d.]'), '')) ??
                                   0.0);
@@ -1045,14 +1030,8 @@ class _ProductViewState extends State<ProductView>
                             v.price.replaceAll(RegExp(r'[^\d.]'), '')) ??
                         0.0;
 
-                    // Meta Event: Initiate Checkout
-                    MetaEvents.initiateCheckout(
-                      totalValue: price,
-                      contentIds: p.id,
-                    );
-
-                    // AppsFlyer Event: Initiate Checkout
-                    AttributionService.logInitiateCheckout(price);
+                    // Consolidated Event tracking via AttributionService (Meta + AppsFlyer)
+                    AttributionService.logInitiateCheckout(price, [p.id]);
 
                     // Firebase Event: begin_checkout
                     FirebaseEvents.beginCheckout(price);

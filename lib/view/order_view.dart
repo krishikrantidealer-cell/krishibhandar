@@ -88,7 +88,9 @@ class _OrderViewState extends State<OrderView>
           _lastFetchTime = DateTime.now();
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint("Silent Fetch Orders Error: $e");
+    }
   }
 
   /// Fetch orders using the Shopify customer ID saved after checkout.

@@ -318,17 +318,13 @@ class _HomeState extends State<Home> {
       }
 
       if (found != null) {
-        final isSvg =
-            found.image.split('?').first.toLowerCase().endsWith('.svg');
-        if (isSvg) {
-          filtered.add(CategoriesModel(
-            id: found.id,
-            title: _getLocalizedCategoryTitle(context, title),
-            handle: found.handle,
-            description: found.description,
-            image: found.image,
-          ));
-        }
+        filtered.add(CategoriesModel(
+          id: found.id,
+          title: _getLocalizedCategoryTitle(context, title),
+          handle: found.handle,
+          description: found.description,
+          image: found.image,
+        ));
       }
     }
 
@@ -526,13 +522,13 @@ class _HomeState extends State<Home> {
                     )
                   else
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       sliver: SliverGrid(
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 3,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 0,
+                          mainAxisSpacing: 0,
                           childAspectRatio: 1.0,
                         ),
                         delegate: SliverChildBuilderDelegate(
@@ -681,6 +677,7 @@ class _HomeState extends State<Home> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const SizedBox(height: 12),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           child: Row(
@@ -715,6 +712,7 @@ class _HomeState extends State<Home> {
             childAspectRatio: 1.2,
             children: [
               _CollectionCard(
+                title: "Bio Products",
                 imageUrl:
                     "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Bio-Products.png?v=1778653230",
                 onTap: () => Routers.goTO(context,
@@ -722,6 +720,7 @@ class _HomeState extends State<Home> {
                         collectionId: "329337798809", title: "Bio Products")),
               ),
               _CollectionCard(
+                title: "Insecticides",
                 imageUrl:
                     "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Insecticides_caa2d9e9-b52e-41e8-ab52-2d7ba95a8da0.png?v=1778653230",
                 onTap: () => Routers.goTO(context,
@@ -729,6 +728,7 @@ class _HomeState extends State<Home> {
                         collectionId: "329026371737", title: "Insecticides")),
               ),
               _CollectionCard(
+                title: "Fungicides",
                 imageUrl:
                     "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Fungicides_b66a7ccd-99d4-40ee-a069-17413504bcf2.png?v=1778653230",
                 onTap: () => Routers.goTO(context,
@@ -736,6 +736,7 @@ class _HomeState extends State<Home> {
                         collectionId: "329026175129", title: "Fungicides")),
               ),
               _CollectionCard(
+                title: "PGRs",
                 imageUrl:
                     "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/PGRs.png?v=1778653230",
                 onTap: () => Routers.goTO(context,
@@ -762,6 +763,7 @@ class _HomeState extends State<Home> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: Row(
@@ -796,6 +798,7 @@ class _HomeState extends State<Home> {
             childAspectRatio: 1.2,
             children: [
               _CollectionCard(
+                title: "NPK Fertilizers",
                 imageUrl:
                     "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/NPK_Fertilizers.png?v=1778656835",
                 onTap: () => Routers.goTO(context,
@@ -803,16 +806,19 @@ class _HomeState extends State<Home> {
                         collectionId: "329027715225", title: "NPK Fertilizers")),
               ),
               _CollectionCard(
+                title: "Featured Growth",
                 imageUrl:
                     "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/ChatGPT_Image_May_13_2026_12_14_51_PM.png?v=1778654730",
                 onTap: () => _openProductById("8507485225113"),
               ),
               _CollectionCard(
+                title: "Proper Care",
                 imageUrl:
                     "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Proper_404_ff6ed463-0058-4ab1-ae59-53942d0a8acc.png?v=1778654565",
                 onTap: () => _openProductById("7926581362841"),
               ),
               _CollectionCard(
+                title: "Exclusive Offer",
                 imageUrl:
                     "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/ChatGPT_Image_May_16_2026_11_58_03_AM.png?v=1778912897",
                 onTap: () => _openProductById("8568815157401"),
@@ -865,33 +871,25 @@ class _HomeState extends State<Home> {
                     launchUrlString("https://wa.me/919399022060");
                   },
                   child: AnimatedScale(
-                    scale: _isWhatsAppPressed ? 0.97 : 1.0,
-                    duration: const Duration(milliseconds: 120),
+                    scale: _isWhatsAppPressed ? 0.96 : 1.0,
+                    duration: const Duration(milliseconds: 200),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFFAEEA4D),
-                            Color(0xFF7BC943),
-                            Color(0xFF2E7D32),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
+                        color: const Color(0xFF25D366), // Official WhatsApp Green
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF2E7D32).withOpacity(0.15),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
                           ),
                         ],
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.chat_bubble_outline, size: 16, color: Colors.white),
+                          const Icon(Icons.chat_bubble_outline, size: 18, color: Colors.white),
                           const SizedBox(width: 10),
                           Text(
                             AppLocalizations.of(context)!.whatsAppSupport,
@@ -938,10 +936,12 @@ class _HomeState extends State<Home> {
 
 class _CollectionCard extends StatefulWidget {
   final String imageUrl;
+  final String title;
   final VoidCallback onTap;
 
   const _CollectionCard({
     required this.imageUrl,
+    required this.title,
     required this.onTap,
   });
 
@@ -955,35 +955,72 @@ class _CollectionCardState extends State<_CollectionCard> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: (_) => setState(() => _scale = 0.93),
+      onTapDown: (_) => setState(() => _scale = 0.94),
       onTapUp: (_) => setState(() => _scale = 1.0),
       onTapCancel: () => setState(() => _scale = 1.0),
       onTap: widget.onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedScale(
         scale: _scale,
-        duration: const Duration(milliseconds: 180),
+        duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: _scale < 1.0 ? 12 : 6,
+                color: Colors.black.withOpacity(0.12),
+                blurRadius: _scale < 1.0 ? 12 : 8,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: WidgetButton(
-            onTap: widget.onTap,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: KskNetworkImage(
-                widget.imageUrl,
-                fit: BoxFit.fill,
-              ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                KskNetworkImage(
+                  widget.imageUrl,
+                  fit: BoxFit.cover,
+                ),
+                // Premium Overlay Gradient
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.1),
+                          Colors.black.withOpacity(0.7),
+                        ],
+                        stops: const [0.5, 0.7, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
+                // Collection Title
+                Positioned(
+                  bottom: 12,
+                  left: 10,
+                  right: 10,
+                  child: Text(
+                    widget.title,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -1078,19 +1115,19 @@ class SectionHeader extends StatelessWidget {
                         Text(
                           title,
                           style: GoogleFonts.outfit(
-                            fontSize: 21,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
                             color: Colors.white,
-                            letterSpacing: -0.4,
+                            letterSpacing: -0.2,
                           ),
                         ),
                         if (subtitle.isNotEmpty)
                           Text(
                             subtitle,
                             style: GoogleFonts.outfit(
-                              fontSize: 12.5,
+                              fontSize: 13,
                               fontWeight: FontWeight.w400,
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white.withOpacity(0.85),
                             ),
                           ),
                       ],

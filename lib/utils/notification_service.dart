@@ -1,6 +1,8 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
+import 'package:kisan_sewa_kendra/services/attribution_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:path/path.dart' as p;
@@ -48,7 +50,10 @@ class NotificationService {
 
     // 4. Handle Background/Terminated Click
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      // Handle click logic
+      if (kDebugMode) {
+        debugPrint("🔔 Captured UTM Push Notification: ${message.data}");
+      }
+      AttributionService().handlePushNotification(message);
     });
 
     await _firebaseMessaging.subscribeToTopic("all_users");

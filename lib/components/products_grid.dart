@@ -953,13 +953,12 @@ class _ProductCardState extends State<ProductCard> {
   }
 
   Future<void> _addToCart(VariantModel variant) async {
-    MetaEvents.addToCart(
-      id: widget.product.id,
-      name: widget.product.title,
-      price: variant.price,
+    // Consolidated Event tracking via AttributionService (Meta + AppsFlyer)
+    AttributionService.logAddToCart(
+      widget.product.id,
+      widget.product.title,
+      double.tryParse(variant.price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0,
     );
-    // AppsFlyer Event: Add to Cart
-    AttributionService.logAddToCart(widget.product.id, double.tryParse(variant.price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0);
 
     FirebaseEvents.addToCart(widget.product.id, variant.price);
 

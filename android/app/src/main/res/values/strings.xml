@@ -6,5 +6,6 @@
     <!-- Facebook Config -->
     <string name="facebook_app_id">1433284031481555</string>
     <string name="facebook_client_token">9585fc7b150c1877e5f3114c6b6866d6</string>
+    <string name="fb_login_protocol_scheme">fb1433284031481555</string>
 
 </resources>

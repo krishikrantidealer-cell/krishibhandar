@@ -45,6 +45,7 @@ void main() async {
   PaintingBinding.instance.imageCache.maximumSize = 15; // 15 images
 
   // 7. Always run the app
+  _initDeepLinks();
   runApp(MyApp(languageController: Constants.languageController));
 }
 
@@ -69,7 +70,9 @@ void _initDeepLinks() {
 }
 
 void _handleDeepLink(Uri uri) {
-  debugPrint("🔗 Received Deep Link: $uri");
+  if (kDebugMode) {
+    debugPrint("🔗 Captured UTM Deep Link: $uri");
+  }
 
   // 1. Parse UTM parameters
   final queryParams = uri.queryParameters;

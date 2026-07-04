@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:kisan_sewa_kendra/controller/auth_controller.dart';
 import 'package:kisan_sewa_kendra/controller/cart_controller.dart';
@@ -229,11 +230,12 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
               debugPrint("💰 Purchase Value: $val");
               debugPrint("🧾 Transaction ID: $txId");
 
-              // Log Meta & Firebase Events
+              // Consolidated Event tracking via AttributionService (Meta + AppsFlyer)
               try {
-                MetaEvents.purchase(totalValue: val);
+                final productIds = widget.cartItems.map((item) => item.productId ?? item.id).toList();
+                AttributionService.logPurchase(val, productIds);
               } catch (e) {
-                debugPrint("Error logging Meta Purchase: $e");
+                debugPrint("Error logging Purchase attribution: $e");
               }
 
               try {
@@ -351,6 +353,10 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
     final cartJson = jsonEncode(cartItemsMapped);
     final utmJson = jsonEncode(_utmParams);
 
+    if (kDebugMode) {
+      debugPrint("🛒 Checkout UTM Payload: $utmJson");
+    }
+
     final html = '''
    <!DOCTYPE html>
    <html>
@@ -451,24 +457,36 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
     // Extract shipping address phone before the widget is disposed/screen popped
     final shippingPhone = widget.shippingAddress?['phone']?.toString();
 
-    // Run Shopify attribution update and customer syncing in background without blocking the UI
-    _runBackgroundSync(orderNumber, shippingPhone);
-
+    // Fix: Ensure navigation is NOT blocked indefinitely by background sync
     if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => OrderSuccessView(
-            orderNumber: orderNumber,
-            totalAmount: widget.totalAmount,
-            paymentId: paymentId,
+      setState(() => _isLoading = true);
+    }
+
+    try {
+      // We give the sync 4 seconds to complete. If it takes longer (e.g. polling), 
+      // we proceed to the success screen anyway to avoid "hanging".
+      await _runBackgroundSync(orderNumber, shippingPhone)
+          .timeout(const Duration(seconds: 4));
+    } catch (e) {
+      debugPrint("ShiprocketCheckoutView: Background sync timed out or failed: $e");
+    } finally {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OrderSuccessView(
+              orderNumber: orderNumber,
+              totalAmount: widget.totalAmount,
+              paymentId: paymentId,
+            ),
           ),
-        ),
-      );
+        );
+      }
     }
   }
 
-  void _runBackgroundSync(String orderNumber, String? shippingPhone) async {
+  Future<void> _runBackgroundSync(String orderNumber, String? shippingPhone) async {
+    debugPrint('ShiprocketCheckoutView: Starting sync for $orderNumber');
     // Direct background update of order UTM parameters in Shopify notes via Admin API
     try {
       await ShopifyAPI.updateOrderAttribution(orderNumber);
@@ -483,7 +501,7 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
       // 2. Fallback: if customer ID still not saved, sync using phone from shipping address.
       //    This handles cases where Shiprocket's success URL is just "thank-you" with no order ID.
       final existingId = await AuthController.getShopifyCustomerId();
-      if (existingId == null) {
+      if (existingId == null || existingId == "null") {
         final phone = shippingPhone ?? await AuthController.getSavedPhone();
         if (phone != null && phone.isNotEmpty) {
           // Normalize to 10-digit
@@ -550,6 +568,15 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
         final orderNum =
             res['order']['name']?.toString().replaceAll('#', '') ?? 'CONFIRMED';
         debugPrint('✅ Native COD order created: $orderNum');
+
+        // Consolidated Event tracking via AttributionService (Meta + AppsFlyer)
+        try {
+          final productIds = widget.cartItems.map((item) => item.productId ?? item.id).toList();
+          AttributionService.logPurchase(widget.totalAmount, productIds);
+        } catch (e) {
+          debugPrint("Error logging Purchase attribution: $e");
+        }
+
         await CartController.clearCart();
 
         // Sync customer details from order

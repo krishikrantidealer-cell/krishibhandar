@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
@@ -56,57 +57,65 @@ class ShopifyAPI {
   }
 
   static Future<List<dynamic>> getCustomerOrders(String customerId) async {
+    debugPrint('ShopifyAPI: Fetching orders for customer: $customerId');
     try {
       final String cleanId = customerId.split('/').last;
+      final String gid = cleanId.contains('gid://') 
+          ? cleanId 
+          : "gid://shopify/Customer/$cleanId";
+
+      // Fix 3: Use direct customer node instead of search query
       final String query = '''
-        query {
-          orders(first: 50, reverse: true, query: "customer_id:$cleanId") {
-            nodes {
-              id
-              name
-              createdAt
-              totalPriceSet {
-                presentmentMoney {
-                   amount
-                   currencyCode
-                }
-              }
-              subtotalPriceSet {
-                presentmentMoney {
-                   amount
-                }
-              }
-              displayFulfillmentStatus
-              displayFinancialStatus
-              cancelledAt
-              closedAt
-              confirmed
-              discountApplications(first: 10) {
-                nodes {
-                  ... on DiscountCodeApplication {
-                    code
+        query getCustomerOrders(\$id: ID!) {
+          customer(id: \$id) {
+            orders(first: 50, reverse: true) {
+              nodes {
+                id
+                name
+                createdAt
+                totalPriceSet {
+                  presentmentMoney {
+                     amount
+                     currencyCode
                   }
                 }
-              }
-              lineItems(first: 50) {
-                nodes {
-                  title
-                  quantity
-                  variantTitle
-                  originalUnitPriceSet {
-                    presentmentMoney {
-                       amount
+                subtotalPriceSet {
+                  presentmentMoney {
+                     amount
+                  }
+                }
+                displayFulfillmentStatus
+                displayFinancialStatus
+                cancelledAt
+                closedAt
+                confirmed
+                discountApplications(first: 10) {
+                  nodes {
+                    ... on DiscountCodeApplication {
+                      code
                     }
                   }
-                  image {
-                    url
-                  }
-                  variant {
-                    id
-                    product {
+                }
+                lineItems(first: 50) {
+                  nodes {
+                    title
+                    quantity
+                    variantTitle
+                    originalUnitPriceSet {
+                      presentmentMoney {
+                         amount
+                      }
+                    }
+                    image {
+                      url
+                    }
+                    variant {
                       id
-                      featuredImage {
-                        url
+                      product {
+                        id
+                        featuredImage {
+                          url
+                        }
                       }
                     }
                   }
@@ -119,7 +128,10 @@ class ShopifyAPI {
 
       var res = await http.post(
         Uri.parse("$_baseUrl/graphql.json"),
-        body: json.encode({'query': query}),
+        body: json.encode({
+          'query': query,
+          'variables': {'id': gid}
+        }),
         headers: {
           'content-type': 'application/json',
           'X-Shopify-Access-Token': Constants.shopifyAccessToken,
@@ -128,9 +140,18 @@ class ShopifyAPI {
 
       if (res.statusCode == 200) {
         final decoded = jsonDecode(res.body);
-        if (decoded['data'] != null && decoded['data']['orders'] != null) {
+        
+        // Fix 4: Verbose logging for GraphQL errors
+        if (decoded['errors'] != null) {
+          debugPrint('ShopifyAPI: GraphQL ERRORS detected: ${jsonEncode(decoded['errors'])}');
+        }
+
+        if (decoded['data'] != null && decoded['data']['customer'] != null) {
           final List orders = [];
-          for (var node in decoded['data']['orders']['nodes']) {
+          final orderNodes = decoded['data']['customer']['orders']['nodes'];
+          debugPrint('ShopifyAPI: Found ${orderNodes.length} orders for customer.');
+
+          for (var node in orderNodes) {
             try {
               String totalPrice = '0.00';
               String currency = 'INR';
@@ -205,17 +226,23 @@ class ShopifyAPI {
                 lastOrder['subtotal_price'] = sub.toStringAsFixed(2);
               }
             } catch (e) {
-              // debugPrint("Mapper Error: $e");
+               debugPrint("ShopifyAPI: Mapper Error for order node: $e");
             }
           }
           return orders;
+        } else {
+          debugPrint('ShopifyAPI: Customer node not found in response: ${jsonEncode(decoded['data'])}');
         }
+      } else {
+        debugPrint('ShopifyAPI: HTTP Error ${res.statusCode}: ${res.body}');
       }
-    } catch (e) {
-      // debugPrint("getCustomerOrders Error: $e");
+    } catch (e, stack) {
+      debugPrint("ShopifyAPI: getCustomerOrders CRITICAL Error: $e");
+      debugPrint("Stacktrace: $stack");
     }
     return [];
   }
+
 
   static Future<Map<String, dynamic>> _getAdminData({
     required String body,
@@ -728,6 +755,10 @@ class ShopifyAPI {
         "send_receipt": true,
         "source_name": "mobile_app",
       };
+
+      if (kDebugMode) {
+        debugPrint("🧾 Final note_attributes for Order: ${jsonEncode(orderPayload['note_attributes'])}");
+      }
 
       if (isCod) {
         orderPayload["payment_gateway_names"] = ["Cash on Delivery (COD)"];
