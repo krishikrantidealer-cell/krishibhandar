@@ -16,6 +16,7 @@ import '../../controller/constants.dart';
 import '../../controller/routers.dart';
 import '../collection_view.dart';
 import '../product_view.dart';
+import '../search_results_view.dart';
 import '../../model/categories_model.dart';
 import '../../model/product_model.dart';
 import '../../shopify/shopify.dart';
@@ -38,6 +39,34 @@ class _HomeState extends State<Home> {
   bool _isLoadingCats = true;
   bool _isLoadingBanners = true;
   List<String> _bestSellerIds = [];
+
+  final List<Map<String, String>> _cropData = [
+    {
+      "name": "Rice",
+      "count": "95+ Products",
+      "image": "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/paddy.png?v=1783163292"
+    },
+    {
+      "name": "Maize",
+      "count": "70+ Products",
+      "image": "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/maze.png?v=1783163292"
+    },
+    {
+      "name": "Wheat",
+      "count": "120+ Products",
+      "image": "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/weat.png?v=1783163292"
+    },
+    {
+      "name": "Sugarcane",
+      "count": "80+ Products",
+      "image": "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/sugercane.png?v=1783163292"
+    },
+    {
+      "name": "Cotton",
+      "count": "85+ Products",
+      "image": "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/cotton.png?v=1783163291"
+    },
+  ];
 
   // Press state for Phase 2 Button Polish
   bool _isWhatsAppPressed = false;
@@ -237,6 +266,62 @@ class _HomeState extends State<Home> {
         );
       }
     }
+  }
+
+  Widget _buildShopByCropSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+          child: Row(
+            children: [
+              Container(
+                width: 4.5,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF26842c),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                "Shop by Crop",
+                style: GoogleFonts.outfit(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.8),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        SizedBox(
+          height: 185,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            itemCount: _cropData.length,
+            itemBuilder: (context, index) {
+              final crop = _cropData[index];
+              return _ShopByCropCard(
+                name: crop['name']!,
+                count: crop['count']!,
+                imageUrl: crop['image']!,
+                onTap: () => Routers.goTO(
+                  context,
+                  toBody: SearchResultsView(
+                    query: crop['name']!,
+                    title: crop['name']!,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _initCategories() async {
@@ -554,6 +639,8 @@ class _HomeState extends State<Home> {
                   if (bestSeller != null)
                     SliverToBoxAdapter(
                         child: _buildDynamicSection(bestSeller, [])),
+
+                  SliverToBoxAdapter(child: _buildShopByCropSection()),
 
                   // --- NEW COLLECTIONS SECTION ---
                   SliverToBoxAdapter(child: _buildCollectionsSection()),
@@ -930,6 +1017,120 @@ class _HomeState extends State<Home> {
                 fontWeight: FontWeight.bold,
                 color: Colors.black54)),
       ],
+    );
+  }
+}
+
+class _ShopByCropCard extends StatefulWidget {
+  final String name;
+  final String count;
+  final String imageUrl;
+  final VoidCallback onTap;
+
+  const _ShopByCropCard({
+    required this.name,
+    required this.count,
+    required this.imageUrl,
+    required this.onTap,
+  });
+
+  @override
+  State<_ShopByCropCard> createState() => _ShopByCropCardState();
+}
+
+class _ShopByCropCardState extends State<_ShopByCropCard> {
+  double _scale = 1.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _scale = 0.97),
+      onTapUp: (_) => setState(() => _scale = 1.0),
+      onTapCancel: () => setState(() => _scale = 1.0),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 200),
+        child: Container(
+          width: 130,
+          margin: const EdgeInsets.only(right: 14),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFF3F3F3), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  border: Border.all(color: const Color(0xFF2E7D32).withOpacity(0.1), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(2),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: KskNetworkImage(
+                    widget.imageUrl,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                widget.name,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF1B5E20),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  widget.count,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

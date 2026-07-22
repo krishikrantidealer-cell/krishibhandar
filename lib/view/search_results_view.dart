@@ -38,7 +38,7 @@ class SearchResultsView extends StatelessWidget {
           // Products Grid
           Positioned.fill(
             child: Padding(
-              padding: EdgeInsets.only(top: topPad + 80),
+              padding: EdgeInsets.only(top: topPad + 100),
               child: ProductsGrid(
                 query: query,
                 isFilter: true,
@@ -72,12 +72,27 @@ class SearchResultsView extends StatelessWidget {
 
   Widget _buildHeader(BuildContext context, double topPad) {
     return Container(
-      padding: EdgeInsets.fromLTRB(16, topPad + 10, 16, 15),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.withOpacity(0.1)),
+      padding: EdgeInsets.fromLTRB(16, topPad + 10, 16, 20),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF1E88E5), // Premium Blue
+            Color(0xFF2E7D32), // Agri Green
+          ],
         ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 15,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -86,10 +101,10 @@ class SearchResultsView extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.1),
+                color: Colors.white.withOpacity(0.15),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.arrow_back_rounded, size: 20),
+              child: const Icon(Icons.arrow_back_rounded, size: 20, color: Colors.white),
             ),
           ),
           const SizedBox(width: 15),
@@ -101,9 +116,10 @@ class SearchResultsView extends StatelessWidget {
                 Text(
                   title,
                   style: GoogleFonts.outfit(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: Constants.baseColor,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -113,13 +129,14 @@ class SearchResultsView extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey[600],
+                    color: Colors.white.withOpacity(0.8),
+                    letterSpacing: 0.5,
                   ),
                 ),
               ],
             ),
           ),
-          const KskCartIcon(showBackground: true),
+          const KskCartIcon(color: Colors.white),
         ],
       ),
     );

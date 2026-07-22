@@ -12,7 +12,11 @@ class NotificationService {
   static final FlutterLocalNotificationsPlugin _localNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
+  static bool _isInitialized = false;
+
   static Future<void> init() async {
+    if (_isInitialized) return;
+
     // 1. Request Permissions
     await _firebaseMessaging.requestPermission(
       alert: true,
@@ -20,7 +24,16 @@ class NotificationService {
       sound: true,
     );
 
-    // 2. Local Notifications Setup
+    // 2. Suppress Foreground Notifications from FCM SDK
+    // This prevents the OS from showing a default notification while the app is open.
+    // We will manually show the notification using flutter_local_notifications.
+    await _firebaseMessaging.setForegroundNotificationPresentationOptions(
+      alert: false,
+      badge: false,
+      sound: false,
+    );
+
+    // 3. Local Notifications Setup
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
@@ -42,6 +55,8 @@ class NotificationService {
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
+
+    _isInitialized = true;
 
     // 3. Handle Foreground Messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -120,8 +135,11 @@ class NotificationService {
 
   @pragma('vm:entry-point')
   static Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-    // For data-only messages or messages requiring custom image rendering in background
-    if (message.notification != null || message.data.isNotEmpty) {
+    // If the message contains a notification object, the Android OS/FCM SDK 
+    // already displays it automatically in the background.
+    // We only manually show it for data-only messages to avoid duplicates.
+    // Image support for standard notifications is handled by the OS if a channel is linked.
+    if (message.notification == null && message.data.isNotEmpty) {
       await showFlutterNotification(message);
     }
   }
