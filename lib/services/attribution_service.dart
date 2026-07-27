@@ -22,9 +22,10 @@ class AttributionService {
       'utm_campaign': prefs.getString('utm_campaign') ?? '',
       'utm_term': prefs.getString('utm_term') ?? '',
       'utm_content': prefs.getString('utm_content') ?? '',
+      'fbclid': prefs.getString('fbclid') ?? '',
     };
     if (kDebugMode) {
-      debugPrint("📦 Loaded UTM Attribution: $data");
+      debugPrint("📦 Loaded UTM/Meta Attribution: $data");
     }
     return data;
   }
@@ -50,8 +51,24 @@ class AttributionService {
   // Save UTM parameters directly from map (e.g. from deep link query params)
   Future<void> saveAttributionFromMap(Map<String, String> queryParams) async {
     final prefs = await SharedPreferences.getInstance();
+    
+    // Normalize source for comparison
     final source = queryParams['utm_source'];
-    if (source != null && source.isNotEmpty && source != 'organic' && source != 'None') {
+    final normalizedSource = source?.toLowerCase() ?? '';
+    
+    // Capture Meta Click ID (fbclid) if present
+    final fbclid = queryParams['fbclid'];
+    if (fbclid != null && fbclid.isNotEmpty) {
+      await prefs.setString('fbclid', fbclid);
+      if (kDebugMode) debugPrint("🔵 Captured Meta Click ID (fbclid): $fbclid");
+    }
+
+    if (source != null && 
+        source.isNotEmpty && 
+        normalizedSource != 'organic' && 
+        normalizedSource != 'none' && 
+        normalizedSource != 'null') {
+      
       await prefs.setString('utm_source', source);
       await prefs.setString('utm_campaign', queryParams['utm_campaign'] ?? '');
       await prefs.setString('utm_medium', queryParams['utm_medium'] ?? 'app');
@@ -72,6 +89,7 @@ class AttributionService {
     await prefs.remove('utm_campaign');
     await prefs.remove('utm_term');
     await prefs.remove('utm_content');
+    await prefs.remove('fbclid');
     print("🧹 Attribution Data Cleared");
   }
 

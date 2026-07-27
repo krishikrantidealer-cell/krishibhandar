@@ -868,9 +868,12 @@ class ShopifyAPI {
                 final ordCartToken = ord['cart_token']?.toString() ?? '';
                 final ordName = ord['name']?.toString() ?? '';
 
+                final cleanOrdName = ordName.toString().replaceAll('#', '').toLowerCase();
+                final cleanInputName = orderIdOrName.toString().replaceAll('#', '').toLowerCase();
+
                 if (ordToken.toLowerCase() == orderIdOrName.toLowerCase() ||
                     ordCartToken.toLowerCase() == orderIdOrName.toLowerCase() ||
-                    ordName.toLowerCase() == orderIdOrName.toLowerCase()) {
+                    cleanOrdName == cleanInputName) {
                   numericId = ord['id']?.toString();
                   debugPrint("🎯 Found matching order: $numericId on attempt ${i + 1}");
                   break;
@@ -937,7 +940,8 @@ class ShopifyAPI {
             attr['name'] == 'utm_medium' ||
             attr['name'] == 'utm_campaign' ||
             attr['name'] == 'utm_term' ||
-            attr['name'] == 'utm_content');
+            attr['name'] == 'utm_content' ||
+            attr['name'] == 'fbclid');
 
         // 4. Add the new UTM attributes
         existingAttributes.addAll(

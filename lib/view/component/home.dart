@@ -154,33 +154,29 @@ class _HomeState extends State<Home> {
   void _handleBannerClick(CategoriesModel banner) async {
     int index = _banners.indexOf(banner);
 
-    // 🟢 Banner 1 → Product: Rakshak
+    // 🟢 Banner 1 → Product: Fertap Gold
     if (index == 0) {
-      await _openProduct("rakshak-novaluron-indoxacarb-sc");
+      await _openProductById("8063121522841");
     }
 
-    // 🟢 Banner 2 → Play Store
+    // 🟢 Banner 2 → Product: Aura Plus
     else if (index == 1) {
-      await launchUrlString(
-          "https://play.google.com/store/apps/details?id=com.snss.ebs.kisan_sewa_kendra",
-          mode: LaunchMode.externalApplication);
+      await _openProductById("8243097370777");
     }
 
-    // 🟢 Banner 3 → Product: Grow Genius
+    // 🟢 Banner 3 → Product: Swiss Gold
     else if (index == 2) {
-      await _openProduct("grow-genius-gibberellic-acid-0-001-l-plant-growth-regulator");
+      await _openProductById("7935280578713");
     }
 
-    // 🟢 Banner 4 → Play Store
+    // 🟢 Banner 4 → Nothing
     else if (index == 3) {
-      await launchUrlString(
-          "https://play.google.com/store/apps/details?id=com.snss.ebs.kisan_sewa_kendra",
-          mode: LaunchMode.externalApplication);
+      // Do nothing as requested
     }
 
-    // 🟢 Banner 5 → Product: Humic Acid
+    // 🟢 Banner 5 → Product: Humiroot
     else if (index == 4) {
-      await _openProduct("humic-acid-premium-quality");
+      await _openProductById("7955218170009");
     }
 
     // 🛑 Fallback
@@ -193,7 +189,6 @@ class _HomeState extends State<Home> {
       );
     }
   }
-
   Future<void> _openProduct(String handle,
       {String? fallbackCollectionId}) async {
     try {
@@ -679,35 +674,43 @@ class _HomeState extends State<Home> {
     // Mapping Titles and Subtitles from instructions
     String title = "";
     String subtitle = "";
+    String? headerImageUrl;
 
     switch (id) {
       case "329119367321":
         title = "Best Seller";
         subtitle = "Top performing farming products";
+        headerImageUrl = "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Best_Sellers_New_0141dc78-17a7-4681-a1a8-58ac8248a5c4.png?v=1784628915";
         break;
       case "329026371737":
         title = "Insecticide";
         subtitle = "Protect crops from insects";
+        headerImageUrl = "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Insecticides_New_726a2744-fc90-42a6-a48b-1013a5b26b55.png?v=1784628915";
         break;
       case "329026175129":
         title = "Fungicide";
         subtitle = "Advanced disease control";
+        headerImageUrl = "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Fungicides_New_459199bb-d20d-4983-b741-e031a58d5ae2.png?v=1784628916";
         break;
       case "329026142361":
         title = "Fertilizer";
         subtitle = "Better nutrition for crops";
+        headerImageUrl = "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Fertilizers_New_d711af01-a8a0-493a-b4e4-881b4c29cb52.png?v=1784628915";
         break;
       case "329026240665":
         title = "Herbicide";
         subtitle = "Effective weed management";
+        headerImageUrl = "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Herbicides_New_a310f3d5-9295-4715-8ac6-983ba9c3424c.png?v=1784628915";
         break;
       case "329026470041":
         title = "Top Growth Promoters";
         subtitle = "Faster and healthier growth";
+        headerImageUrl = "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/PGRs_New_fdd490af-ab2e-4f39-9d70-d918c907a7af.png?v=1784628915";
         break;
       case "333391134873":
         title = "Buy 1 Get 1 Free";
         subtitle = "Limited time special offers";
+        headerImageUrl = "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Buy_1_get_1_new.png?v=1784628915";
         break;
       default:
         title = "Featured Selection";
@@ -731,12 +734,28 @@ class _HomeState extends State<Home> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 24),
-          SectionHeader(
-            title: title,
-            subtitle: subtitle,
-            onViewAll: () => Routers.goTO(context,
-                toBody: CollectionView(collectionId: id, title: title)),
-          ),
+          headerImageUrl != null
+              ? GestureDetector(
+                  onTap: () => Routers.goTO(context,
+                      toBody: CollectionView(collectionId: id, title: title)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: KskNetworkImage(
+                        headerImageUrl,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                      ),
+                    ),
+                  ),
+                )
+              : SectionHeader(
+                  title: title,
+                  subtitle: subtitle,
+                  onViewAll: () => Routers.goTO(context,
+                      toBody: CollectionView(collectionId: id, title: title)),
+                ),
           const SizedBox(height: 10),
           Container(
             decoration: BoxDecoration(

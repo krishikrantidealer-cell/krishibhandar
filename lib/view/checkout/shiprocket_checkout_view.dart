@@ -391,14 +391,24 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
  
            if (checkoutUrl) {
              const utmParams = $utmJson;
-             let separator = checkoutUrl.includes('?') ? '&' : '?';
+             
+             // Correctly handle URL fragments (#) when appending UTM parameters
+             let baseUrl = checkoutUrl.split('#')[0];
+             let fragment = checkoutUrl.includes('#') ? '#' + checkoutUrl.split('#')[1] : '';
+             
+             // Handle the case where baseUrl might end with '?' or '&' to avoid "?&"
+             if (baseUrl.endsWith('?') || baseUrl.endsWith('&')) {
+               baseUrl = baseUrl.slice(0, -1);
+             }
+
+             let separator = baseUrl.includes('?') ? '&' : '?';
              for (const [key, value] of Object.entries(utmParams)) {
-               if (value && value !== 'None') {
-                 checkoutUrl += separator + encodeURIComponent(key) + '=' + encodeURIComponent(value);
+               if (value && value !== 'None' && value !== 'organic' && value !== '') {
+                 baseUrl += separator + encodeURIComponent(key) + '=' + encodeURIComponent(value);
                  separator = '&';
                }
              }
-             window.location.href = checkoutUrl;
+             window.location.href = baseUrl + fragment;
            } else {
              document.getElementById('loader').innerHTML = "<h3>Checkout URL generation failed</h3>";
            }
@@ -465,8 +475,9 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
     try {
       // We give the sync 4 seconds to complete. If it takes longer (e.g. polling), 
       // we proceed to the success screen anyway to avoid "hanging".
+      // Increased timeout to allow for polling (up to 15s) in updateOrderAttribution
       await _runBackgroundSync(orderNumber, shippingPhone)
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 20));
     } catch (e) {
       debugPrint("ShiprocketCheckoutView: Background sync timed out or failed: $e");
     } finally {
@@ -490,6 +501,8 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
     // Direct background update of order UTM parameters in Shopify notes via Admin API
     try {
       await ShopifyAPI.updateOrderAttribution(orderNumber);
+      // Clear attribution after successful sync to Shopify to avoid double attribution
+      await AttributionService().clearAttribution();
     } catch (e) {
       debugPrint("Error updating Shopify order notes: $e");
     }
@@ -573,6 +586,8 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
         try {
           final productIds = widget.cartItems.map((item) => item.productId ?? item.id).toList();
           AttributionService.logPurchase(widget.totalAmount, productIds);
+          // Clear attribution for native COD success
+          await AttributionService().clearAttribution();
         } catch (e) {
           debugPrint("Error logging Purchase attribution: $e");
         }
