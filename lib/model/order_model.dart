@@ -72,7 +72,9 @@ class OrderModel {
           return 'Shipped';
       }
     }
-    if (fulfillmentStatus.toLowerCase() == 'fulfilled') return 'Shipped';
+    // Fallback: If fulfillment status is fulfilled, it's at least shipped.
+    // In many cases for this business, fulfilled == completed/delivered if no tracking is used.
+    if (fulfillmentStatus.toLowerCase() == 'fulfilled') return 'Delivered';
     if (fulfillmentStatus.toLowerCase() == 'partial')
       return 'Partially Shipped';
     if (closedAt != null) return 'Completed';
@@ -175,46 +177,52 @@ class OrderModel {
   }
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
-    List<LineItem> items = (json['line_items'] as List? ?? [])
-        .map((item) => LineItem.fromJson(item))
-        .toList();
+    try {
+      List<LineItem> items = (json['line_items'] as List? ?? [])
+          .map((item) => LineItem.fromJson(item))
+          .toList();
 
-    String? subtotal = json['subtotal_price']?.toString();
-    if (subtotal == null ||
-        subtotal == '0' ||
-        subtotal == '0.0' ||
-        subtotal == '0.00') {
-      double calculated = 0;
-      for (var item in items) {
-        calculated += (double.tryParse(item.price) ?? 0) * item.quantity;
+      String? subtotal = json['subtotal_price']?.toString();
+      if (subtotal == null ||
+          subtotal == '0' ||
+          subtotal == '0.0' ||
+          subtotal == '0.00') {
+        double calculated = 0;
+        for (var item in items) {
+          calculated += (double.tryParse(item.price) ?? 0) * item.quantity;
+        }
+        subtotal = calculated.toStringAsFixed(2);
       }
-      subtotal = calculated.toStringAsFixed(2);
-    }
 
-    return OrderModel(
-      id: json['id'].toString(),
-      orderNumber: json['order_number'].toString(),
-      createdAt: json['created_at'] ?? '',
-      totalPrice: json['total_price'] ?? '0.00',
-      currency: json['currency'] ?? 'INR',
-      fulfillmentStatus: json['fulfillment_status'] ?? 'pending',
-      financialStatus: json['financial_status'] ?? 'pending',
-      cancelledAt: json['cancelled_at'],
-      closedAt: json['closed_at'],
-      confirmed: json['confirmed'] ?? false,
-      lineItems: items,
-      fulfillments: (json['fulfillments'] as List? ?? [])
-          .map((f) => Fulfillment.fromJson(f))
-          .toList(),
-      subtotalPrice: subtotal,
-      totalTax: json['total_tax']?.toString(),
-      totalShipping: json['total_shipping']?.toString(),
-      shippingAddress: json['shipping_address']?.toString(),
-      firstName: json['customer_first_name']?.toString(),
-      lastName: json['customer_last_name']?.toString(),
-      customerPhone: json['customer_phone']?.toString(),
-      orderStatusUrl: json['order_status_url']?.toString(),
-    );
+      return OrderModel(
+        id: json['id'].toString(),
+        orderNumber: json['order_number'].toString(),
+        createdAt: json['created_at'] ?? '',
+        totalPrice: json['total_price'] ?? '0.00',
+        currency: json['currency'] ?? 'INR',
+        fulfillmentStatus: json['fulfillment_status'] ?? 'pending',
+        financialStatus: json['financial_status'] ?? 'pending',
+        cancelledAt: json['cancelled_at'],
+        closedAt: json['closed_at'],
+        confirmed: json['confirmed'] ?? false,
+        lineItems: items,
+        fulfillments: (json['fulfillments'] as List? ?? [])
+            .map((f) => Fulfillment.fromJson(f))
+            .toList(),
+        subtotalPrice: subtotal,
+        totalTax: json['total_tax']?.toString(),
+        totalShipping: json['total_shipping']?.toString(),
+        shippingAddress: json['shipping_address']?.toString(),
+        firstName: json['customer_first_name']?.toString(),
+        lastName: json['customer_last_name']?.toString(),
+        customerPhone: json['customer_phone']?.toString(),
+        orderStatusUrl: json['order_status_url']?.toString(),
+      );
+    } catch (e, stack) {
+      debugPrint(">>>>>>>> OrderModel.fromJson PARSING ERROR: $e");
+      debugPrint("StackTrace: $stack");
+      rethrow;
+    }
   }
 }
 

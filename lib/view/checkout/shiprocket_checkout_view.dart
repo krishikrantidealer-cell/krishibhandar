@@ -18,6 +18,8 @@ class ShiprocketCheckoutView extends StatefulWidget {
   final String? couponCode;
   final Map<String, dynamic>? shippingAddress;
   final double discountAmount;
+  final String customerPhone;
+  final String? customerEmail;
 
   const ShiprocketCheckoutView({
     super.key,
@@ -26,6 +28,8 @@ class ShiprocketCheckoutView extends StatefulWidget {
     this.couponCode,
     this.shippingAddress,
     this.discountAmount = 0.0,
+    required this.customerPhone,
+    this.customerEmail,
   });
 
   @override
@@ -330,9 +334,9 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
 
   void _loadCheckoutHtml() {
     final cartItemsMapped = widget.cartItems.map((item) {
-      // Extract numeric IDs from GIDs if necessary
-      final productIdStr = item.productId?.split('/').last ?? '';
-      final variantIdStr = item.id.split('/').last;
+      // Extract numeric IDs from GIDs if necessary (Null-safe mapping)
+      final productIdStr = (item.productId?.toString() ?? '').split('/').last;
+      final variantIdStr = (item.id.toString()).split('/').last;
 
       // Convert to numeric types for Shiprocket payload
       final productId = int.tryParse(productIdStr);
@@ -384,6 +388,8 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
              domain: "krishibhandar.com",
              webUrl: "krishibhandar.com",
              couponCode: ${widget.couponCode != null ? '"${widget.couponCode}"' : 'null'},
+             phone: "${widget.customerPhone}",
+             email: "${widget.customerEmail ?? ''}",
              note_attributes: $utmJson,
              attributes: $utmJson,
              cart_attributes: $utmJson

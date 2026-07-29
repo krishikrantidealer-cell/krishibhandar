@@ -268,7 +268,7 @@ class _HomeState extends State<Home> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
           child: Row(
             children: [
               Container(
@@ -290,7 +290,7 @@ class _HomeState extends State<Home> {
             ],
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 16),
         SizedBox(
           height: 185,
           child: ListView.builder(
@@ -315,6 +315,7 @@ class _HomeState extends State<Home> {
             },
           ),
         ),
+        const SizedBox(height: 24),
       ],
     );
   }
@@ -631,6 +632,7 @@ class _HomeState extends State<Home> {
                     ),
 
                   // --- DYNAMIC SECTIONS ---
+                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
                   if (bestSeller != null)
                     SliverToBoxAdapter(
                         child: _buildDynamicSection(bestSeller, [])),
@@ -733,7 +735,6 @@ class _HomeState extends State<Home> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 24),
           headerImageUrl != null
               ? GestureDetector(
                   onTap: () => Routers.goTO(context,
@@ -753,27 +754,28 @@ class _HomeState extends State<Home> {
               : SectionHeader(
                   title: title,
                   subtitle: subtitle,
-                  onViewAll: () => Routers.goTO(context,
-                      toBody: CollectionView(collectionId: id, title: title)),
                 ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
           Container(
             decoration: BoxDecoration(
               color: Constants.stringToColor(color: data['color'] ?? "#fff")
                   .withOpacity(0.04),
             ),
-            child: Column(
-              children: [
-                ProductsGrid(
-                  id: id,
-                  limit: 4,
-                  shrinkWrap: true,
-                  excludeIds: excludeIds,
-                ),
-                const SizedBox(height: 12),
-              ],
+            child: ProductsGrid(
+              id: id,
+              limit: 4,
+              shrinkWrap: true,
+              excludeIds: excludeIds,
             ),
           ),
+          const SizedBox(height: 16),
+          Center(
+            child: _PremiumExploreButton(
+              onTap: () => Routers.goTO(context,
+                  toBody: CollectionView(collectionId: id!, title: title)),
+            ),
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -783,9 +785,8 @@ class _HomeState extends State<Home> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 12),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
           child: Row(
             children: [
               Container(
@@ -807,6 +808,7 @@ class _HomeState extends State<Home> {
             ],
           ),
         ),
+        const SizedBox(height: 16),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: GridView.count(
@@ -869,9 +871,8 @@ class _HomeState extends State<Home> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 8),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
           child: Row(
             children: [
               Container(
@@ -893,6 +894,7 @@ class _HomeState extends State<Home> {
             ],
           ),
         ),
+        const SizedBox(height: 16),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: GridView.count(
@@ -930,6 +932,14 @@ class _HomeState extends State<Home> {
                 onTap: () => _openProductById("8568815157401"),
               ),
             ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Center(
+          child: _PremiumExploreButton(
+            onTap: () => Routers.goTO(context,
+                toBody: CollectionView(
+                    collectionId: "329119367321", title: "Best Sellers")),
           ),
         ),
         const SizedBox(height: 24),

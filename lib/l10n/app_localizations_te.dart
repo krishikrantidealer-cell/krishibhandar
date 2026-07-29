@@ -518,6 +518,9 @@ class AppLocalizationsTe extends AppLocalizations {
   String get onlinePayment => 'ఆన్‌లైన్ చెల్లింపు';
 
   @override
+  String get continueToPayment => 'చెల్లింపుకు కొనసాగించండి';
+
+  @override
   String get confirmationEmailMsg => 'మీరు త్వరలో నిర్ధారణ ఇమెయిల్ అందుకుంటారు';
 
   @override

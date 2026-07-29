@@ -66,6 +66,54 @@ class MyWidgetFactory extends WidgetFactory {
     // so we can use our dedicated ShopifyIframeWidget without duplication.
     return const SizedBox.shrink();
   }
+
+  Widget _buildYouSavePill({
+    required String? comparePrice,
+    required String sellingPrice,
+  }) {
+    if (comparePrice == null || comparePrice.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    try {
+      double mrp = double.parse(
+              comparePrice.replaceAll(Constants.inr, '').replaceAll(',', '')),
+          sp = double.parse(
+              sellingPrice.replaceAll(Constants.inr, '').replaceAll(',', ''));
+
+      double savingAmount = mrp - sp;
+      double per = (100 * savingAmount) / mrp;
+
+      if (savingAmount > 0) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE8F5E9),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.local_offer_rounded,
+                  color: Color(0xFF2E7D32), size: 14),
+              const SizedBox(width: 6),
+              Text(
+                "You Save ${Constants.inr}${savingAmount.toStringAsFixed(0)} (${per.toInt()}%)",
+                style: GoogleFonts.outfit(
+                  color: const Color(0xFF2E7D32),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      return const SizedBox.shrink();
+    }
+    return const SizedBox.shrink();
+  }
 }
 
 class _ProductViewState extends State<ProductView>
@@ -342,8 +390,9 @@ class _ProductViewState extends State<ProductView>
     required String? comparePrice,
     required String sellingPrice,
   }) {
-    if (comparePrice == null || comparePrice.isEmpty)
+    if (comparePrice == null || comparePrice.isEmpty) {
       return const SizedBox.shrink();
+    }
 
     try {
       double mrp = double.parse(
@@ -355,14 +404,14 @@ class _ProductViewState extends State<ProductView>
 
       if (per > 0) {
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFFE53935), Color(0xFFD32F2F)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
@@ -374,10 +423,58 @@ class _ProductViewState extends State<ProductView>
           child: Text(
             AppLocalizations.of(context)!.off(per.toInt().toString()),
             style: const TextStyle(
-              fontSize: 12,
+              fontSize: 14,
               color: Colors.white,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.bold,
             ),
+          ),
+        );
+      }
+    } catch (e) {
+      return const SizedBox.shrink();
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildYouSavePill({
+    required String? comparePrice,
+    required String sellingPrice,
+  }) {
+    if (comparePrice == null || comparePrice.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    try {
+      double mrp = double.parse(
+              comparePrice.replaceAll(Constants.inr, '').replaceAll(',', '')),
+          sp = double.parse(
+              sellingPrice.replaceAll(Constants.inr, '').replaceAll(',', ''));
+
+      double savingAmount = mrp - sp;
+      double per = (100 * savingAmount) / mrp;
+
+      if (savingAmount > 0) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE8F5E9),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.local_offer_rounded,
+                  color: Color(0xFF2E7D32), size: 14),
+              const SizedBox(width: 6),
+              Text(
+                "You Save ${Constants.inr}${savingAmount.toStringAsFixed(0)} (${per.toInt()}%)",
+                style: GoogleFonts.outfit(
+                  color: const Color(0xFF2E7D32),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         );
       }
@@ -594,36 +691,51 @@ class _ProductViewState extends State<ProductView>
                         ],
                       ),
                       const SizedBox(height: 16),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            "${Constants.inr}${variant.price}",
-                            style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.black),
-                          ),
-                          if (variant.compareAtPrice != null) ...[
-                            const SizedBox(width: 8),
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 2),
-                              child: Text(
-                                "${Constants.inr}${variant.compareAtPrice}",
-                                style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[400],
-                                    decoration: TextDecoration.lineThrough),
-                              ),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        transitionBuilder: (Widget child, Animation<double> animation) {
+                          return FadeTransition(opacity: animation, child: child);
+                        },
+                        child: Column(
+                          key: ValueKey<String>("${variant.id}_${variant.price}"),
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  "${Constants.inr}${variant.price}",
+                                  style: const TextStyle(
+                                      fontSize: 34,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black),
+                                ),
+                                if (variant.compareAtPrice != null) ...[
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "${Constants.inr}${variant.compareAtPrice}",
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.grey[700],
+                                        fontWeight: FontWeight.w500,
+                                        decoration: TextDecoration.lineThrough,
+                                        decorationThickness: 1.5),
+                                  ),
+                                ],
+                                const SizedBox(width: 12),
+                                _discount(
+                                    comparePrice: variant.compareAtPrice,
+                                    sellingPrice: variant.price),
+                              ],
                             ),
+                            const SizedBox(height: 8),
+                            _buildYouSavePill(
+                                comparePrice: variant.compareAtPrice,
+                                sellingPrice: variant.price),
                           ],
-                          const SizedBox(width: 12),
-                          _discount(
-                              comparePrice: variant.compareAtPrice,
-                              sellingPrice: variant.price),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 10),
                       Text(AppLocalizations.of(context)!.inclusiveTaxes,
                           style: TextStyle(
                               fontSize: 11,
@@ -672,22 +784,33 @@ class _ProductViewState extends State<ProductView>
 
                 Container(height: 6, color: const Color(0xFFF4F6F8)),
 
-                // --- Select Variant Section (Pills Style) ---
+                // --- Select Variant Section (Premium Grid Style) ---
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 16, 14, 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(AppLocalizations.of(context)!.selectVariant,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 14,
-                              color: Colors.black87)),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: List.generate(product.variants.length, (i) {
+                      Text(
+                        AppLocalizations.of(context)!.selectVariant,
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: EdgeInsets.zero,
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          mainAxisExtent: 100, // Fixed height per requirement
+                        ),
+                        itemCount: product.variants.length,
+                        itemBuilder: (context, i) {
                           final v = product.variants[i];
                           final isSelected = _varientIndex == i;
                           final isOutOfStock = v.inventoryQuantity <= 0;
@@ -698,66 +821,78 @@ class _ProductViewState extends State<ProductView>
                                 : () => setState(() => _varientIndex = i),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 10),
+                              curve: Curves.easeInOut,
+                              transform: isSelected
+                                  ? (Matrix4.identity()..scale(1.02))
+                                  : Matrix4.identity(),
+                              transformAlignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? const Color(0xFFE8F5E9)
+                                    ? const Color(0xFFF1F8E9) // Very light green
                                     : Colors.white,
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
                                   color: isSelected
-                                      ? const Color(0xFF2E7D32)
+                                      ? Colors.green
                                       : Colors.grey[300]!,
                                   width: isSelected ? 2 : 1,
                                 ),
-                                boxShadow: isSelected
-                                    ? [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.08),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 4),
-                                        )
-                                      ]
-                                    : null,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(isSelected ? 0.12 : 0.05),
+                                    blurRadius: isSelected ? 10 : 4,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
                               ),
                               child: Opacity(
-                                opacity: isOutOfStock ? 0.3 : 1.0,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      v.title,
-                                      style: TextStyle(
-                                        color: isSelected
-                                            ? const Color(0xFF1B5E20)
-                                            : Colors.black87,
-                                        fontWeight: isSelected
-                                            ? FontWeight.w700
-                                            : FontWeight.w800,
-                                        fontSize: 13,
+                                opacity: isOutOfStock ? 0.4 : 1.0,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12.0),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      // TOP: Variant Name
+                                      Expanded(
+                                        child: Center(
+                                          child: Text(
+                                            v.title,
+                                            textAlign: TextAlign.center,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.outfit(
+                                              color: isSelected
+                                                  ? const Color(0xFF1B5E20)
+                                                  : (isOutOfStock
+                                                      ? Colors.grey
+                                                      : const Color(
+                                                          0xFF212121)), // Near Black
+                                              fontWeight: isSelected
+                                                  ? FontWeight.bold
+                                                  : FontWeight.w600, // SemiBold
+                                              fontSize: 15,
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      "${Constants.inr}${v.price}",
-                                      style: TextStyle(
-                                        color: isSelected
-                                            ? const Color(0xFF2E7D32)
-                                            : Colors.grey[700],
-                                        fontSize: 13,
-                                        fontWeight: isSelected
-                                            ? FontWeight.w700
-                                            : FontWeight.w600,
+                                      const SizedBox(height: 4),
+                                      // BOTTOM: Price
+                                      Text(
+                                        "${Constants.inr}${v.price}",
+                                        textAlign: TextAlign.center,
+                                        style: GoogleFonts.outfit(
+                                          color: Colors.green[700],
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
                           );
-                        }),
+                        },
                       ),
                     ],
                   ),
@@ -1023,8 +1158,8 @@ class _ProductViewState extends State<ProductView>
                         ? p.variants[_varientIndex]
                         : p.variants.first;
 
-                    final variantId = int.tryParse(v.id.split('/').last) ?? 0;
-                    final productId = int.tryParse(p.id.split('/').last) ?? 0;
+                    final variantId = int.tryParse(v.id.toString().split('/').last) ?? 0;
+                    final productId = int.tryParse(p.id.toString().split('/').last) ?? 0;
 
                     double price = double.tryParse(
                             v.price.replaceAll(RegExp(r'[^\d.]'), '')) ??

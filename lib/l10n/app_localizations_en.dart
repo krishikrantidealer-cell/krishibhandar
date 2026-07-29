@@ -513,6 +513,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlinePayment => 'Online Payment';
 
   @override
+  String get continueToPayment => 'Continue to Payment';
+
+  @override
   String get confirmationEmailMsg =>
       'You will receive a confirmation email shortly';
 

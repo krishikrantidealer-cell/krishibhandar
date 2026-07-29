@@ -1034,6 +1034,12 @@ abstract class AppLocalizations {
   /// **'Online Payment'**
   String get onlinePayment;
 
+  /// No description provided for @continueToPayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue to Payment'**
+  String get continueToPayment;
+
   /// No description provided for @confirmationEmailMsg.
   ///
   /// In en, this message translates to:

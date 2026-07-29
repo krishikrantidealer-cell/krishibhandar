@@ -519,6 +519,9 @@ class AppLocalizationsTa extends AppLocalizations {
   String get onlinePayment => 'ஆன்லைன் கட்டணம்';
 
   @override
+  String get continueToPayment => 'கட்டணத்திற்கு தொடரவும்';
+
+  @override
   String get confirmationEmailMsg =>
       'உங்களுக்கு விரைவில் உறுதிப்படுத்தல் மின்னஞ்சல் வரும்';
 

@@ -155,6 +155,7 @@
   "paymentMethod": "पेमेंट पद्धत",
   "cod": "डिलिव्हरीवर रोख (COD)",
   "onlinePayment": "ऑनलाइन पेमेंट",
+  "continueToPayment": "पेमेंटसाठी पुढे जा",
   "confirmationEmailMsg": "तुम्हाला लवकरच पुष्टीकरण ई-मेल प्राप्त होईल",
   "continueShopping": "खरेदी सुरू ठेवा",
   "couponDiscount": "कूपन सवलत",

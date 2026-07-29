@@ -155,6 +155,7 @@
   "paymentMethod": "Payment Method",
   "cod": "Cash on Delivery",
   "onlinePayment": "Online Payment",
+  "continueToPayment": "Continue to Payment",
   "confirmationEmailMsg": "You will receive a confirmation email shortly",
   "continueShopping": "Continue Shopping",
   "couponDiscount": "Coupon Discount",

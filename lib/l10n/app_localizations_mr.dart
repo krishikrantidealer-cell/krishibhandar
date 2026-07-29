@@ -513,6 +513,9 @@ class AppLocalizationsMr extends AppLocalizations {
   String get onlinePayment => 'ऑनलाइन पेमेंट';
 
   @override
+  String get continueToPayment => 'पेमेंटसाठी पुढे जा';
+
+  @override
   String get confirmationEmailMsg =>
       'तुम्हाला लवकरच पुष्टीकरण ई-मेल प्राप्त होईल';
 

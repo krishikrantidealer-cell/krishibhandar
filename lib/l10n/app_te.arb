@@ -155,6 +155,7 @@
   "paymentMethod": "చెల్లింపు పద్ధతి",
   "cod": "క్యాష్ ఆన్ డెలివరీ (COD)",
   "onlinePayment": "ఆన్‌లైన్ చెల్లింపు",
+  "continueToPayment": "చెల్లింపుకు కొనసాగించండి",
   "confirmationEmailMsg": "మీరు త్వరలో నిర్ధారణ ఇమెయిల్ అందుకుంటారు",
   "continueShopping": "షాపింగ్ కొనసాగించండి",
   "couponDiscount": "కూపన్ తగ్గింపు",

@@ -155,6 +155,7 @@
   "paymentMethod": "கட்டண முறை",
   "cod": "டெலிவரி செய்யும் போது பணம் செலுத்துதல் (COD)",
   "onlinePayment": "ஆன்லைன் கட்டணம்",
+  "continueToPayment": "கட்டணத்திற்கு தொடரவும்",
   "confirmationEmailMsg": "உங்களுக்கு விரைவில் உறுதிப்படுத்தல் மின்னஞ்சல் வரும்",
   "continueShopping": "షాప్పింగైత్ తొడరవుమ్",
   "couponDiscount": "కూపన్ తళ్ళిబడి",

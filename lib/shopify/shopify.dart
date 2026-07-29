@@ -57,14 +57,13 @@ class ShopifyAPI {
   }
 
   static Future<List<dynamic>> getCustomerOrders(String customerId) async {
-    debugPrint('ShopifyAPI: Fetching orders for customer: $customerId');
+    debugPrint('ShopifyAPI: [Forensic] getCustomerOrders called for Customer ID: $customerId');
     try {
       final String cleanId = customerId.split('/').last;
       final String gid = cleanId.contains('gid://') 
           ? cleanId 
           : "gid://shopify/Customer/$cleanId";
 
-      // Fix 3: Use direct customer node instead of search query
       final String query = '''
         query getCustomerOrders(\$id: ID!) {
           customer(id: \$id) {
@@ -120,6 +119,15 @@ class ShopifyAPI {
                     }
                   }
                 }
+                fulfillments {
+                  id
+                  displayStatus
+                  trackingInfo {
+                    number
+                    url
+                    company
+                  }
+                }
               }
             }
           }
@@ -140,16 +148,15 @@ class ShopifyAPI {
 
       if (res.statusCode == 200) {
         final decoded = jsonDecode(res.body);
-        
-        // Fix 4: Verbose logging for GraphQL errors
+
         if (decoded['errors'] != null) {
-          debugPrint('ShopifyAPI: GraphQL ERRORS detected: ${jsonEncode(decoded['errors'])}');
+          debugPrint('ShopifyAPI: [Forensic] GraphQL ERRORS detected: ${jsonEncode(decoded['errors'])}');
         }
 
         if (decoded['data'] != null && decoded['data']['customer'] != null) {
           final List orders = [];
           final orderNodes = decoded['data']['customer']['orders']['nodes'];
-          debugPrint('ShopifyAPI: Found ${orderNodes.length} orders for customer.');
+          debugPrint('ShopifyAPI: [Forensic] Found ${orderNodes.length} order nodes in response.');
 
           for (var node in orderNodes) {
             try {
@@ -172,6 +179,33 @@ class ShopifyAPI {
                       .where((c) => c != null)
                       .toList();
 
+              // Safe Line Items mapping
+              final List mappedItems = [];
+              for (var li in (node['lineItems']?['nodes'] as List? ?? [])) {
+                try {
+                  final String vIdRaw = li['variant']?['id']?.toString() ?? '';
+                  final String pIdRaw = li['variant']?['product']?['id']?.toString() ?? '';
+                  final String? img = li['image']?['url'] ??
+                      li['variant']?['product']?['featuredImage']?['url'];
+
+                  mappedItems.add({
+                    'title': li['title'] ?? '',
+                    'quantity': li['quantity'] ?? 0,
+                    'price': li['originalUnitPriceSet']?['presentmentMoney']
+                                ?['amount']
+                            ?.toString() ??
+                        '0.00',
+                    'variant_title': li['variantTitle'] ?? '',
+                    'variant_id': vIdRaw.isNotEmpty ? vIdRaw.split('/').last : '',
+                    'product_id': pIdRaw.isNotEmpty ? pIdRaw.split('/').last : '',
+                    'image': img,
+                  });
+                } catch (liErr, liStack) {
+                   debugPrint("ShopifyAPI: [Forensic] LineItem mapping error in Order ${node['name']}: $liErr");
+                   debugPrint("StackTrace: $liStack");
+                }
+              }
+
               orders.add({
                 'id': node['id'].toString(),
                 'order_number': node['name'].toString().replaceAll('#', ''),
@@ -190,27 +224,19 @@ class ShopifyAPI {
                 'cancelled_at': node['cancelledAt'],
                 'closed_at': node['closedAt'],
                 'confirmed': node['confirmed'] ?? false,
-                'line_items':
-                    (node['lineItems']?['nodes'] as List? ?? []).map((li) {
-                  String? img = li['image']?['url'] ??
-                      li['variant']?['product']?['featuredImage']?['url'];
-                  return {
-                    'title': li['title'] ?? '',
-                    'quantity': li['quantity'] ?? 0,
-                    'price': li['originalUnitPriceSet']?['presentmentMoney']
-                                ?['amount']
-                            ?.toString() ??
-                        '0.00',
-                    'variant_title': li['variantTitle'] ?? '',
-                    'variant_id':
-                        li['variant']?['id']?.toString().split('/').last,
-                    'product_id': li['variant']?['product']?['id']
-                        ?.toString()
-                        .split('/')
-                        .last,
-                    'image': img,
-                  };
-                }).toList(),
+                'line_items': mappedItems,
+                'fulfillments': (node['fulfillments'] as List? ?? [])
+                    .map((f) => {
+                          'id': f['id'],
+                          'shipment_status': f['shipmentStatus'],
+                          'tracking_number': (f['trackingInfo'] as List? ?? [])
+                              .firstOrNull?['number'],
+                          'tracking_url': (f['trackingInfo'] as List? ?? [])
+                              .firstOrNull?['url'],
+                          'tracking_company': (f['trackingInfo'] as List? ?? [])
+                              .firstOrNull?['company'],
+                        })
+                    .toList(),
               });
 
               var lastOrder = orders.last;
@@ -225,19 +251,21 @@ class ShopifyAPI {
                 }
                 lastOrder['subtotal_price'] = sub.toStringAsFixed(2);
               }
-            } catch (e) {
-               debugPrint("ShopifyAPI: Mapper Error for order node: $e");
+            } catch (e, stack) {
+               debugPrint("ShopifyAPI: [Forensic] Mapper Error for order node ${node['name']}: $e");
+               debugPrint("StackTrace: $stack");
             }
           }
+          debugPrint('ShopifyAPI: [Forensic] Successfully mapped ${orders.length} orders.');
           return orders;
         } else {
-          debugPrint('ShopifyAPI: Customer node not found in response: ${jsonEncode(decoded['data'])}');
+          debugPrint('ShopifyAPI: [Forensic] Customer node not found in response: ${jsonEncode(decoded['data'])}');
         }
       } else {
-        debugPrint('ShopifyAPI: HTTP Error ${res.statusCode}: ${res.body}');
+        debugPrint('ShopifyAPI: [Forensic] HTTP Error ${res.statusCode}: ${res.body}');
       }
     } catch (e, stack) {
-      debugPrint("ShopifyAPI: getCustomerOrders CRITICAL Error: $e");
+      debugPrint("ShopifyAPI: [Forensic] getCustomerOrders CRITICAL Error: $e");
       debugPrint("Stacktrace: $stack");
     }
     return [];
@@ -288,17 +316,15 @@ class ShopifyAPI {
             cancelledAt
             statusPageUrl
             
-            fulfillments(first: 10) {
-              nodes {
-                id
-                shipmentStatus
-                trackingNumbers
-                trackingUrls
-                trackingInfo {
-                  number
-                  url
-                  company
-                }
+            fulfillments {
+              id
+              displayStatus
+              trackingNumbers
+              trackingUrls
+              trackingInfo {
+                number
+                url
+                company
               }
             }
             
@@ -2050,11 +2076,11 @@ class ShopifyAdmin {
                   final variant = variants.isNotEmpty ? variants[0] : null;
 
                   entitledProducts.add({
-                    'id': pro['id']?.toString().split('/').last ?? '',
+                    'id': (pro['id']?.toString() ?? '').split('/').last,
                     'title': pro['title'] ?? '',
                     'image': pro['featuredImage']?['url'] ?? '',
                     'variantId': variant != null
-                        ? variant['id']?.toString().split('/').last ?? ''
+                        ? (variant['id']?.toString() ?? '').split('/').last
                         : '',
                     'variantTitle':
                         variant != null ? variant['title'] ?? '' : '',
@@ -2079,11 +2105,11 @@ class ShopifyAdmin {
                       final variant = variants.isNotEmpty ? variants[0] : null;
 
                       entitledProducts.add({
-                        'id': pro['id']?.toString().split('/').last ?? '',
+                        'id': (pro['id']?.toString() ?? '').split('/').last,
                         'title': pro['title'] ?? '',
                         'image': pro['featuredImage']?['url'] ?? '',
                         'variantId': variant != null
-                            ? variant['id']?.toString().split('/').last ?? ''
+                            ? (variant['id']?.toString() ?? '').split('/').last
                             : '',
                         'variantTitle':
                             variant != null ? variant['title'] ?? '' : '',
@@ -2300,11 +2326,11 @@ class ShopifyAdmin {
                 final variant = variants.isNotEmpty ? variants[0] : null;
 
                 entitledProducts.add({
-                  'id': pro['id']?.toString().split('/').last ?? '',
+                  'id': (pro['id']?.toString() ?? '').split('/').last,
                   'title': pro['title'] ?? '',
                   'image': pro['featuredImage']?['url'] ?? '',
                   'variantId': variant != null
-                      ? variant['id']?.toString().split('/').last ?? ''
+                      ? (variant['id']?.toString() ?? '').split('/').last
                       : '',
                   'variantTitle': variant != null ? variant['title'] ?? '' : '',
                   'price': variant != null

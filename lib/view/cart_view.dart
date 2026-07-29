@@ -1357,7 +1357,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                 ),
               )
             else
-              // Online Payment
+              // Continue to Payment
               Expanded(
                 child: GestureDetector(
                   onTapDown: (_) => setState(() => _isCheckoutPressed = true),
@@ -1371,7 +1371,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                     scale: _isCheckoutPressed ? 0.97 : 1.0,
                     duration: const Duration(milliseconds: 120),
                     child: _checkoutButton(
-                      label: AppLocalizations.of(context)!.onlinePayment,
+                      label: AppLocalizations.of(context)!.continueToPayment,
                       color: Constants.baseColor,
                       icon: Icons.payment_rounded,
                     ),
@@ -1438,10 +1438,26 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
     );
   }
 
-  /// Opens Shiprocket checkout — user picks online payment or COD inside Shiprocket.
-  void _openShiprocketCheckout() {
+  /// Opens Shiprocket checkout — user picks payment method (Online/COD) inside Shiprocket.
+  void _openShiprocketCheckout() async {
+    final phone = await AuthController.getSavedPhone();
+    final email = await AuthController.getSavedEmail();
+
+    if (phone == null || phone.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Please login with your mobile number to proceed."),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     final productIds = _cartItems.map((item) => item.productId ?? item.id).toList();
     AttributionService.logInitiateCheckout(_getFinalTotal(), productIds);
+    if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -1450,6 +1466,8 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
           totalAmount: _getFinalTotal(),
           couponCode: _appliedDiscount?['code']?.toString(),
           shippingAddress: _selectedAddress,
+          customerPhone: phone,
+          customerEmail: email,
           discountAmount: _appliedDiscount != null
               ? (double.tryParse(
                       _appliedDiscount!['value']?.toString() ?? '') ??
