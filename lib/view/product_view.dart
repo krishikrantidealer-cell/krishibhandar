@@ -484,6 +484,76 @@ class _ProductViewState extends State<ProductView>
     return const SizedBox.shrink();
   }
 
+  Widget _buildDeliveryCommitmentRibbon() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 16, 14, 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1FFF4),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE0F2E9), width: 1),
+      ),
+      child: Row(
+        children: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              const Icon(Icons.local_shipping_rounded,
+                  color: Color(0xFF2E7D32), size: 22),
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.verified_rounded,
+                      color: Color(0xFF2E7D32), size: 14),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "Delivery Across India",
+                  style: GoogleFonts.outfit(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF1B5E20),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  "Guaranteed Delivery in 7–9 Business Days",
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF43A047),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildRatingStars(double rating, {double size = 16}) {
     int fullStars = rating.floor();
     bool hasHalfStar = (rating - fullStars) >= 0.5;
@@ -629,6 +699,9 @@ class _ProductViewState extends State<ProductView>
                   ],
                 ),
 
+                // --- Delivery Commitment ---
+                _buildDeliveryCommitmentRibbon(),
+
                 // --- Product Header ---
                 Padding(
                   padding: const EdgeInsets.fromLTRB(14, 8, 14, 16),
@@ -644,50 +717,26 @@ class _ProductViewState extends State<ProductView>
                             color: Colors.black87),
                       ),
                       const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          "${AppLocalizations.of(context)!.brand}: ${AppLocalizations.of(context)!.appBrandName}",
-                          style: TextStyle(
-                              color: Colors.grey[700],
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          _buildRatingStars(fakeRating),
+                          // Brand Pill
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 3),
+                                horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF1F8F6),
-                              borderRadius: BorderRadius.circular(4),
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.flash_on_rounded,
-                                    color: Colors.green, size: 12),
-                                const SizedBox(width: 4),
-                                Text(
-                                  AppLocalizations.of(context)!.fastDelivery,
-                                  style: const TextStyle(
-                                    color: Colors.green,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              AppLocalizations.of(context)!.appBrandName,
+                              style: TextStyle(
+                                  color: Colors.grey[700],
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700),
                             ),
                           ),
-                          const Spacer(),
-                          _buildRatingStars(fakeRating),
                         ],
                       ),
                       const SizedBox(height: 16),

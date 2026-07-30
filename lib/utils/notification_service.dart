@@ -41,7 +41,7 @@ class NotificationService {
       android: initializationSettingsAndroid,
     );
 
-    await _localNotificationsPlugin.initialize(initializationSettings);
+    await _localNotificationsPlugin.initialize(settings: initializationSettings);
 
     // Create Android Notification Channel
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
@@ -105,10 +105,10 @@ class NotificationService {
       }
 
       await _localNotificationsPlugin.show(
-        message.hashCode,
-        title,
-        body,
-        NotificationDetails(
+        id: message.hashCode,
+        title: title,
+        body: body,
+        notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
             'high_importance_channel',
             'High Importance Notifications',

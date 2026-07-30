@@ -174,45 +174,45 @@ class _AddressViewState extends State<AddressView> {
       }
 
       Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
 
       try {
         String localeTag =
             Constants.lang.toLowerCase() == "hi" ? "hi_IN" : "en_US";
-        await setLocaleIdentifier(localeTag);
+        final localeParts = localeTag.split('_');
+        final locale = Locale(localeParts[0], localeParts.length > 1 ? localeParts[1] : null);
+        
         await Future.delayed(const Duration(milliseconds: 200));
-      } catch (e) {
-        debugPrint("Geocoding locale error: $e");
-      }
 
-      List<Placemark> placemarks =
-          await placemarkFromCoordinates(position.latitude, position.longitude);
+        List<Placemark> placemarks = await Geocoding(locale: locale).placemarkFromCoordinates(
+            position.latitude, position.longitude);
 
-      if (placemarks.isNotEmpty) {
-        Placemark place = placemarks[0];
-        if (mounted) {
-          setState(() {
-            String name = place.name ?? '';
-            if (name.contains('+') || name.contains('Unnamed')) name = '';
-            
-            String subLoc = place.subLocality ?? '';
-            
-            _address1Controller.text = [name, subLoc]
-                .where((s) => s.isNotEmpty)
-                .join(', ')
-                .trim();
-                
-            _address2Controller.text = place.locality ?? '';
-            _cityController.text =
-                place.subAdministrativeArea ?? place.locality ?? '';
-            _stateController.text = place.administrativeArea ?? '';
+        if (placemarks.isNotEmpty) {
+          Placemark place = placemarks[0];
+          if (mounted) {
+            setState(() {
+              String name = place.name ?? '';
+              if (name.contains('+') || name.contains('Unnamed')) name = '';
 
-            if (place.postalCode != null && place.postalCode!.isNotEmpty) {
-              _pincodeController.text = place.postalCode!;
-              _fetchPincodeData(place.postalCode!);
-            }
-          });
+              String subLoc = place.subLocality ?? '';
+
+              _address1Controller.text =
+                  [name, subLoc].where((s) => s.isNotEmpty).join(', ').trim();
+
+              _address2Controller.text = place.locality ?? '';
+              _cityController.text =
+                  place.subAdministrativeArea ?? place.locality ?? '';
+              _stateController.text = place.administrativeArea ?? '';
+
+              if (place.postalCode != null && place.postalCode!.isNotEmpty) {
+                _pincodeController.text = place.postalCode!;
+                _fetchPincodeData(place.postalCode!);
+              }
+            });
+          }
         }
+      } catch (e) {
+        debugPrint("Location conversion error: $e");
       }
     } catch (e) {
       debugPrint('Error getting location: $e');
@@ -332,10 +332,10 @@ class _AddressViewState extends State<AddressView> {
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: Colors.grey.withOpacity(0.1))),
+                borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.1))),
             enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: Colors.grey.withOpacity(0.1))),
+                borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.1))),
             focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide(color: Constants.baseColor, width: 2)),
@@ -369,7 +369,7 @@ class _AddressViewState extends State<AddressView> {
       ),
       child: Scaffold(
         backgroundColor: const Color(0xffF9FBF9),
-        body: l10n == null ? const SizedBox() : Stack(
+        body: Stack(
           children: [
             SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(
@@ -428,11 +428,13 @@ class _AddressViewState extends State<AddressView> {
                           LengthLimitingTextInputFormatter(10)
                         ],
                         validator: (v) {
-                          if (v == null || v.isEmpty)
+                          if (v == null || v.isEmpty) {
                             return AppLocalizations.of(context)!
                                 .errPhoneRequired;
-                          if (v.length != 10)
+                          }
+                          if (v.length != 10) {
                             return AppLocalizations.of(context)!.errPhoneValid;
+                          }
                           return null;
                         },
                       ),
@@ -462,12 +464,12 @@ class _AddressViewState extends State<AddressView> {
                           ),
                           style: OutlinedButton.styleFrom(
                             side: BorderSide(
-                                color: Constants.baseColor.withOpacity(0.3)),
+                                color: Constants.baseColor.withValues(alpha: 0.3)),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14)),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             backgroundColor:
-                                Constants.baseColor.withOpacity(0.04),
+                                Constants.baseColor.withValues(alpha: 0.04),
                           ),
                         ),
                       ),
@@ -579,19 +581,19 @@ class _AddressViewState extends State<AddressView> {
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? Colors.white
-                                    : Colors.white.withOpacity(0.5),
+                                    : Colors.white.withValues(alpha: 0.5),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
                                   color: isSelected
                                       ? Constants.baseColor
-                                      : Colors.grey.withOpacity(0.1),
+                                      : Colors.grey.withValues(alpha: 0.1),
                                   width: isSelected ? 2 : 1,
                                 ),
                                 boxShadow: [
                                   if (isSelected)
                                     BoxShadow(
                                       color:
-                                          Constants.baseColor.withOpacity(0.1),
+                                          Constants.baseColor.withValues(alpha: 0.1),
                                       blurRadius: 15,
                                       offset: const Offset(0, 8),
                                     ),
@@ -606,7 +608,7 @@ class _AddressViewState extends State<AddressView> {
                                         : Icons.circle_outlined,
                                     color: isSelected
                                         ? Constants.baseColor
-                                        : Colors.grey.withOpacity(0.3),
+                                        : Colors.grey.withValues(alpha: 0.3),
                                     size: 20,
                                   ),
                                   const SizedBox(width: 12),
@@ -698,9 +700,9 @@ class _AddressViewState extends State<AddressView> {
           padding: EdgeInsets.fromLTRB(
               16, MediaQuery.of(context).padding.top + 10, 16, 12),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.85),
+            color: Colors.white.withValues(alpha: 0.85),
             border: Border(
-              bottom: BorderSide(color: Colors.grey.withOpacity(0.1)),
+              bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.1)),
             ),
           ),
           child: Row(
@@ -710,7 +712,7 @@ class _AddressViewState extends State<AddressView> {
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Constants.baseColor.withOpacity(0.06),
+                    color: Constants.baseColor.withValues(alpha: 0.06),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -765,7 +767,7 @@ class _AddressViewState extends State<AddressView> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 20,
               offset: const Offset(0, -5))
         ],
@@ -813,7 +815,7 @@ class _AddressViewState extends State<AddressView> {
                 if (!((_selectedIndex == null && !_isAddingAddress) ||
                     _isProcessingCod))
                   BoxShadow(
-                    color: const Color(0xFF2E7D32).withOpacity(0.15),
+                    color: const Color(0xFF2E7D32).withValues(alpha: 0.15),
                     blurRadius: 16,
                     offset: const Offset(0, 6),
                   ),

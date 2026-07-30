@@ -14,7 +14,7 @@ class UpdateService {
   static Future<void> init() async {
     try {
       await _remoteConfig.setConfigSettings(RemoteConfigSettings(
-        fetchTimeout: const Duration(seconds: 10),
+        fetchTimeout: const Duration(seconds: 5),
         minimumFetchInterval: const Duration(hours: 1),
       ));
       
@@ -25,7 +25,7 @@ class UpdateService {
         'force_update': false,
       });
 
-      await _remoteConfig.fetchAndActivate();
+      await _remoteConfig.fetchAndActivate().timeout(const Duration(seconds: 10));
     } catch (e) {
       debugPrint("Remote Config Error: $e");
     }
@@ -33,20 +33,34 @@ class UpdateService {
 
   static Future<UpdateType> checkUpdateStatus() async {
     try {
+      debugPrint("UpdateService: Fetching package info...");
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = packageInfo.version;
       
-      final remoteLatestVersion = _remoteConfig.getString('latest_version');
-      final remoteMinVersion = _remoteConfig.getString('min_required_version');
-      final isForceUpdateEnabled = _remoteConfig.getBool('force_update');
+      debugPrint("UpdateService: Current Version: $currentVersion");
+
+      String remoteLatestVersion = '1.0.0';
+      String remoteMinVersion = '1.0.0';
+      bool isForceUpdateEnabled = false;
+
+      try {
+        remoteLatestVersion = _remoteConfig.getString('latest_version');
+        remoteMinVersion = _remoteConfig.getString('min_required_version');
+        isForceUpdateEnabled = _remoteConfig.getBool('force_update');
+        debugPrint("UpdateService: Remote Latest: $remoteLatestVersion, Min: $remoteMinVersion, Force: $isForceUpdateEnabled");
+      } catch (e) {
+        debugPrint("UpdateService: Error reading remote config keys: $e");
+      }
 
       // 1. Check for Force Update first
       if (isForceUpdateEnabled && _isVersionGreaterThan(remoteMinVersion, currentVersion)) {
+        debugPrint("UpdateService: FORCE update detected");
         return UpdateType.force;
       }
 
       // 2. Check for Optional Update
       if (_isVersionGreaterThan(remoteLatestVersion, currentVersion)) {
+        debugPrint("UpdateService: OPTIONAL update detected");
         return UpdateType.optional;
       }
     } catch (e) {
@@ -104,7 +118,7 @@ class UpdateService {
                     height: 80,
                     width: 80,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF26842C).withOpacity(0.1),
+                      color: const Color(0xFF26842C).withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(

@@ -1,0 +1,4 @@
+- [x] Implement `_buildDeliveryCommitmentRibbon()` in `lib/view/product_view.dart`
+- [x] Integrate the ribbon into the `ProductView` layout (between Gallery and Header)
+- [x] Remove the legacy "Fast Delivery" badge
+- [x] Final UI/UX Polish and Verification

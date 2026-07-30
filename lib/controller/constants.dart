@@ -101,10 +101,10 @@ class Constants {
       Color(int.parse(color.replaceFirst('#', '0XFF')));
 
   static Future<void> fetchRemoteConfig(
-    context,
+    BuildContext context,
   ) async {
     try {
-      final allLangs = await Shopify.getLocalization(context);
+      final allLangs = await Shopify.getLocalization(context).timeout(const Duration(seconds: 10));
       final allowedIsos = ['HI', 'EN', 'TE'];
 
       languageList = allLangs
@@ -121,10 +121,10 @@ class Constants {
         languageList.add(LocalizationModel(name: 'తెలుగు', iso: 'TE'));
       }
 
-      lang = (await Pref.getPref(PrefKey.lang)) ?? "EN";
+      lang = (await Pref.getPref(PrefKey.lang).timeout(const Duration(seconds: 2))) ?? "EN";
 
       final disc =
-          await ShopifyAdmin.validateDiscountCode(code: payOnlineDiscountCode);
+          await ShopifyAdmin.validateDiscountCode(code: payOnlineDiscountCode).timeout(const Duration(seconds: 5));
       if (disc != null && disc['type'] == 'fixed_amount') {
         payOnlineDiscountAmount = disc['value'].toDouble();
       }
