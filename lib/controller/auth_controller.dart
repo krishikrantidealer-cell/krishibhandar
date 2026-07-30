@@ -19,7 +19,6 @@ class AuthController {
   static const String _keyState = 'user_state';
   static const String _keyAddressList = 'user_address_list';
 
-
   static Future<String?> getSavedPhone() async {
     final prefs = await SharedPreferences.getInstance();
     String? phone = prefs.getString(_keyPhone);
@@ -165,12 +164,16 @@ class AuthController {
     if (json == null) return [];
     try {
       List<dynamic> list = jsonDecode(json);
-      return list.map((e) {
-        if (e is Map) {
-          return e.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
-        }
-        return <String, String>{};
-      }).where((m) => m.isNotEmpty).toList();
+      return list
+          .map((e) {
+            if (e is Map) {
+              return e
+                  .map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
+            }
+            return <String, String>{};
+          })
+          .where((m) => m.isNotEmpty)
+          .toList();
     } catch (e) {
       debugPrint('AuthController: Error loading addresses: $e');
       return [];
@@ -224,7 +227,7 @@ class AuthController {
   // ─── Sync with Shopify ────────────────────────────────────────────────────
   static Future<void> syncWithShopify(String phone) async {
     isSyncing = true;
-    
+
     // AppsFlyer Event: Login
     AttributionService.logLogin();
 
@@ -242,9 +245,11 @@ class AuthController {
       // wipe the previous user's data so their orders/addresses don't leak.
       final savedPhone = prefs.getString(_keyPhone);
       final normalizedIncoming = phone.replaceAll(RegExp(r'[^\d]'), '');
-      final normalizedSaved = savedPhone?.replaceAll(RegExp(r'[^\d]'), '') ?? '';
+      final normalizedSaved =
+          savedPhone?.replaceAll(RegExp(r'[^\d]'), '') ?? '';
       if (normalizedSaved.isNotEmpty && normalizedSaved != normalizedIncoming) {
-        debugPrint('AuthController: New user detected ($normalizedSaved → $normalizedIncoming). Clearing old user data.');
+        debugPrint(
+            'AuthController: New user detected ($normalizedSaved → $normalizedIncoming). Clearing old user data.');
         await Future.wait([
           prefs.remove(_keyPhone),
           prefs.remove(_keyName),
@@ -316,7 +321,8 @@ class AuthController {
   static Future<void> _saveShopifyCustomerToPrefs(
       dynamic customer, SharedPreferences prefs) async {
     if (customer == null || customer['id'] == null) {
-      debugPrint('AuthController: ERROR - Cannot save null customer or missing ID');
+      debugPrint(
+          'AuthController: ERROR - Cannot save null customer or missing ID');
       return;
     }
     final String customerId = customer['id'].toString();
@@ -326,18 +332,20 @@ class AuthController {
         '${customer['first_name'] ?? ''} ${customer['last_name'] ?? ''}'
             .trim());
     await prefs.setString(_keyEmail, customer['email'] ?? '');
-    
+
     // Fix 2: Verify save
     final savedId = prefs.getString(_keyShopifyId);
     debugPrint('AuthController: Customer ID Saved: $savedId');
     if (savedId == null) {
-      debugPrint('AuthController: CRITICAL - Failed to save customer ID to SharedPreferences');
+      debugPrint(
+          'AuthController: CRITICAL - Failed to save customer ID to SharedPreferences');
       debugPrint('Shopify Customer Data: ${jsonEncode(customer)}');
     }
   }
 
   static Future<void> syncCustomerFromOrder(String orderIdOrName) async {
-    debugPrint('AuthController: Starting syncCustomerFromOrder for: $orderIdOrName');
+    debugPrint(
+        'AuthController: Starting syncCustomerFromOrder for: $orderIdOrName');
     try {
       const String baseUrl = "https://3b7f20-3.myshopify.com/admin/api/2024-10";
       Map<String, String> headers = {
@@ -349,7 +357,8 @@ class AuthController {
 
       // 1. Try fetching as order ID first (numeric)
       if (RegExp(r'^\d+$').hasMatch(orderIdOrName)) {
-        debugPrint('AuthController: Attempting direct order lookup by ID: $orderIdOrName');
+        debugPrint(
+            'AuthController: Attempting direct order lookup by ID: $orderIdOrName');
         var res = await http.get(
           Uri.parse('$baseUrl/orders/$orderIdOrName.json'),
           headers: headers,
@@ -358,7 +367,8 @@ class AuthController {
           order = jsonDecode(res.body)['order'];
           debugPrint('AuthController: Found order via direct ID lookup');
         } else {
-          debugPrint('AuthController: Direct ID lookup failed (Status: ${res.statusCode}). Proceeding to search.');
+          debugPrint(
+              'AuthController: Direct ID lookup failed (Status: ${res.statusCode}). Proceeding to search.');
         }
       }
 
@@ -373,12 +383,15 @@ class AuthController {
           'confirm',
           'confirmed'
         ];
-        final bool isPlaceholder = placeholders.contains(orderIdOrName.toLowerCase());
+        final bool isPlaceholder =
+            placeholders.contains(orderIdOrName.toLowerCase());
 
         if (isPlaceholder) {
-          debugPrint('AuthController: Skipping polling loop for placeholder: $orderIdOrName');
+          debugPrint(
+              'AuthController: Skipping polling loop for placeholder: $orderIdOrName');
         } else {
-          debugPrint('AuthController: Searching for order name/token: $orderIdOrName');
+          debugPrint(
+              'AuthController: Searching for order name/token: $orderIdOrName');
           // A. Search matching order by checking latest orders
           int attempts = 5;
           for (int i = 0; i < attempts; i++) {
@@ -395,22 +408,26 @@ class AuthController {
                   final ordName = ord['name']?.toString() ?? '';
 
                   if (ordToken.toLowerCase() == orderIdOrName.toLowerCase() ||
-                      ordCartToken.toLowerCase() == orderIdOrName.toLowerCase() ||
+                      ordCartToken.toLowerCase() ==
+                          orderIdOrName.toLowerCase() ||
                       ordName.toLowerCase() == orderIdOrName.toLowerCase()) {
                     order = ord;
-                    debugPrint("🎯 syncCustomerFromOrder: Found matching order: ${ord['id']} on attempt ${i + 1}");
+                    debugPrint(
+                        "🎯 syncCustomerFromOrder: Found matching order: ${ord['id']} on attempt ${i + 1}");
                     break;
                   }
                 }
               }
             } else {
-              debugPrint('AuthController: Orders list fetch failed (Status: ${res.statusCode}): ${res.body}');
+              debugPrint(
+                  'AuthController: Orders list fetch failed (Status: ${res.statusCode}): ${res.body}');
             }
 
             if (order != null) break;
 
             if (i < attempts - 1) {
-              debugPrint("⏳ syncCustomerFromOrder: Order $orderIdOrName not found yet (attempt ${i + 1}/$attempts). Retrying in 3 seconds...");
+              debugPrint(
+                  "⏳ syncCustomerFromOrder: Order $orderIdOrName not found yet (attempt ${i + 1}/$attempts). Retrying in 3 seconds...");
               await Future.delayed(const Duration(seconds: 3));
             }
           }
@@ -418,7 +435,8 @@ class AuthController {
 
         // B. Fallback: Search latest order in the system if created in the last 10 minutes
         if (order == null) {
-          debugPrint('AuthController: Final fallback - checking latest system order');
+          debugPrint(
+              'AuthController: Final fallback - checking latest system order');
           var res = await http.get(
             Uri.parse('$baseUrl/orders.json?limit=1&status=any'),
             headers: headers,
@@ -431,10 +449,14 @@ class AuthController {
               if (createdAtStr != null) {
                 final createdAt = DateTime.tryParse(createdAtStr);
                 if (createdAt != null) {
-                  final difference = DateTime.now().toUtc().difference(createdAt.toUtc()).inMinutes;
+                  final difference = DateTime.now()
+                      .toUtc()
+                      .difference(createdAt.toUtc())
+                      .inMinutes;
                   if (difference.abs() <= 10) {
                     order = latestOrder;
-                    debugPrint("🎯 syncCustomerFromOrder: Matched order based on latest order fallback (created $difference min ago): ${order['id']}");
+                    debugPrint(
+                        "🎯 syncCustomerFromOrder: Matched order based on latest order fallback (created $difference min ago): ${order['id']}");
                   }
                 }
               }
@@ -446,10 +468,11 @@ class AuthController {
       if (order != null) {
         final customer = order['customer'];
         if (customer == null) {
-          debugPrint('AuthController: ERROR - Order found but no customer data attached');
+          debugPrint(
+              'AuthController: ERROR - Order found but no customer data attached');
           return;
         }
-        
+
         final shipping = order['shipping_address'];
         final billing = order['billing_address'];
 
@@ -457,7 +480,8 @@ class AuthController {
         if (customer['phone'] != null) {
           phone = customer['phone'].toString();
         }
-        phone ??= shipping?['phone']?.toString() ?? billing?['phone']?.toString();
+        phone ??=
+            shipping?['phone']?.toString() ?? billing?['phone']?.toString();
 
         if (phone != null && phone.isNotEmpty) {
           phone = phone.replaceAll(RegExp(r'[^\d]'), '');
@@ -467,24 +491,28 @@ class AuthController {
 
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString(_keyPhone, phone);
-          
+
           if (customer['id'] != null) {
             await _saveShopifyCustomerToPrefs(customer, prefs);
-            debugPrint('AuthController: Synced Customer ID ${customer['id']} from Order successfully.');
+            debugPrint(
+                'AuthController: Synced Customer ID ${customer['id']} from Order successfully.');
           } else {
-            debugPrint('AuthController: Customer ID missing in order, syncing by phone: $phone');
+            debugPrint(
+                'AuthController: Customer ID missing in order, syncing by phone: $phone');
             await syncWithShopify(phone);
           }
         } else {
-          debugPrint('AuthController: WARNING - No phone number found in order or customer profile');
+          debugPrint(
+              'AuthController: WARNING - No phone number found in order or customer profile');
           // Still try to save customer if ID exists
           if (customer['id'] != null) {
-             final prefs = await SharedPreferences.getInstance();
-             await _saveShopifyCustomerToPrefs(customer, prefs);
+            final prefs = await SharedPreferences.getInstance();
+            await _saveShopifyCustomerToPrefs(customer, prefs);
           }
         }
       } else {
-        debugPrint('AuthController: FAILED to find order $orderIdOrName after all attempts');
+        debugPrint(
+            'AuthController: FAILED to find order $orderIdOrName after all attempts');
       }
     } catch (e, stack) {
       debugPrint('AuthController: syncCustomerFromOrder CRITICAL ERROR: $e');

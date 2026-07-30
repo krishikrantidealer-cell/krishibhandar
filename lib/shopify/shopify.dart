@@ -57,11 +57,12 @@ class ShopifyAPI {
   }
 
   static Future<List<dynamic>> getCustomerOrders(String customerId) async {
-    debugPrint('ShopifyAPI: [Forensic] getCustomerOrders called for Customer ID: $customerId');
+    debugPrint(
+        'ShopifyAPI: [Forensic] getCustomerOrders called for Customer ID: $customerId');
     try {
       final String cleanId = customerId.split('/').last;
-      final String gid = cleanId.contains('gid://') 
-          ? cleanId 
+      final String gid = cleanId.contains('gid://')
+          ? cleanId
           : "gid://shopify/Customer/$cleanId";
 
       final String query = '''
@@ -150,13 +151,15 @@ class ShopifyAPI {
         final decoded = jsonDecode(res.body);
 
         if (decoded['errors'] != null) {
-          debugPrint('ShopifyAPI: [Forensic] GraphQL ERRORS detected: ${jsonEncode(decoded['errors'])}');
+          debugPrint(
+              'ShopifyAPI: [Forensic] GraphQL ERRORS detected: ${jsonEncode(decoded['errors'])}');
         }
 
         if (decoded['data'] != null && decoded['data']['customer'] != null) {
           final List orders = [];
           final orderNodes = decoded['data']['customer']['orders']['nodes'];
-          debugPrint('ShopifyAPI: [Forensic] Found ${orderNodes.length} order nodes in response.');
+          debugPrint(
+              'ShopifyAPI: [Forensic] Found ${orderNodes.length} order nodes in response.');
 
           for (var node in orderNodes) {
             try {
@@ -184,7 +187,8 @@ class ShopifyAPI {
               for (var li in (node['lineItems']?['nodes'] as List? ?? [])) {
                 try {
                   final String vIdRaw = li['variant']?['id']?.toString() ?? '';
-                  final String pIdRaw = li['variant']?['product']?['id']?.toString() ?? '';
+                  final String pIdRaw =
+                      li['variant']?['product']?['id']?.toString() ?? '';
                   final String? img = li['image']?['url'] ??
                       li['variant']?['product']?['featuredImage']?['url'];
 
@@ -196,13 +200,16 @@ class ShopifyAPI {
                             ?.toString() ??
                         '0.00',
                     'variant_title': li['variantTitle'] ?? '',
-                    'variant_id': vIdRaw.isNotEmpty ? vIdRaw.split('/').last : '',
-                    'product_id': pIdRaw.isNotEmpty ? pIdRaw.split('/').last : '',
+                    'variant_id':
+                        vIdRaw.isNotEmpty ? vIdRaw.split('/').last : '',
+                    'product_id':
+                        pIdRaw.isNotEmpty ? pIdRaw.split('/').last : '',
                     'image': img,
                   });
                 } catch (liErr, liStack) {
-                   debugPrint("ShopifyAPI: [Forensic] LineItem mapping error in Order ${node['name']}: $liErr");
-                   debugPrint("StackTrace: $liStack");
+                  debugPrint(
+                      "ShopifyAPI: [Forensic] LineItem mapping error in Order ${node['name']}: $liErr");
+                  debugPrint("StackTrace: $liStack");
                 }
               }
 
@@ -252,17 +259,21 @@ class ShopifyAPI {
                 lastOrder['subtotal_price'] = sub.toStringAsFixed(2);
               }
             } catch (e, stack) {
-               debugPrint("ShopifyAPI: [Forensic] Mapper Error for order node ${node['name']}: $e");
-               debugPrint("StackTrace: $stack");
+              debugPrint(
+                  "ShopifyAPI: [Forensic] Mapper Error for order node ${node['name']}: $e");
+              debugPrint("StackTrace: $stack");
             }
           }
-          debugPrint('ShopifyAPI: [Forensic] Successfully mapped ${orders.length} orders.');
+          debugPrint(
+              'ShopifyAPI: [Forensic] Successfully mapped ${orders.length} orders.');
           return orders;
         } else {
-          debugPrint('ShopifyAPI: [Forensic] Customer node not found in response: ${jsonEncode(decoded['data'])}');
+          debugPrint(
+              'ShopifyAPI: [Forensic] Customer node not found in response: ${jsonEncode(decoded['data'])}');
         }
       } else {
-        debugPrint('ShopifyAPI: [Forensic] HTTP Error ${res.statusCode}: ${res.body}');
+        debugPrint(
+            'ShopifyAPI: [Forensic] HTTP Error ${res.statusCode}: ${res.body}');
       }
     } catch (e, stack) {
       debugPrint("ShopifyAPI: [Forensic] getCustomerOrders CRITICAL Error: $e");
@@ -270,7 +281,6 @@ class ShopifyAPI {
     }
     return [];
   }
-
 
   static Future<Map<String, dynamic>> _getAdminData({
     required String body,
@@ -783,7 +793,8 @@ class ShopifyAPI {
       };
 
       if (kDebugMode) {
-        debugPrint("🧾 Final note_attributes for Order: ${jsonEncode(orderPayload['note_attributes'])}");
+        debugPrint(
+            "🧾 Final note_attributes for Order: ${jsonEncode(orderPayload['note_attributes'])}");
       }
 
       if (isCod) {
@@ -870,7 +881,8 @@ class ShopifyAPI {
   static Future<void> updateOrderAttribution(String orderIdOrName) async {
     try {
       final attribution = await AttributionService().getAttribution();
-      debugPrint("📢 ShopifyAPI: Sending UTM attributes to Shopify for order $orderIdOrName: $attribution");
+      debugPrint(
+          "📢 ShopifyAPI: Sending UTM attributes to Shopify for order $orderIdOrName: $attribution");
       String? numericId;
 
       // 1. Resolve numeric ID
@@ -878,7 +890,7 @@ class ShopifyAPI {
         numericId = orderIdOrName;
       } else {
         // A. Search matching order by checking latest orders (to handle checkout_token / cart_token / name)
-        // We poll up to 5 times (total 15 seconds) because external checkout systems (Fastrr) 
+        // We poll up to 5 times (total 15 seconds) because external checkout systems (Fastrr)
         // create orders asynchronously via webhook/API which might take a few seconds to appear in Shopify.
         int attempts = 5;
         for (int i = 0; i < attempts; i++) {
@@ -894,14 +906,17 @@ class ShopifyAPI {
                 final ordCartToken = ord['cart_token']?.toString() ?? '';
                 final ordName = ord['name']?.toString() ?? '';
 
-                final cleanOrdName = ordName.toString().replaceAll('#', '').toLowerCase();
-                final cleanInputName = orderIdOrName.toString().replaceAll('#', '').toLowerCase();
+                final cleanOrdName =
+                    ordName.toString().replaceAll('#', '').toLowerCase();
+                final cleanInputName =
+                    orderIdOrName.toString().replaceAll('#', '').toLowerCase();
 
                 if (ordToken.toLowerCase() == orderIdOrName.toLowerCase() ||
                     ordCartToken.toLowerCase() == orderIdOrName.toLowerCase() ||
                     cleanOrdName == cleanInputName) {
                   numericId = ord['id']?.toString();
-                  debugPrint("🎯 Found matching order: $numericId on attempt ${i + 1}");
+                  debugPrint(
+                      "🎯 Found matching order: $numericId on attempt ${i + 1}");
                   break;
                 }
               }
@@ -911,7 +926,8 @@ class ShopifyAPI {
           if (numericId != null) break;
 
           if (i < attempts - 1) {
-            debugPrint("⏳ Order $orderIdOrName not found in Shopify yet (attempt ${i + 1}/$attempts). Retrying in 3 seconds...");
+            debugPrint(
+                "⏳ Order $orderIdOrName not found in Shopify yet (attempt ${i + 1}/$attempts). Retrying in 3 seconds...");
             await Future.delayed(const Duration(seconds: 3));
           }
         }
@@ -930,10 +946,14 @@ class ShopifyAPI {
               if (createdAtStr != null) {
                 final createdAt = DateTime.tryParse(createdAtStr);
                 if (createdAt != null) {
-                  final difference = DateTime.now().toUtc().difference(createdAt.toUtc()).inMinutes;
+                  final difference = DateTime.now()
+                      .toUtc()
+                      .difference(createdAt.toUtc())
+                      .inMinutes;
                   if (difference.abs() <= 10) {
                     numericId = latestOrder['id']?.toString();
-                    debugPrint("🎯 Matched order based on latest order fallback (created $difference min ago): $numericId");
+                    debugPrint(
+                        "🎯 Matched order based on latest order fallback (created $difference min ago): $numericId");
                   }
                 }
               }
@@ -970,9 +990,9 @@ class ShopifyAPI {
             attr['name'] == 'fbclid');
 
         // 4. Add the new UTM attributes
-        existingAttributes.addAll(
-          attribution.entries.map((e) => {"name": e.key, "value": e.value}).toList()
-        );
+        existingAttributes.addAll(attribution.entries
+            .map((e) => {"name": e.key, "value": e.value})
+            .toList());
 
         // 5. Send PUT request to update the order
         final payload = {
@@ -989,14 +1009,17 @@ class ShopifyAPI {
         );
 
         if (updateRes.statusCode == 200 || updateRes.statusCode == 201) {
-          debugPrint("✅ Shopify Order Attribution Updated Successfully for Order: $numericId");
+          debugPrint(
+              "✅ Shopify Order Attribution Updated Successfully for Order: $numericId");
           // Clear attribution after success
           await AttributionService().clearAttribution();
         } else {
-          debugPrint("❌ Failed to update Shopify Order Attribution: Status ${updateRes.statusCode} Body: ${updateRes.body}");
+          debugPrint(
+              "❌ Failed to update Shopify Order Attribution: Status ${updateRes.statusCode} Body: ${updateRes.body}");
         }
       } else {
-        debugPrint("⚠️ Could not resolve numeric Order ID for updating attribution: $orderIdOrName");
+        debugPrint(
+            "⚠️ Could not resolve numeric Order ID for updating attribution: $orderIdOrName");
       }
     } catch (e) {
       debugPrint("Error in updateOrderAttribution: $e");

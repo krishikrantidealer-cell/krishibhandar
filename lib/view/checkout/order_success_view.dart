@@ -177,10 +177,13 @@ class _OrderSuccessViewState extends State<OrderSuccessView>
                     Icon(Icons.local_shipping_rounded,
                         color: Constants.baseColor, size: 18),
                     const SizedBox(width: 8),
-                    Text(
-                      AppLocalizations.of(context)!.confirmationEmailMsg,
-                      style:
-                          TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                    Flexible(
+                      child: Text(
+                        AppLocalizations.of(context)!.confirmationEmailMsg,
+                        textAlign: TextAlign.center,
+                        style:
+                            TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                      ),
                     ),
                   ],
                 ),

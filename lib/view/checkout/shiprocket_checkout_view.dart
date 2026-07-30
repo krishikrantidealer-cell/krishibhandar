@@ -473,32 +473,20 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
     // Extract shipping address phone before the widget is disposed/screen popped
     final shippingPhone = widget.shippingAddress?['phone']?.toString();
 
-    // Fix: Ensure navigation is NOT blocked indefinitely by background sync
-    if (mounted) {
-      setState(() => _isLoading = true);
-    }
+    // Fire background sync asynchronously without blocking navigation to OrderSuccessView
+    _runBackgroundSync(orderNumber, shippingPhone);
 
-    try {
-      // We give the sync 4 seconds to complete. If it takes longer (e.g. polling), 
-      // we proceed to the success screen anyway to avoid "hanging".
-      // Increased timeout to allow for polling (up to 15s) in updateOrderAttribution
-      await _runBackgroundSync(orderNumber, shippingPhone)
-          .timeout(const Duration(seconds: 20));
-    } catch (e) {
-      debugPrint("ShiprocketCheckoutView: Background sync timed out or failed: $e");
-    } finally {
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => OrderSuccessView(
-              orderNumber: orderNumber,
-              totalAmount: widget.totalAmount,
-              paymentId: paymentId,
-            ),
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OrderSuccessView(
+            orderNumber: orderNumber,
+            totalAmount: widget.totalAmount,
+            paymentId: paymentId,
           ),
-        );
-      }
+        ),
+      );
     }
   }
 
@@ -600,8 +588,8 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
 
         await CartController.clearCart();
 
-        // Sync customer details from order
-        await AuthController.syncCustomerFromOrder(orderNum);
+        // Sync customer details from order asynchronously in background (non-blocking)
+        AuthController.syncCustomerFromOrder(orderNum);
 
         if (mounted) {
           Navigator.pushReplacement(
