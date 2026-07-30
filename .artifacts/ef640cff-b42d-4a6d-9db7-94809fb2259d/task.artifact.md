@@ -1,0 +1,13 @@
+- [x] Cleanup Generated Files
+    - [x] Delete `build/`
+    - [x] Delete `android/build/`
+    - [x] Delete `android/app/build/`
+    - [x] Delete `C:\Users\harsh\.gradle\caches`
+    - [x] Delete `C:\Users\harsh\.gradle\daemon`
+    - [x] Delete `C:\Users\harsh\.gradle\workers`
+- [/] Configure Environment
+    - [ ] Set `GRADLE_USER_HOME` to `D:\.gradle`
+- [ ] Build Release
+    - [ ] Run `fvm flutter clean`
+    - [ ] Run `fvm flutter pub get`
+    - [ ] Run `fvm flutter build appbundle --release`

@@ -23,7 +23,7 @@ android {
     namespace = "com.snss.ebs.kisan_sewa_kendra"
 
     compileSdk = 36
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         coreLibraryDesugaringEnabled true
@@ -62,7 +62,7 @@ android {
 }
 
 dependencies {
-    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
 }
 
 /* 🔥 IMPORTANT FIX (DON'T REMOVE) */

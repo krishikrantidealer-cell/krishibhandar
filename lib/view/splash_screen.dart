@@ -1,6 +1,5 @@
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -115,39 +114,71 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   _initApp() async {
-    try {
-      // Step 1: Initialize Core I/O and Firebase Core in parallel
-      await Future.wait([
-        dotenv.load(fileName: ".env"),
-        Pref.ensureInitialized(),
-        Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
-        ),
-      ]);
+    debugPrint("Splash: Starting _initApp...");
+    bool navigated = false;
 
-      // Step 2: Deferred and Parallelized Initialization
+    // --- NAVIGATION WATCHDOG ---
+    // Forces navigation after 15 seconds even if tasks are hanging.
+    Future.delayed(const Duration(seconds: 15), () {
+      if (!navigated && mounted) {
+        debugPrint("Splash: WATCHDOG TRIGGERED - Forcing navigation");
+        _navigateToHome();
+        navigated = true;
+      }
+    });
+
+    try {
+      debugPrint("Splash: Starting Core I/O Init...");
+      // Core I/O (dotenv, Pref) now handled in main.dart for absolute safety.
+      
+      // Step 1: Initialize Firebase Core with timeout
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      ).timeout(const Duration(seconds: 10));
+
+      debugPrint("Splash: Starting Service Init...");
+      // Step 2: Deferred and Parallelized Initialization with timeout
       await Future.wait([
         UpdateService.init(),
         Constants.fetchRemoteConfig(context),
         _initNonCriticalServices(),
-      ]);
+      ]).timeout(const Duration(seconds: 15), onTimeout: () {
+        debugPrint("Splash: Service initialization timed out");
+        return [];
+      });
 
-      final phone = await AuthController.getSavedPhone();
-      final shopifyId = await AuthController.getShopifyCustomerId();
+      debugPrint("Splash: Checking Auth State...");
+      final phone = await AuthController.getSavedPhone()
+          .timeout(const Duration(seconds: 2), onTimeout: () => null);
+      final shopifyId = await AuthController.getShopifyCustomerId()
+          .timeout(const Duration(seconds: 2), onTimeout: () => null);
+
       if (phone != null &&
           phone.isNotEmpty &&
           (shopifyId == null || shopifyId.isEmpty || shopifyId == "null")) {
-        AuthController.syncWithShopify(phone).catchError((e) {
+        debugPrint("Splash: Syncing with Shopify...");
+        AuthController.syncWithShopify(phone)
+            .timeout(const Duration(seconds: 5))
+            .catchError((e) {
           debugPrint("Splash: Auto-heal error: $e");
         });
       }
     } catch (e) {
-      debugPrint("Init Error: $e");
+      debugPrint("Splash: Init Error: $e");
     }
 
-    final updateType = await UpdateService.checkUpdateStatus();
+    UpdateType updateType = UpdateType.none;
+    try {
+      debugPrint("Splash: Checking Update Status...");
+      updateType = await UpdateService.checkUpdateStatus().timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => UpdateType.none);
+    } catch (e) {
+      debugPrint("Splash: Update Check failed: $e");
+    }
 
     if (updateType == UpdateType.force && mounted) {
+      debugPrint("Splash: Force Update Required");
       UpdateService.showUpdateDialog(context, UpdateType.force);
       return;
     }
@@ -155,29 +186,35 @@ class _SplashScreenState extends State<SplashScreen>
     // Phase 4: Optimized Duration (Total ~1.1s including animation)
     await Future.delayed(const Duration(milliseconds: 900));
 
-    if (mounted) {
-      setState(() => _isExiting = true);
-      await Future.delayed(const Duration(milliseconds: 200));
-
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const MyHomePage(),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 200),
-          ),
-        ).then((_) {
-          if (updateType == UpdateType.optional && mounted) {
-            UpdateService.showUpdateDialog(context, UpdateType.optional);
-          }
-        });
-      }
+    if (!navigated && mounted) {
+      debugPrint("Splash: Proceeding to _navigateToHome");
+      _navigateToHome(updateType: updateType);
+      navigated = true;
     }
+  }
+
+  void _navigateToHome({UpdateType updateType = UpdateType.none}) {
+    if (!mounted) return;
+    setState(() => _isExiting = true);
+
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const MyHomePage(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 200),
+        ),
+      ).then((_) {
+        if (updateType == UpdateType.optional && mounted) {
+          UpdateService.showUpdateDialog(context, UpdateType.optional);
+        }
+      });
+    });
   }
 
   Future<void> _initNonCriticalServices() async {
@@ -185,10 +222,10 @@ class _SplashScreenState extends State<SplashScreen>
       await FirebaseAppCheck.instance.activate(
         androidProvider:
             kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
-      );
-      await NotificationService.init();
-      await MetaEvents.init();
-      await AttributionService().init();
+      ).timeout(const Duration(seconds: 5));
+      await NotificationService.init().timeout(const Duration(seconds: 5));
+      await MetaEvents.init().timeout(const Duration(seconds: 5));
+      await AttributionService().init().timeout(const Duration(seconds: 5));
     } catch (e) {
       debugPrint("Non-critical init error: $e");
     }

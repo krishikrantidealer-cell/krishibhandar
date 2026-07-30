@@ -1,11 +1,11 @@
+import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
-import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:app_links/app_links.dart';
-import 'package:kisan_sewa_kendra/controller/pref.dart';
 import 'package:kisan_sewa_kendra/services/attribution_service.dart';
+import 'package:kisan_sewa_kendra/controller/pref.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:google_fonts/google_fonts.dart';
@@ -13,7 +13,6 @@ import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 
 import 'controller/constants.dart';
 import 'firebase_options.dart';
-import 'utils/meta_events.dart';
 import 'utils/notification_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'controller/language_controller.dart';
@@ -34,19 +33,38 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 //this is the dev branch
-void main() async {
-  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+void main() {
+  // CRITICAL: Disable Google Fonts runtime fetching at the absolute entry point.
+  // This prevents Unhandled SocketExceptions on offline devices.
+  GoogleFonts.config.allowRuntimeFetching = false;
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  runZonedGuarded(() async {
+    WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+    FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  // 1. Lightweight critical setup ONLY
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 8 * 1024 * 1024; // 8 MB
-  PaintingBinding.instance.imageCache.maximumSize = 15; // 15 images
+    // 0. Pre-Flight Configuration (Must be before ANY widget builds)
+    try {
+      await Future.wait([
+        dotenv.load(fileName: ".env"),
+        Pref.ensureInitialized(),
+      ]).timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint("CRITICAL: Pre-flight initialization failed: $e");
+    }
 
-  // 7. Always run the app
-  _initDeepLinks();
-  runApp(MyApp(languageController: Constants.languageController));
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    // 1. Lightweight critical setup ONLY
+    PaintingBinding.instance.imageCache.maximumSizeBytes = 8 * 1024 * 1024; // 8 MB
+    PaintingBinding.instance.imageCache.maximumSize = 15; // 15 images
+
+    // 7. Always run the app
+    _initDeepLinks();
+    runApp(MyApp(languageController: Constants.languageController));
+  }, (error, stack) {
+    debugPrint("CRITICAL MAIN ERROR: $error");
+    debugPrint(stack.toString());
+  });
 }
 
 void _initDeepLinks() {
@@ -154,6 +172,8 @@ class MyApp extends StatelessWidget {
             colorScheme: ColorScheme.fromSeed(seedColor: Constants.baseColor),
             useMaterial3: true,
             scaffoldBackgroundColor: Colors.white,
+            // Fallback font to prevent crashes if GoogleFonts fails to load
+            fontFamily: 'Roboto', 
             textTheme: GoogleFonts.interTextTheme().copyWith(
               displayLarge: GoogleFonts.outfit(fontWeight: FontWeight.w900),
               displayMedium: GoogleFonts.outfit(fontWeight: FontWeight.w800),

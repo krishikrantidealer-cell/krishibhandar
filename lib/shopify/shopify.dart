@@ -16,7 +16,7 @@ import '../services/attribution_service.dart';
 class ShopifyAPI {
   static const String _baseUrl =
       "https://3b7f20-3.myshopify.com/admin/api/2024-10";
-  static Map<String, String> _header = {
+  static Map<String, String> get _header => {
     'content-type': 'application/json',
     'X-Shopify-Access-Token': Constants.shopifyAccessToken,
   };
@@ -1013,7 +1013,7 @@ class Shopify {
   static const String _proIdPre = "gid://shopify/Product/";
   static const String _proVarIdPre = "gid://shopify/ProductVariant/";
 
-  static Map<String, String> _header = {
+  static Map<String, String> get _header => {
     'content-type': 'application/json',
     'X-Shopify-Storefront-Access-Token': Constants.storefrontAccessToken,
   };
@@ -1826,7 +1826,7 @@ class ShopifyAdmin {
   static const String _proIdPre = "gid://shopify/Product/";
   static const String _proVarIdPre = "gid://shopify/ProductVariant/";
 
-  static Map<String, String> _header = {
+  static Map<String, String> get _header => {
     'content-type': 'application/json',
     'X-Shopify-Access-Token': Constants.shopifyAccessToken,
   };
