@@ -1,35 +1,39 @@
-# Implementation Plan - Premium Delivery Commitment UI
+# Implementation Plan - Build Environment Recovery (Disk Space)
 
-This plan focuses on enhancing trust and visual hierarchy on the Product Detail Page by introducing a premium "Delivery Commitment" ribbon.
+The build is failing due to insufficient disk space on the **C: drive** (only 0.89 GB free). We will clean up generated build artifacts and move the Gradle home to the **D: drive** (808 GB free) to ensure a successful release build.
 
-## User Review Required
+## Build Environment Report
 
-> [!IMPORTANT]
-> The existing "Fast Delivery" badge will be integrated into the new premium ribbon for a cleaner, unified look. This avoids duplicating delivery-related information on the screen.
+| Item | Location |
+| :--- | :--- |
+| **Gradle Cache** | `C:\Users\harsh\.gradle\caches` |
+| **Java Temp** | `C:\Users\harsh\AppData\Local\Temp` |
+| **Flutter Build** | `C:\Users\harsh\AndroidStudioProjects\krishibhandar\build` |
+| **Android Build** | `C:\Users\harsh\AndroidStudioProjects\krishibhandar\android\build` |
+| **TEMP / TMP** | `C:\Users\harsh\AppData\Local\Temp` |
+| **USERPROFILE** | `C:\Users\harsh` |
 
-> [!TIP]
-> The new section will be placed exactly between the Product Gallery (Image) and the Product Title. This is a high-visibility zone that immediately builds trust as the user begins reading product details.
+### Disk Space Status
 
-## Proposed Changes
+- **C: Drive**: 0.89 GB Free (CRITICAL)
+- **D: Drive**: 808.06 GB Free (RECOMENDED)
 
-### Product View UI Enhancement
+## Proposed Actions
 
-#### [MODIFY] [product_view.dart](file:///C:/Users/harsh/AndroidStudioProjects/krishibhandar/lib/view/product_view.dart)
-- Create a new private method `_buildDeliveryCommitmentRibbon()` to encapsulate the premium ribbon UI.
-- **Design Specifications**:
-    - **Container**: Rounded (16px), Background `#F1FFF4`, Border `Color(0xFFE0F2E9)`.
-    - **Icon**: `Icons.local_shipping_rounded` paired with `Icons.verified_rounded` or `Icons.shield_rounded` for maximum trust.
-    - **Text Hierarchy**:
-        - Primary: "Delivery Across India" (Bold, Outfit font).
-        - Secondary: "Guaranteed Delivery in 7–9 Business Days" (Smaller, Medium weight, Inter font).
-- Insert this ribbon in the `Column` immediately after the `Gallery` stack and before the `Product Header` padding block.
-- Remove the old standalone `Fast Delivery` badge from the row containing the rating stars.
+### 1. Cleanup
+- Delete generated `build/` folders in the project and the `android/` module.
+- Delete Gradle `caches`, `daemon`, and `workers` in `C:\Users\harsh\.gradle`.
+
+### 2. Environment Configuration
+- Set `GRADLE_USER_HOME` to `D:\.gradle` to utilize the massive free space on the D: drive.
+
+### 3. Build Execution
+- Run `fvm flutter clean`
+- Run `fvm flutter pub get`
+- Run `fvm flutter build appbundle --release`
 
 ## Verification Plan
 
-### Automated Tests
-- I will run `analyze_file` on `product_view.dart` to ensure no syntax errors or overflows were introduced.
-
 ### Manual Verification
-- Verify the UI on different screen widths (320dp to 412dp) to ensure no text clipping or layout overflow.
-- Ensure the ribbon fades in subtly along with other product details.
+- Monitor the build logs to ensure `:app:mergeReleaseNativeLibs` completes without "out of space" errors.
+- Confirm the creation of the App Bundle in the build output directory.
