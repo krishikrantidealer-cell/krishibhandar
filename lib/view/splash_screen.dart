@@ -1,3 +1,4 @@
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
@@ -129,8 +130,12 @@ class _SplashScreenState extends State<SplashScreen>
 
     try {
       debugPrint("Splash: Starting Core I/O Init...");
-      // Core I/O (dotenv, Pref) now handled in main.dart for absolute safety.
       
+      // Request App Tracking Transparency for iOS
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        await AppTrackingTransparency.requestTrackingAuthorization();
+      }
+
       // Step 1: Initialize Firebase Core with timeout
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,

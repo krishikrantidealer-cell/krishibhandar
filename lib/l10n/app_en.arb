@@ -265,5 +265,9 @@
   "cancel": "CANCEL",
   "addFollowingToGetFree": "Add following to get free:",
   "loading": "Loading...",
-  "shippingInfo": "SHIPPING INFORMATION"
+  "shippingInfo": "SHIPPING INFORMATION",
+  "logout": "Logout",
+  "deleteAccount": "Delete Account",
+  "deleteAccountConfirm": "Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.",
+  "delete": "Delete"
 }

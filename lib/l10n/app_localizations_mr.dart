@@ -853,4 +853,17 @@ class AppLocalizationsMr extends AppLocalizations {
 
   @override
   String get shippingInfo => 'शिपिंग माहिती';
+
+  @override
+  String get logout => 'Logout';
+
+  @override
+  String get deleteAccount => 'Delete Account';
+
+  @override
+  String get deleteAccountConfirm =>
+      'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.';
+
+  @override
+  String get delete => 'Delete';
 }

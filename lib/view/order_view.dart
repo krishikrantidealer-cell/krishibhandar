@@ -270,7 +270,7 @@ class _OrderViewState extends State<OrderView>
 
   Widget _buildAdvancedHeader() {
     return Container(
-      height: 100,
+      constraints: const BoxConstraints(minHeight: 100),
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: const LinearGradient(

@@ -95,7 +95,7 @@ class _CategoriesState extends State<Categories>
         children: [
           // --- MODERN REFINED HEADER ---
           Container(
-            height: 100,
+            constraints: const BoxConstraints(minHeight: 100),
             width: double.infinity,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
@@ -303,7 +303,7 @@ class _CategoriesState extends State<Categories>
       children: [
         // Refined Shimmer Header
         Container(
-          height: 100,
+          constraints: const BoxConstraints(minHeight: 100),
           width: double.infinity,
           decoration: const BoxDecoration(
             color: Colors.white,

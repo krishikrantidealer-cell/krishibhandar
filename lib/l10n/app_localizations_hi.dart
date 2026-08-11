@@ -855,4 +855,17 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get shippingInfo => 'शिपिंग जानकारी';
+
+  @override
+  String get logout => 'लॉगआउट';
+
+  @override
+  String get deleteAccount => 'खाता हटाएं';
+
+  @override
+  String get deleteAccountConfirm =>
+      'क्या आप वाकई अपना खाता हटाना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती और आपका सारा डेटा स्थायी रूप से हटा दिया जाएगा।';
+
+  @override
+  String get delete => 'हटाएं';
 }

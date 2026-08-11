@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:kisan_sewa_kendra/controller/auth_controller.dart';
 import 'package:kisan_sewa_kendra/components/cart_summary_bar.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import 'package:kisan_sewa_kendra/view/support_view.dart';
@@ -50,15 +51,15 @@ class _MyHomePageState extends State<MyHomePage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: _currentIndex == 0,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
         if (_currentIndex != 0) {
           setState(() {
             _currentIndex = 0;
           });
-          return false; // Prevent pop, stay in app
         }
-        return true; // Allow pop, exit app
       },
       child: Scaffold(
         backgroundColor: const Color(0xffF9FBF9),
@@ -66,13 +67,13 @@ class _MyHomePageState extends State<MyHomePage>
         appBar: _currentIndex == 0 ? const KskAppbar() : null,
         drawer: _buildModernDrawer(context),
         body: !_isDataLoaded
-            ? AnnotatedRegion<SystemUiOverlayStyle>(
+            ? const AnnotatedRegion<SystemUiOverlayStyle>(
                 value: SystemUiOverlayStyle(
                   statusBarColor: Colors.transparent,
                   statusBarIconBrightness: Brightness.dark,
                   statusBarBrightness: Brightness.light,
                 ),
-                child: const Center(child: CircularProgressIndicator()),
+                child: Center(child: CircularProgressIndicator.adaptive()),
               )
             : Stack(
                 children: [
@@ -190,7 +191,7 @@ class _MyHomePageState extends State<MyHomePage>
       child: GestureDetector(
         onTap: () {
           if (_currentIndex != index) {
-            HapticFeedback.lightImpact();
+            HapticFeedback.mediumImpact(); // More pronounced for iOS
             setState(() => _currentIndex = index);
           }
         },
@@ -294,7 +295,7 @@ class _MyHomePageState extends State<MyHomePage>
                         const SizedBox(height: 20),
                         // App Branding
                         Text(
-                          "Krishi Bhandar",
+                          AppLocalizations.of(context)!.appBrandName,
                           style: GoogleFonts.outfit(
                             color: Colors.white,
                             fontSize: 24,
@@ -304,7 +305,7 @@ class _MyHomePageState extends State<MyHomePage>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          "हर किसान की पहचान !",
+                          AppLocalizations.of(context)!.appTagline,
                           style: GoogleFonts.outfit(
                             color: Colors.white.withOpacity(0.9),
                             fontSize: 14,

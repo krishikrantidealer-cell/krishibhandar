@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:app_links/app_links.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:kisan_sewa_kendra/services/attribution_service.dart';
 import 'package:kisan_sewa_kendra/controller/pref.dart';
 import 'package:flutter/material.dart';
@@ -34,9 +35,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 //this is the dev branch
 void main() {
-  // CRITICAL: Disable Google Fonts runtime fetching at the absolute entry point.
-  // This prevents Unhandled SocketExceptions on offline devices.
-  GoogleFonts.config.allowRuntimeFetching = false;
+  // Disable runtime fetching only in release mode for stability.
+  // This allows debugging with auto-downloaded fonts while ensuring 
+  // the App Store version only uses bundled assets.
+  if (kReleaseMode) {
+    GoogleFonts.config.allowRuntimeFetching = false;
+  }
 
   runZonedGuarded(() async {
     WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -172,6 +176,7 @@ class MyApp extends StatelessWidget {
             colorScheme: ColorScheme.fromSeed(seedColor: Constants.baseColor),
             useMaterial3: true,
             scaffoldBackgroundColor: Colors.white,
+            platform: TargetPlatform.iOS, // Force iOS style behaviors
             // Fallback font to prevent crashes if GoogleFonts fails to load
             fontFamily: 'Roboto', 
             textTheme: GoogleFonts.interTextTheme().copyWith(
@@ -184,6 +189,12 @@ class MyApp extends StatelessWidget {
               titleLarge: GoogleFonts.outfit(fontWeight: FontWeight.w700),
               titleMedium: GoogleFonts.outfit(fontWeight: FontWeight.w600),
               titleSmall: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+            ),
+            pageTransitionsTheme: const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+                TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+              },
             ),
             bottomNavigationBarTheme: BottomNavigationBarThemeData(
               backgroundColor: Colors.white,
