@@ -36,6 +36,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '522708852035',
     projectId: 'ebs-kisan-sewa',
     storageBucket: 'ebs-kisan-sewa.firebasestorage.app',
-    iosBundleId: 'com.snss.ebs.kisan_sewa_kendra',
+    iosBundleId: 'com.snss.ebs.kisanSewaKendra',
   );
 }

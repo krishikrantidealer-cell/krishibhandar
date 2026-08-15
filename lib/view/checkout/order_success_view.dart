@@ -3,9 +3,7 @@ import 'package:flutter/services.dart';
 import '../home_view.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import '../../controller/constants.dart';
-import '../../services/attribution_service.dart';
 import '../../utils/firebase_events.dart';
-import '../../utils/meta_events.dart';
 
 class OrderSuccessView extends StatefulWidget {
   final String orderNumber;
@@ -51,7 +49,7 @@ class _OrderSuccessViewState extends State<OrderSuccessView>
 
   void _trackRevenue() {
     try {
-      // Revenue tracking is now handled in ShiprocketCheckoutView 
+      // Revenue tracking is now handled in ShopfloCheckoutView 
       // before navigation to ensure all product IDs are captured correctly.
       
       // 1. Firebase Revenue Tracking (Keep as is if needed, though likely duplicate)
@@ -69,10 +67,20 @@ class _OrderSuccessViewState extends State<OrderSuccessView>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: FadeTransition(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const MyHomePage()),
+          (route) => false,
+        );
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: FadeTransition(
           opacity: _fadeAnim,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
@@ -248,8 +256,9 @@ class _OrderSuccessViewState extends State<OrderSuccessView>
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildDetailRow(String label, String value,
       {bool isHighlight = false, bool isSmall = false}) {

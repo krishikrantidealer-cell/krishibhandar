@@ -1044,13 +1044,13 @@ class _ProductViewState extends State<ProductView>
                     ),
                   ),
                   SizedBox(
-                    height: 290,
+                    height: 275,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.only(left: 20, bottom: 20),
                       itemCount: _recommend.length,
                       itemBuilder: (context, index) => Container(
-                        width: 185,
+                        width: 175,
                         margin: const EdgeInsets.only(right: 15),
                         child: ProductCard(product: _recommend[index]),
                       ),

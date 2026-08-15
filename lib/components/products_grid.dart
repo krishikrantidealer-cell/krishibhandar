@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:kisan_sewa_kendra/components/widget_button.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
-import 'package:kisan_sewa_kendra/view/cart_view.dart';
 
 import '../controller/constants.dart';
 import '../controller/routers.dart';
@@ -12,12 +10,10 @@ import '../shopify/shopify.dart';
 import '../view/product_view.dart';
 import '../controller/cart_controller.dart';
 import '../utils/firebase_events.dart';
-import '../utils/meta_events.dart';
 import 'network_image.dart';
 import '../services/attribution_service.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
 import '../controller/pref.dart';
 import 'cart_summary_bar.dart';
 
@@ -148,13 +144,12 @@ class ProductsGridState extends State<ProductsGrid>
     super.build(context);
     final width = MediaQuery.of(context).size.width;
 
-    // Industry Standard: Dynamic Aspect Ratio for feature-rich cards
-    // Taller ratio (0.54) to fit ratings, titles, and steppers comfortably without overflow
-    double aspectRatio = 0.54;
+    // Aspect Ratio ensuring compact, elegant card layout with tight spacing between title and price
+    double aspectRatio = 0.63;
     if (width < 360) {
-      aspectRatio = 0.51;
+      aspectRatio = 0.60;
     } else if (width > 420) {
-      aspectRatio = 0.59;
+      aspectRatio = 0.65;
     }
 
     // Main Grid/List content
@@ -192,8 +187,8 @@ class ProductsGridState extends State<ProductsGrid>
                   )
                 ],
               ),
-              child:
-                  Icon(Icons.inventory_2_outlined, size: 56, color: Colors.grey[200]),
+              child: Icon(Icons.inventory_2_outlined,
+                  size: 56, color: Colors.grey[200]),
             ),
             const SizedBox(height: 32),
             Text(
@@ -355,7 +350,7 @@ class ProductsGridState extends State<ProductsGrid>
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey[100]!),
         boxShadow: [
           BoxShadow(
@@ -370,7 +365,7 @@ class ProductsGridState extends State<ProductsGrid>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            flex: 6,
+            flex: 57,
             child: Container(
               padding: const EdgeInsets.all(10),
               width: double.infinity,
@@ -378,31 +373,34 @@ class ProductsGridState extends State<ProductsGrid>
             ),
           ),
           Expanded(
-            flex: 4,
+            flex: 43,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 4, 10, 6),
+              padding: const EdgeInsets.fromLTRB(10, 3, 10, 5),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Constants.shimmer(height: 12, width: 40), // For rating pill
-                  const SizedBox(height: 8),
-                  Constants.shimmer(
-                      height: 14, width: double.infinity), // Title line 1
-                  const SizedBox(height: 4),
-                  Constants.shimmer(height: 14, width: 100), // Title line 2
-                  const Spacer(),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Constants.shimmer(
+                          height: 13, width: double.infinity), // Title line 1
+                      const SizedBox(height: 3),
+                      Constants.shimmer(height: 13, width: 90), // Title line 2
+                    ],
+                  ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Constants.shimmer(height: 10, width: 40),
-                          const SizedBox(height: 4),
-                          Constants.shimmer(height: 18, width: 60),
+                          Constants.shimmer(height: 9, width: 35),
+                          const SizedBox(height: 3),
+                          Constants.shimmer(height: 16, width: 55),
                         ],
                       ),
-                      Constants.shimmer(height: 32, width: 60), // Add button
+                      Constants.shimmer(height: 28, width: 52), // Add button
                     ],
                   ),
                 ],
@@ -578,7 +576,7 @@ class _ProductCardState extends State<ProductCard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                flex: 58,
+                flex: 57,
                 child: Stack(
                   children: [
                     Container(
@@ -598,32 +596,54 @@ class _ProductCardState extends State<ProductCard> {
                       ),
                     ),
                     _buildDiscountBadge(variant),
+                    Positioned(
+                      bottom: 8,
+                      left: 8,
+                      child: _buildRatingPill(fakeRating),
+                    ),
                   ],
                 ),
               ),
               Expanded(
-                flex: 42,
+                flex: 43,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
+                  padding: const EdgeInsets.fromLTRB(10, 3, 10, 5),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildRatingPill(fakeRating),
-                      const SizedBox(height: 2),
-                      Flexible(
-                        child: Text(
-                          widget.product.title,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                            height: 1.2,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            widget.product.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1E293B),
+                              height: 1.15,
+                            ),
                           ),
-                        ),
+                          if (variant.title.isNotEmpty &&
+                              variant.title.toLowerCase() != "default title" &&
+                              variant.title.toLowerCase() != "default") ...[
+                            const SizedBox(height: 1),
+                            Text(
+                              variant.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                      const Spacer(),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.end,
@@ -631,13 +651,14 @@ class _ProductCardState extends State<ProductCard> {
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 if (variant.compareAtPrice != null &&
                                     variant.compareAtPrice!.isNotEmpty)
                                   Text(
                                     "${Constants.inr}${variant.compareAtPrice}",
                                     style: const TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 10.5,
                                       color: Colors.grey,
                                       decoration: TextDecoration.lineThrough,
                                     ),
@@ -645,7 +666,7 @@ class _ProductCardState extends State<ProductCard> {
                                 Text(
                                   "${Constants.inr}${variant.price}",
                                   style: const TextStyle(
-                                    fontSize: 16,
+                                    fontSize: 15,
                                     fontWeight: FontWeight.w700,
                                     color: Color(0xFF2E7D32),
                                   ),
@@ -689,7 +710,7 @@ class _ProductCardState extends State<ProductCard> {
         }
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [
@@ -700,7 +721,7 @@ class _ProductCardState extends State<ProductCard> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.10),

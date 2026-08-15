@@ -22,6 +22,10 @@ class Constants {
       dotenv.get('SHOPIFY_ADMIN_ACCESS_TOKEN', fallback: "");
   static String get storefrontAccessToken =>
       dotenv.get('SHOPIFY_STOREFRONT_ACCESS_TOKEN', fallback: "");
+  static String get shopfloApiKey =>
+      dotenv.get('SHOPFLO_API_KEY', fallback: "");
+  static String get shopfloMerchantId =>
+      dotenv.get('SHOPFLO_MERCHANT_ID', fallback: "");
 
   static String lang = 'EN';
   static String payOnlineDiscountCode = "PAYONLINE60";

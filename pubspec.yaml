@@ -3,7 +3,7 @@ description: "Krishi Bhandar shopify website's App"
 
 publish_to: 'none'
 
-version: 3.0.21+48
+version: 3.0.22+49
 
 environment:
   sdk: ^3.5.3
@@ -31,6 +31,7 @@ dependencies:
   shimmer: ^3.0.0
   flutter_widget_from_html: ^0.17.1
   fwfh_webview: ^0.15.6
+  webview_flutter: ^4.10.0
   badges: ^3.2.0
 
 
@@ -53,14 +54,14 @@ dependencies:
   pinput: ^6.0.2
   animations: ^2.0.11
   app_tracking_transparency: ^2.0.6
+  flutter_native_splash: ^2.4.7
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
   flutter_lints: ^6.0.0
-  flutter_launcher_icons: ^0.14.4
-  flutter_native_splash: ^2.4.7 
+  flutter_launcher_icons: ^0.14.4 
 
 flutter:
   generate: true

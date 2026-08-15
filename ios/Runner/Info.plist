@@ -27,25 +27,67 @@
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
 		<key>NSLocationAlwaysUsageDescription</key>
-		<string>This app needs access to location to autofill your delivery address and provide better service.</string>
+		<string>Krishi Bhandar uses your location to provide accurate address autofill for product deliveries.</string>
 		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-		<string>This app needs access to location to autofill your delivery address and provide better service.</string>
+		<string>Krishi Bhandar uses your location to provide accurate address autofill for product deliveries.</string>
 		<key>NSLocationWhenInUseUsageDescription</key>
-		<string>This app needs access to location to autofill your delivery address and provide better service.</string>
+		<string>Krishi Bhandar uses your location to provide accurate address autofill for product deliveries.</string>
 		<key>NSCameraUsageDescription</key>
-		<string>This app needs camera access to scan QR codes or take product photos for support.</string>
+		<string>Krishi Bhandar uses camera access to allow you to upload crop images for agricultural advice or customer support.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
-		<string>This app needs photo library access to upload photos for support and reviews.</string>
+		<string>Krishi Bhandar uses photo library access to allow you to select crop photos for agricultural advisory and order support.</string>
 		<key>NSUserTrackingUsageDescription</key>
-		<string>This identifier will be used to deliver personalized ads and better app experience for you.</string>
+		<string>This allows Krishi Bhandar to deliver personalized agricultural recommendations and secure purchase attribution.</string>
 		<key>ITSAppUsesNonExemptEncryption</key>
 		<false/>
+		<key>FacebookAppID</key>
+		<string>1433284031481555</string>
+		<key>FacebookClientToken</key>
+		<string>9585fc7b150c1877e5f3114c6b6866d6</string>
+		<key>FacebookDisplayName</key>
+		<string>Krishi Bhandar</string>
+		<key>FacebookAutoLogAppEventsEnabled</key>
+		<false/>
+		<key>FacebookAdvertiserIDCollectionEnabled</key>
+		<true/>
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLName</key>
+				<string>com.snss.ebs.kisanSewaKendra</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>krishibhandar</string>
+					<string>fb1433284031481555</string>
+				</array>
+			</dict>
+		</array>
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>fetch</string>
+			<string>remote-notification</string>
+		</array>
 		<key>LSApplicationQueriesSchemes</key>
 		<array>
 			<string>https</string>
 			<string>http</string>
 			<string>tel</string>
 			<string>whatsapp</string>
+			<string>upi</string>
+			<string>phonepe</string>
+			<string>paytm</string>
+			<string>paytmmp</string>
+			<string>tez</string>
+			<string>gpay</string>
+			<string>bhim</string>
+			<string>credpay</string>
+			<string>fb</string>
+			<string>fbapi</string>
+			<string>fb-messenger-share-api</string>
+			<string>fbauth2</string>
+			<string>fbshareextension</string>
 		</array>
 		<key>UIApplicationSceneManifest</key>
 		<dict>
