@@ -107,7 +107,8 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
       } else {
         setState(() {
           _isLoading = false;
-          _errorMessage = result.errorMessage ?? 'Failed to initialize checkout';
+          _errorMessage =
+              result.errorMessage ?? 'Failed to initialize checkout';
         });
       }
     } catch (e) {
@@ -193,7 +194,8 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
 
     // 4. Redirect back to store domain (krishibhandar.com or myshopify.com)
     // after checkout started (and not back to cart or asset file)
-    if ((lower.contains("krishibhandar.com") || lower.contains("myshopify.com")) &&
+    if ((lower.contains("krishibhandar.com") ||
+            lower.contains("myshopify.com")) &&
         !lower.contains("checkout.shopflo.co") &&
         !lower.contains("/cart") &&
         !lower.contains("/cdn/") &&
@@ -212,7 +214,8 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
     if (url.contains("action=backToCart") ||
         url.endsWith("/cart") ||
         url.contains("/cart?")) {
-      debugPrint("🛍️ [ShopfloCheckoutView] Back to Cart action detected ($url). Popping WebView.");
+      debugPrint(
+          "🛍️ [ShopfloCheckoutView] Back to Cart action detected ($url). Popping WebView.");
       if (mounted) {
         Navigator.pop(context);
       }
@@ -257,9 +260,8 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
 
       // Attribution tracking (Meta + AppsFlyer)
       try {
-        final productIds = widget.cartItems
-            .map((item) => item.productId ?? item.id)
-            .toList();
+        final productIds =
+            widget.cartItems.map((item) => item.productId ?? item.id).toList();
         AttributionService.logPurchase(val, productIds);
       } catch (e) {
         debugPrint("Error logging Purchase attribution: $e");
@@ -267,9 +269,9 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
 
       try {
         final productList = widget.cartItems.map((item) {
-          final price = double.tryParse(
-                  item.price.replaceAll(RegExp(r'[^\d.]'), '')) ??
-              0.0;
+          final price =
+              double.tryParse(item.price.replaceAll(RegExp(r'[^\d.]'), '')) ??
+                  0.0;
           return {
             'id': item.id,
             'name': item.title,
@@ -476,7 +478,8 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
                   _showInstallMessage(url);
                 }
               } catch (e) {
-                debugPrint("🛍️ [ShopfloCheckoutView] External App Launch Exception: $e");
+                debugPrint(
+                    "🛍️ [ShopfloCheckoutView] External App Launch Exception: $e");
               }
               return NavigationDecision.prevent;
             }
@@ -563,7 +566,8 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
               ? normalized.substring(normalized.length - 10)
               : normalized;
           if (digits.length == 10) {
-            debugPrint('🛍️ [ShopfloCheckoutView] Fallback — syncing customer by phone: $digits');
+            debugPrint(
+                '🛍️ [ShopfloCheckoutView] Fallback — syncing customer by phone: $digits');
             await AuthController.syncWithShopify(digits);
           }
         }
@@ -599,7 +603,8 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
           backgroundColor: Colors.white,
           elevation: 0.5,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black, size: 20),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                color: Colors.black, size: 20),
             onPressed: () async {
               if (await _controller.canGoBack()) {
                 _controller.goBack();
@@ -656,7 +661,8 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
                       const SizedBox(height: 24),
                       ElevatedButton.icon(
                         onPressed: _initiateShopfloCheckout,
-                        icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                        icon: const Icon(Icons.refresh_rounded,
+                            color: Colors.white),
                         label: Text(
                           "Retry",
                           style: GoogleFonts.inter(

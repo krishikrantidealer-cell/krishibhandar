@@ -73,7 +73,8 @@ class _OrderViewState extends State<OrderView>
   /// Silent fetch — no loading indicator, just update data in-place.
   Future<void> _fetchOrdersSilently() async {
     // Debounce: skip if last fetch was very recent AND we already have data
-    if (_orders.isNotEmpty && _lastFetchTime != null &&
+    if (_orders.isNotEmpty &&
+        _lastFetchTime != null &&
         DateTime.now().difference(_lastFetchTime!) <
             const Duration(seconds: 10)) {
       return;
@@ -90,7 +91,8 @@ class _OrderViewState extends State<OrderView>
       }
     }
 
-    if (customerId == null || customerId.isEmpty || customerId == "null") return;
+    if (customerId == null || customerId.isEmpty || customerId == "null")
+      return;
 
     try {
       final orderData = await ShopifyAPI.getCustomerOrders(customerId);
@@ -108,43 +110,51 @@ class _OrderViewState extends State<OrderView>
   /// Fetch orders using the Shopify customer ID saved after checkout.
   /// No login required — customer ID is set automatically via syncCustomerFromOrder.
   Future<void> _fetchOrders() async {
-    debugPrint('OrderView: [Trace] _fetchOrders called | Hash: ${identityHashCode(this)} | Timestamp: ${DateTime.now()}');
+    debugPrint(
+        'OrderView: [Trace] _fetchOrders called | Hash: ${identityHashCode(this)} | Timestamp: ${DateTime.now()}');
     var customerId = await AuthController.getShopifyCustomerId();
     final phone = await AuthController.getSavedPhone();
     final name = await AuthController.getSavedName();
-    debugPrint('OrderView: [Trace] customerId: $customerId | phone: $phone | _orders.length BEFORE: ${_orders.length}');
+    debugPrint(
+        'OrderView: [Trace] customerId: $customerId | phone: $phone | _orders.length BEFORE: ${_orders.length}');
 
     // Auto-heal missing customer ID if phone is saved when loading the screen
     if (customerId == null || customerId.isEmpty || customerId == "null") {
       final phone = await AuthController.getSavedPhone();
-      debugPrint("OrderView: [Forensic] Customer ID missing. Attempting auto-heal with phone: $phone");
+      debugPrint(
+          "OrderView: [Forensic] Customer ID missing. Attempting auto-heal with phone: $phone");
       if (phone != null && phone.isNotEmpty) {
         if (mounted) setState(() => _isLoadingOrders = true);
         await AuthController.syncWithShopify(phone);
         customerId = await AuthController.getShopifyCustomerId();
-        debugPrint("OrderView: [Forensic] After auto-heal, Customer ID: $customerId");
+        debugPrint(
+            "OrderView: [Forensic] After auto-heal, Customer ID: $customerId");
       }
     }
 
     // No customer ID means user hasn't placed an order yet — show empty state.
     if (customerId == null || customerId.isEmpty || customerId == "null") {
-      debugPrint("OrderView: [Forensic] No valid Customer ID found. Stopping fetch.");
+      debugPrint(
+          "OrderView: [Forensic] No valid Customer ID found. Stopping fetch.");
       if (mounted) setState(() => _isLoadingOrders = false);
       return;
     }
 
     if (mounted) setState(() => _isLoadingOrders = true);
     try {
-      debugPrint("OrderView: [Forensic] Fetching orders from Shopify for ID: $customerId");
+      debugPrint(
+          "OrderView: [Forensic] Fetching orders from Shopify for ID: $customerId");
       final orderData = await ShopifyAPI.getCustomerOrders(customerId);
-      debugPrint('OrderView: [Trace] Shopify returned ${orderData.length} raw orders.');
+      debugPrint(
+          'OrderView: [Trace] Shopify returned ${orderData.length} raw orders.');
       final List orderIds = orderData.map((e) => e['id']).toList();
       debugPrint('OrderView: [Trace] Order IDs: $orderIds');
 
       if (mounted) {
         setState(() {
           _orders = orderData.map((e) => OrderModel.fromJson(e)).toList();
-          debugPrint('OrderView: [Trace] After setState | _orders.length: ${_orders.length} | Hash: ${identityHashCode(this)}');
+          debugPrint(
+              'OrderView: [Trace] After setState | _orders.length: ${_orders.length} | Hash: ${identityHashCode(this)}');
           _lastFetchTime = DateTime.now();
         });
       }
@@ -164,17 +174,17 @@ class _OrderViewState extends State<OrderView>
       // Ongoing
       return _orders
           .where((o) =>
-      o.trackingStatus != 'Completed' &&
-          o.trackingStatus != 'Delivered' &&
-          o.trackingStatus != 'Cancelled')
+              o.trackingStatus != 'Completed' &&
+              o.trackingStatus != 'Delivered' &&
+              o.trackingStatus != 'Cancelled')
           .toList();
     }
     if (index == 2) {
       // Completed
       return _orders
           .where((o) =>
-      o.trackingStatus == 'Completed' ||
-          o.trackingStatus == 'Delivered')
+              o.trackingStatus == 'Completed' ||
+              o.trackingStatus == 'Delivered')
           .toList();
     }
     if (index == 3) {
@@ -187,7 +197,8 @@ class _OrderViewState extends State<OrderView>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    debugPrint('OrderView: [Trace] build() | Hash: ${identityHashCode(this)} | _orders.length: ${_orders.length} | _isLoadingOrders: $_isLoadingOrders');
+    debugPrint(
+        'OrderView: [Trace] build() | Hash: ${identityHashCode(this)} | _orders.length: ${_orders.length} | _isLoadingOrders: $_isLoadingOrders');
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -354,27 +365,27 @@ class _OrderViewState extends State<OrderView>
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 250),
                     padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       gradient: isSelected
                           ? const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Color(0xFF1E88E5),
-                          Color(0xFF0F9D8A),
-                          Color(0xFF2E7D32),
-                        ],
-                      )
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Color(0xFF1E88E5),
+                                Color(0xFF0F9D8A),
+                                Color(0xFF2E7D32),
+                              ],
+                            )
                           : null,
                       color: isSelected ? null : Colors.white,
                       borderRadius: BorderRadius.circular(999),
                       border: isSelected
                           ? null
                           : Border.all(
-                        color: const Color(0xFF2E7D32),
-                        width: 1.2,
-                      ),
+                              color: const Color(0xFF2E7D32),
+                              width: 1.2,
+                            ),
                     ),
                     child: Center(
                       child: Text(
@@ -382,8 +393,10 @@ class _OrderViewState extends State<OrderView>
                         style: GoogleFonts.outfit(
                           fontSize: 13,
                           fontWeight:
-                          isSelected ? FontWeight.w700 : FontWeight.w600,
-                          color: isSelected ? Colors.white : const Color(0xFF2E7D32),
+                              isSelected ? FontWeight.w700 : FontWeight.w600,
+                          color: isSelected
+                              ? Colors.white
+                              : const Color(0xFF2E7D32),
                         ),
                       ),
                     ),
@@ -399,7 +412,8 @@ class _OrderViewState extends State<OrderView>
 
   Widget _buildOrderList(int filterIndex) {
     final filteredOrders = _filterOrders(filterIndex);
-    debugPrint('OrderView: [Trace] _buildOrderList | filterIndex: $filterIndex | filteredOrders.length: ${filteredOrders.length}');
+    debugPrint(
+        'OrderView: [Trace] _buildOrderList | filterIndex: $filterIndex | filteredOrders.length: ${filteredOrders.length}');
 
     if (_isLoadingOrders && filteredOrders.isEmpty) {
       return ListView.builder(
@@ -437,7 +451,8 @@ class _OrderViewState extends State<OrderView>
         itemCount: filteredOrders.length,
         itemBuilder: (context, index) {
           final order = filteredOrders[index];
-          debugPrint('OrderView: [Trace] itemBuilder | index: $index | order: ${order.orderNumber}');
+          debugPrint(
+              'OrderView: [Trace] itemBuilder | index: $index | order: ${order.orderNumber}');
           return _buildAdvancedCard(order);
         },
       ),
@@ -562,7 +577,8 @@ class _OrderViewState extends State<OrderView>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            AppLocalizations.of(context)!.items(order.totalQuantity),
+                            AppLocalizations.of(context)!
+                                .items(order.totalQuantity),
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
@@ -605,7 +621,7 @@ class _OrderViewState extends State<OrderView>
                           icon: Icons.refresh_rounded,
                           onPressed: () async {
                             final scaffoldMessenger =
-                            ScaffoldMessenger.of(context);
+                                ScaffoldMessenger.of(context);
                             for (var item in order.lineItems) {
                               if (item.variantId != null) {
                                 await CartController.addToCart(
@@ -621,7 +637,8 @@ class _OrderViewState extends State<OrderView>
                             }
                             scaffoldMessenger.showSnackBar(
                               SnackBar(
-                                  content: Text(AppLocalizations.of(context)!.itemsAddedToBag)),
+                                  content: Text(AppLocalizations.of(context)!
+                                      .itemsAddedToBag)),
                             );
                             if (mounted) {
                               Routers.goTO(context, toBody: const CartView());
@@ -644,7 +661,8 @@ class _OrderViewState extends State<OrderView>
     IconData icon;
     String statusLower = status.toLowerCase();
 
-    if (statusLower.contains('delivered') || statusLower.contains('completed')) {
+    if (statusLower.contains('delivered') ||
+        statusLower.contains('completed')) {
       icon = Icons.check_circle_rounded;
       color = const Color(0xFF43A047);
     } else if (statusLower.contains('cancelled')) {
@@ -653,7 +671,8 @@ class _OrderViewState extends State<OrderView>
     } else if (statusLower.contains('shipped')) {
       icon = Icons.local_shipping_rounded;
       color = const Color(0xFF1E88E5);
-    } else if (statusLower.contains('pending') || statusLower.contains('processing')) {
+    } else if (statusLower.contains('pending') ||
+        statusLower.contains('processing')) {
       icon = Icons.schedule_rounded;
       color = const Color(0xFFFB8C00);
     } else {
@@ -734,25 +753,25 @@ class _OrderViewState extends State<OrderView>
                 borderRadius: BorderRadius.circular(8),
                 child: isLast
                     ? Container(
-                  color: Colors.grey[100],
-                  child: Center(
-                    child: Text(
-                      "+$hiddenCount",
-                      style: GoogleFonts.inter(
-                        color: Colors.grey[600],
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                )
+                        color: Colors.grey[100],
+                        child: Center(
+                          child: Text(
+                            "+$hiddenCount",
+                            style: GoogleFonts.inter(
+                              color: Colors.grey[600],
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      )
                     : (items[index].image == null || items[index].image!.isEmpty
-                    ? Container(
-                    color: Colors.grey[50],
-                    child: Icon(Icons.shopping_bag_outlined,
-                        color: Colors.grey[200], size: 16))
-                    : KskNetworkImage(items[index].image!,
-                    fit: BoxFit.cover)),
+                        ? Container(
+                            color: Colors.grey[50],
+                            child: Icon(Icons.shopping_bag_outlined,
+                                color: Colors.grey[200], size: 16))
+                        : KskNetworkImage(items[index].image!,
+                            fit: BoxFit.cover)),
               ),
             );
           }),
@@ -789,57 +808,55 @@ class _OrderViewState extends State<OrderView>
     required VoidCallback onPressed,
   }) {
     bool isPressed = false;
-    return StatefulBuilder(
-        builder: (context, setBtnState) {
-          return GestureDetector(
-            onTapDown: (_) => setBtnState(() => isPressed = true),
-            onTapUp: (_) => setBtnState(() => isPressed = false),
-            onTapCancel: () => setBtnState(() => isPressed = false),
-            onTap: () {
-              HapticFeedback.lightImpact();
-              onPressed();
-            },
-            child: AnimatedScale(
-              scale: isPressed ? 0.97 : 1.0,
-              duration: const Duration(milliseconds: 120),
-              child: Container(
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFFAEEA4D),
-                      Color(0xFF7BC943),
-                      Color(0xFF2E7D32),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF2E7D32).withOpacity(0.15),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(icon, size: 14, color: Colors.white),
-                    const SizedBox(width: 6),
-                    Text(label,
-                        style: GoogleFonts.outfit(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white)),
-                  ],
-                ),
+    return StatefulBuilder(builder: (context, setBtnState) {
+      return GestureDetector(
+        onTapDown: (_) => setBtnState(() => isPressed = true),
+        onTapUp: (_) => setBtnState(() => isPressed = false),
+        onTapCancel: () => setBtnState(() => isPressed = false),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onPressed();
+        },
+        child: AnimatedScale(
+          scale: isPressed ? 0.97 : 1.0,
+          duration: const Duration(milliseconds: 120),
+          child: Container(
+            height: 40,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [
+                  Color(0xFFAEEA4D),
+                  Color(0xFF7BC943),
+                  Color(0xFF2E7D32),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF2E7D32).withOpacity(0.15),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
-          );
-        }
-    );
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 14, color: Colors.white),
+                const SizedBox(width: 6),
+                Text(label,
+                    style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white)),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
   }
 
   Color _getStatusColor(String status) {
@@ -853,10 +870,9 @@ class _OrderViewState extends State<OrderView>
     return Constants.baseColor;
   }
 
-
-
   Widget _buildEmptyOrders() {
-    debugPrint('OrderView: [Trace] EMPTY UI WAS BUILT | Hash: ${identityHashCode(this)} | _orders.length: ${_orders.length}');
+    debugPrint(
+        'OrderView: [Trace] EMPTY UI WAS BUILT | Hash: ${identityHashCode(this)} | _orders.length: ${_orders.length}');
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 300),
       tween: Tween(begin: 0.0, end: 1.0),
@@ -915,9 +931,11 @@ class _OrderViewState extends State<OrderView>
               ),
               const SizedBox(height: 32),
               GestureDetector(
-                onTapDown: (_) => setState(() => _isStartShoppingPressed = true),
+                onTapDown: (_) =>
+                    setState(() => _isStartShoppingPressed = true),
                 onTapUp: (_) => setState(() => _isStartShoppingPressed = false),
-                onTapCancel: () => setState(() => _isStartShoppingPressed = false),
+                onTapCancel: () =>
+                    setState(() => _isStartShoppingPressed = false),
                 onTap: () {
                   HapticFeedback.lightImpact();
                   Routers.goNoBack(context, toBody: const MyHomePage());

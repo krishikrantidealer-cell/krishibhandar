@@ -17,9 +17,9 @@ class ShopifyAPI {
   static const String _baseUrl =
       "https://3b7f20-3.myshopify.com/admin/api/2024-10";
   static Map<String, String> get _header => {
-    'content-type': 'application/json',
-    'X-Shopify-Access-Token': Constants.shopifyAccessToken,
-  };
+        'content-type': 'application/json',
+        'X-Shopify-Access-Token': Constants.shopifyAccessToken,
+      };
 
   static Future<Map<String, dynamic>> _getData({
     required String link,
@@ -1037,9 +1037,9 @@ class Shopify {
   static const String _proVarIdPre = "gid://shopify/ProductVariant/";
 
   static Map<String, String> get _header => {
-    'content-type': 'application/json',
-    'X-Shopify-Storefront-Access-Token': Constants.storefrontAccessToken,
-  };
+        'content-type': 'application/json',
+        'X-Shopify-Storefront-Access-Token': Constants.storefrontAccessToken,
+      };
 
   static Future<Map<String, dynamic>> getGraphQLData(BuildContext? context,
       {required String body,
@@ -1850,9 +1850,9 @@ class ShopifyAdmin {
   static const String _proVarIdPre = "gid://shopify/ProductVariant/";
 
   static Map<String, String> get _header => {
-    'content-type': 'application/json',
-    'X-Shopify-Access-Token': Constants.shopifyAccessToken,
-  };
+        'content-type': 'application/json',
+        'X-Shopify-Access-Token': Constants.shopifyAccessToken,
+      };
 
   static Future<Map<String, dynamic>> _getData({
     required String body,
