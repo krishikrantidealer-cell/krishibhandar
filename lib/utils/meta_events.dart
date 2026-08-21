@@ -8,14 +8,15 @@ class MetaEvents {
   /// Initialize and disable auto-logging to ensure only manual events are sent.
   static Future<void> init() async {
     try {
+      if (kDebugMode) print("[Meta][INIT] Starting...");
       // Official configuration for manual logging only
       await _facebookAppEvents.setAutoLogAppEventsEnabled(false);
       if (kDebugMode) {
-        print("🚀 MetaEvents: Initialization successful (Auto-log disabled)");
+        print("[Meta][INIT] Completed successfully (Auto-log disabled)");
       }
     } catch (e) {
       if (kDebugMode) {
-        print("❌ MetaEvents: Initialization failed: $e");
+        print("[Meta][INIT] Failed: $e");
       }
     }
   }
@@ -24,21 +25,33 @@ class MetaEvents {
   static Future<Map<String, dynamic>> _getAttributionParams() async {
     try {
       final attr = await AttributionService().getAttribution();
-      // Only include if utm_source is valid and not generic
-      if (attr['utm_source'] != null && 
-          attr['utm_source'] != 'organic' && 
-          attr['utm_source']!.isNotEmpty &&
-          attr['utm_source'] != 'None') {
-        return {
-          'utm_source': attr['utm_source'],
-          'utm_medium': attr['utm_medium'],
-          'utm_campaign': attr['utm_campaign'],
-          'utm_term': attr['utm_term'],
-          'utm_content': attr['utm_content'],
-        };
+      final Map<String, dynamic> params = {};
+      
+      // Map UTMs if they exist
+      if (attr['utm_source'] != null && attr['utm_source'] != 'None') {
+        params['utm_source'] = attr['utm_source'];
       }
+      if (attr['utm_medium'] != null && attr['utm_medium'] != 'None') {
+        params['utm_medium'] = attr['utm_medium'];
+      }
+      if (attr['utm_campaign'] != null && attr['utm_campaign'] != 'None') {
+        params['utm_campaign'] = attr['utm_campaign'];
+      }
+      if (attr['utm_term'] != null && attr['utm_term'] != 'None') {
+        params['utm_term'] = attr['utm_term'];
+      }
+      if (attr['utm_content'] != null && attr['utm_content'] != 'None') {
+        params['utm_content'] = attr['utm_content'];
+      }
+      
+      // IMPORTANT: Map Facebook Click ID (fbclid) if available
+      if (attr['fbclid'] != null && attr['fbclid']!.isNotEmpty) {
+        params['fbclid'] = attr['fbclid'];
+      }
+
+      return params;
     } catch (e) {
-      debugPrint("MetaEvents: Attribution load failed: $e");
+      debugPrint("[Meta][ATTRIBUTION] Load failed: $e");
     }
     return {};
   }
@@ -54,28 +67,21 @@ class MetaEvents {
       double val = double.tryParse(price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0;
 
       final attribution = await _getAttributionParams();
-      final parameters = {
-        'fb_content_id': id,
-        'fb_content_type': 'product',
-        'fb_currency': 'INR',
-        'fb_value': val,
-        ...attribution,
-      };
-
+      
       if (kDebugMode) {
-        print("📊 Meta Event: ViewContent");
-        print("   ↓ Current Attribution: $attribution");
-        print("   ↓ Final Parameter Map: $parameters");
+        print("[Meta][ViewContent] ID: $id | Price: $val | Attr: $attribution");
       }
 
-      // Enrichment: Standard ViewContent using logEvent to support custom attribution parameters
-      await _facebookAppEvents.logEvent(
-        name: 'fb_mobile_content_view',
-        parameters: parameters,
-        valueToSum: val,
+      // Use standard event helper for better Meta mapping
+      await _facebookAppEvents.logViewContent(
+        id: id,
+        type: 'product',
+        currency: 'INR',
+        price: val,
+        parameters: attribution,
       );
     } catch (e) {
-      debugPrint("❌ MetaEvents: logViewContent failed: $e");
+      debugPrint("[Meta][ViewContent][ERROR] Failed: $e");
     }
   }
 
@@ -90,27 +96,20 @@ class MetaEvents {
       double val = double.tryParse(price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0;
 
       final attribution = await _getAttributionParams();
-      final parameters = {
-        'fb_content_id': id,
-        'fb_content_type': 'product',
-        'fb_currency': 'INR',
-        'fb_value': val,
-        ...attribution,
-      };
-
+      
       if (kDebugMode) {
-        print("📊 Meta Event: AddToCart");
-        print("   ↓ Current Attribution: $attribution");
-        print("   ↓ Final Parameter Map: $parameters");
+        print("[Meta][AddToCart] ID: $id | Price: $val | Attr: $attribution");
       }
 
-      await _facebookAppEvents.logEvent(
-        name: 'fb_mobile_add_to_cart',
-        parameters: parameters,
-        valueToSum: val,
+      await _facebookAppEvents.logAddToCart(
+        id: id,
+        type: 'product',
+        currency: 'INR',
+        price: val,
+        parameters: attribution,
       );
     } catch (e) {
-      debugPrint("❌ MetaEvents: logAddToCart failed: $e");
+      debugPrint("[Meta][AddToCart][ERROR] Failed: $e");
     }
   }
 
@@ -121,28 +120,21 @@ class MetaEvents {
   }) async {
     try {
       final attribution = await _getAttributionParams();
-      final parameters = {
-        'fb_content_type': 'product',
-        'fb_content_id': contentIds?.join(','),
-        'fb_num_items': contentIds?.length,
-        'fb_currency': 'INR',
-        'fb_value': totalValue,
-        ...attribution,
-      };
-
+      
       if (kDebugMode) {
-        print("📊 Meta Event: InitiateCheckout");
-        print("   ↓ Current Attribution: $attribution");
-        print("   ↓ Final Parameter Map: $parameters");
+        print("[Meta][InitiateCheckout] Value: $totalValue | Items: ${contentIds?.length} | Attr: $attribution");
       }
 
-      await _facebookAppEvents.logEvent(
-        name: 'fb_mobile_initiated_checkout',
-        parameters: parameters,
-        valueToSum: totalValue,
+      await _facebookAppEvents.logInitiatedCheckout(
+        totalPrice: totalValue,
+        currency: 'INR',
+        contentId: contentIds?.join(','),
+        contentType: 'product',
+        numItems: contentIds?.length,
+        parameters: attribution,
       );
     } catch (e) {
-      debugPrint("❌ MetaEvents: logInitiatedCheckout failed: $e");
+      debugPrint("[Meta][InitiateCheckout][ERROR] Failed: $e");
     }
   }
 
@@ -150,6 +142,7 @@ class MetaEvents {
   static Future<void> purchase({
     required double totalValue,
     required List<String> contentIds,
+    String? orderId,
   }) async {
     try {
       final attribution = await _getAttributionParams();
@@ -157,13 +150,12 @@ class MetaEvents {
       final parameters = {
         'fb_content_id': contentIds.join(','),
         'fb_content_type': 'product',
+        if (orderId != null) 'fb_order_id': orderId,
         ...attribution,
       };
 
       if (kDebugMode) {
-        print("📊 Meta Event: Purchase");
-        print("   ↓ Current Attribution: $attribution");
-        print("   ↓ Final Parameter Map: $parameters");
+        print("[Meta][Purchase] Value: $totalValue | OrderID: $orderId | Attr: $attribution");
       }
 
       // Official logPurchase supports parameters enrichment natively
@@ -173,7 +165,7 @@ class MetaEvents {
         parameters: parameters,
       );
     } catch (e) {
-      debugPrint("❌ MetaEvents: logPurchase failed: $e");
+      debugPrint("[Meta][Purchase][ERROR] Failed: $e");
     }
   }
 

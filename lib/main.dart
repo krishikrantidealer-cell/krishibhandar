@@ -27,6 +27,11 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+// Global persistent instance and state for deep link lifecycle & duplicate protection
+final _appLinks = AppLinks();
+Uri? _lastProcessedUri;
+DateTime? _lastProcessedTime;
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -72,28 +77,46 @@ void main() {
 }
 
 void _initDeepLinks() {
-  final appLinks = AppLinks();
-
-  // Listen to incoming links while app is open
-  appLinks.uriLinkStream.listen((uri) {
-    _handleDeepLink(uri);
+  // 1. Warm Start Listener (App already running in background/foreground)
+  _appLinks.uriLinkStream.listen((uri) {
+    _handleDeepLink(uri, isColdStart: false);
   }, onError: (err) {
-    debugPrint("Deep Link Stream Error: $err");
+    debugPrint("❌ Deep Link Stream Error: $err");
   });
 
-  // Handle link that opened the app from terminated state
-  appLinks.getInitialLink().then((uri) {
-    if (uri != null) {
-      _handleDeepLink(uri);
+  // 2. Cold Start (App launched via deep link from terminated state)
+  // A 500ms delay ensures the Flutter Engine and Platform Channels are fully 
+  // connected before we query the platform for the initial intent.
+  Future.delayed(const Duration(milliseconds: 500), () async {
+    try {
+      final uri = await _appLinks.getInitialLink();
+      if (uri != null) {
+        _handleDeepLink(uri, isColdStart: true);
+      }
+    } catch (err) {
+      debugPrint("❌ Deep Link Initial Link Error: $err");
     }
-  }).catchError((err) {
-    debugPrint("Deep Link Initial Link Error: $err");
   });
 }
 
-void _handleDeepLink(Uri uri) {
+void _handleDeepLink(Uri uri, {bool isColdStart = false}) {
+  final now = DateTime.now();
+  
+  // Duplicate Protection: Prevent processing the same URI within a 2-second window
+  // (e.g. if platform delivers intent through both getInitialLink and uriLinkStream)
+  if (_lastProcessedUri == uri && 
+      _lastProcessedTime != null && 
+      now.difference(_lastProcessedTime!).inSeconds < 2) {
+    return;
+  }
+  
+  _lastProcessedUri = uri;
+  _lastProcessedTime = now;
+
   if (kDebugMode) {
-    debugPrint("🔗 Captured UTM Deep Link: $uri");
+    debugPrint("🔗 [DeepLink] ${isColdStart ? 'Cold' : 'Warm'} Start Detected");
+    debugPrint("🧪 [Forensic] Scheme: ${uri.scheme}, Host: ${uri.host}, Path: ${uri.path}");
+    debugPrint("🧪 [Forensic] Query Keys: ${uri.queryParameters.keys.toList()}");
   }
 
   // 1. Parse UTM parameters
