@@ -794,7 +794,7 @@ class ShopifyAPI {
 
       if (kDebugMode) {
         debugPrint(
-            "🧾 Final note_attributes for Order: ${jsonEncode(orderPayload['note_attributes'])}");
+            "🧾 Shopify Order Note Attributes count: ${orderPayload['note_attributes'].length}");
       }
 
       if (isCod) {
@@ -820,8 +820,9 @@ class ShopifyAPI {
         orderPayload["total_discounts"] = discountAmount.toStringAsFixed(2);
       }
 
-      debugPrint(
-          "DEBUG: Shopify Order Payload --> ${jsonEncode(orderPayload)}");
+      if (kDebugMode) {
+        debugPrint("DEBUG: Creating Shopify Order...");
+      }
 
       if (customerId != null && customerId.isNotEmpty && customerId != "null") {
         try {
@@ -878,11 +879,11 @@ class ShopifyAPI {
     return false;
   }
 
-  static Future<void> updateOrderAttribution(String orderIdOrName) async {
+  static Future<String?> updateOrderAttribution(String orderIdOrName) async {
     try {
       final attribution = await AttributionService().getAttribution();
       debugPrint(
-          "📢 ShopifyAPI: Sending UTM attributes to Shopify for order $orderIdOrName: $attribution");
+          "📢 ShopifyAPI: Sending UTM attributes to Shopify for order $orderIdOrName");
       String? numericId;
 
       // 1. Resolve numeric ID
@@ -1013,9 +1014,10 @@ class ShopifyAPI {
               "✅ Shopify Order Attribution Updated Successfully for Order: $numericId");
           // Clear attribution after success
           await AttributionService().clearAttribution();
+          return numericId;
         } else {
           debugPrint(
-              "❌ Failed to update Shopify Order Attribution: Status ${updateRes.statusCode} Body: ${updateRes.body}");
+              "❌ Failed to update Shopify Order Attribution: Status ${updateRes.statusCode}");
         }
       } else {
         debugPrint(
@@ -1024,6 +1026,7 @@ class ShopifyAPI {
     } catch (e) {
       debugPrint("Error in updateOrderAttribution: $e");
     }
+    return null;
   }
 }
 

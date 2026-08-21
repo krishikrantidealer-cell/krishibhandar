@@ -209,7 +209,7 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
     return false;
   }
 
-  bool _checkAndHandleUrl(String url) {
+  Future<bool> _checkAndHandleUrl(String url) async {
     // 1. Back to Cart interception
     if (url.contains("action=backToCart") ||
         url.endsWith("/cart") ||
@@ -258,37 +258,6 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
       debugPrint("💰 Purchase Value: $val");
       debugPrint("🧾 Transaction ID: $txId");
 
-      // Attribution tracking (Meta + AppsFlyer)
-      try {
-        final productIds =
-            widget.cartItems.map((item) => item.productId ?? item.id).toList();
-        AttributionService.logPurchase(val, productIds);
-      } catch (e) {
-        debugPrint("Error logging Purchase attribution: $e");
-      }
-
-      try {
-        final productList = widget.cartItems.map((item) {
-          final price =
-              double.tryParse(item.price.replaceAll(RegExp(r'[^\d.]'), '')) ??
-                  0.0;
-          return {
-            'id': item.id,
-            'name': item.title,
-            'price': price,
-            'quantity': item.qty,
-          };
-        }).toList();
-
-        FirebaseEvents.trackPurchase(
-          totalAmount: val,
-          transactionId: txId,
-          productList: productList,
-        );
-      } catch (e) {
-        debugPrint("Error logging Firebase Purchase: $e");
-      }
-
       _handleSuccess(txId, url);
       return true;
     }
@@ -304,7 +273,7 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
       ..setBackgroundColor(Colors.white)
       ..addJavaScriptChannel(
         'ShopfloBridge',
-        onMessageReceived: (JavaScriptMessage message) {
+        onMessageReceived: (JavaScriptMessage message) async {
           debugPrint('🛍️ [ShopfloBridge] Message: ${message.message}');
           final msg = message.message.toLowerCase();
           if (msg.contains('success') ||
@@ -312,7 +281,7 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
               msg.contains('completed') ||
               msg.contains('thank_you') ||
               msg.contains('orderplaced')) {
-            _checkAndHandleUrl('https://krishibhandar.com/checkout/success');
+            await _checkAndHandleUrl('https://krishibhandar.com/checkout/success');
           }
         },
       )
@@ -325,16 +294,16 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
               });
             }
           },
-          onUrlChange: (UrlChange change) {
+          onUrlChange: (UrlChange change) async {
             final url = change.url;
             if (url != null) {
               debugPrint("🛍️ [ShopfloCheckoutView] URL Changed: $url");
-              _checkAndHandleUrl(url);
+              await _checkAndHandleUrl(url);
             }
           },
-          onPageStarted: (String url) {
+          onPageStarted: (String url) async {
             debugPrint("🛍️ [ShopfloCheckoutView] Navigation Started: $url");
-            if (_checkAndHandleUrl(url)) {
+            if (await _checkAndHandleUrl(url)) {
               return;
             }
             if (mounted) {
@@ -345,7 +314,7 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
           },
           onPageFinished: (String url) async {
             debugPrint("🛍️ [ShopfloCheckoutView] Navigation Finished: $url");
-            if (_checkAndHandleUrl(url)) {
+            if (await _checkAndHandleUrl(url)) {
               return;
             }
 
@@ -434,7 +403,7 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
             final url = request.url;
             debugPrint("🛍️ [ShopfloCheckoutView] Navigation Request: $url");
 
-            if (_checkAndHandleUrl(url)) {
+            if (await _checkAndHandleUrl(url)) {
               return NavigationDecision.prevent;
             }
 
@@ -542,21 +511,56 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
     // Run cart clearing and order attribution sync in background
     CartController.clearCart();
     final shippingPhone = widget.shippingAddress?['phone']?.toString();
-    _runBackgroundSync(orderNumber, shippingPhone);
+    _runBackgroundSync(orderNumber, shippingPhone, widget.cartItems, widget.totalAmount);
   }
 
   Future<void> _runBackgroundSync(
-      String orderNumber, String? shippingPhone) async {
+      String orderNumber, String? shippingPhone, List<CartItem> cartItems, double totalAmount) async {
     debugPrint('🛍️ [ShopfloCheckoutView] Starting sync for $orderNumber');
+    String finalOrderId = orderNumber;
     try {
-      await ShopifyAPI.updateOrderAttribution(orderNumber);
+      final resolvedId = await ShopifyAPI.updateOrderAttribution(orderNumber);
+      if (resolvedId != null && resolvedId.isNotEmpty) {
+        finalOrderId = resolvedId;
+        debugPrint("🎯 [ShopfloCheckoutView] Shopify Order ID resolved: $finalOrderId");
+      }
       await AttributionService().clearAttribution();
     } catch (e) {
       debugPrint("Error updating Shopify order notes: $e");
     }
 
+    // Attribution tracking (Meta + Firebase) with resolved Shopify ID
     try {
-      await AuthController.syncCustomerFromOrder(orderNumber);
+      final productIds = cartItems.map((item) => item.productId ?? item.id).toList();
+      await AttributionService.logPurchase(totalAmount, productIds, orderId: finalOrderId);
+    } catch (e) {
+      debugPrint("Error logging Purchase attribution: $e");
+    }
+
+    try {
+      final productList = cartItems.map((item) {
+        final price =
+            double.tryParse(item.price.replaceAll(RegExp(r'[^\d.]'), '')) ??
+                0.0;
+        return {
+          'id': item.id,
+          'name': item.title,
+          'price': price,
+          'quantity': item.qty,
+        };
+      }).toList();
+
+      FirebaseEvents.trackPurchase(
+        totalAmount: totalAmount,
+        transactionId: finalOrderId,
+        productList: productList,
+      );
+    } catch (e) {
+      debugPrint("Error logging Firebase Purchase: $e");
+    }
+
+    try {
+      await AuthController.syncCustomerFromOrder(finalOrderId);
       final existingId = await AuthController.getShopifyCustomerId();
       if (existingId == null || existingId == "null") {
         final phone = shippingPhone ?? await AuthController.getSavedPhone();

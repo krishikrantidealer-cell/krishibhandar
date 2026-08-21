@@ -94,44 +94,44 @@ class AttributionService {
   }
 
   // Track Purchase/Revenue in Meta SDK
-  static void logPurchase(double amount, List<String> productIds) {
-    MetaEvents.purchase(totalValue: amount, contentIds: productIds);
-    print("💰 Meta SDK Purchase Logged: ₹$amount for Products $productIds");
+  static Future<void> logPurchase(double amount, List<String> productIds, {String? orderId}) async {
+    await MetaEvents.purchase(totalValue: amount, contentIds: productIds, orderId: orderId);
+    print("💰 Meta SDK Purchase Logged: ₹$amount for Products $productIds | Order: $orderId");
   }
 
   // Track Add to Cart
-  static void logAddToCart(String id, String? name, double price) {
-    MetaEvents.addToCart(id: id, name: name, price: price.toString());
+  static Future<void> logAddToCart(String id, String? name, double price) async {
+    await MetaEvents.addToCart(id: id, name: name, price: price.toString());
     print("🛒 Meta SDK AddToCart Logged: $id | ₹$price");
   }
 
   // Track Initiate Checkout
-  static void logInitiateCheckout(double amount, List<String> productIds) {
-    MetaEvents.initiateCheckout(totalValue: amount, contentIds: productIds);
+  static Future<void> logInitiateCheckout(double amount, List<String> productIds) async {
+    await MetaEvents.initiateCheckout(totalValue: amount, contentIds: productIds);
     print("💳 Meta SDK Initiate Checkout Logged: ₹$amount | Products: $productIds");
   }
 
   // Track Login
-  static void logLogin() {
-    MetaEvents.login();
+  static Future<void> logLogin() async {
+    await MetaEvents.login();
     print("🔑 Meta SDK Login Logged");
   }
 
   // Track View Content (Product View)
-  static void logViewContent(String id, String name, String price) {
-    MetaEvents.viewContent(id: id, name: name, price: price);
+  static Future<void> logViewContent(String id, String name, String price) async {
+    await MetaEvents.viewContent(id: id, name: name, price: price);
     print("👁️ Meta SDK ViewContent Logged: $name (₹$price)");
   }
 
   // Track Search
-  static void logSearch(String query) {
-    MetaEvents.search(query: query);
+  static Future<void> logSearch(String query) async {
+    await MetaEvents.search(query: query);
     print("🔍 Meta SDK Search Logged: $query");
   }
 
   // Track Remove from Cart
-  static void logRemoveFromCart(String id, double price) {
-    MetaEvents.removeFromCart(id: id, price: price);
+  static Future<void> logRemoveFromCart(String id, double price) async {
+    await MetaEvents.removeFromCart(id: id, price: price);
     print("🗑️ Meta SDK RemoveFromCart Logged: $id | ₹$price");
   }
 }

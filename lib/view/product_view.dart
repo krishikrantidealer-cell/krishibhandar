@@ -1111,7 +1111,8 @@ class _ProductViewState extends State<ProductView>
                               : p.variants.first;
 
                           // Consolidated Event tracking via AttributionService (Meta + AppsFlyer)
-                          AttributionService.logAddToCart(
+                          // Fixed: Added await for standard event tracking
+                          await AttributionService.logAddToCart(
                               p.id,
                               p.title,
                               double.tryParse(v.price
@@ -1206,19 +1207,6 @@ class _ProductViewState extends State<ProductView>
                     final v = p.variants.length > _varientIndex
                         ? p.variants[_varientIndex]
                         : p.variants.first;
-
-                    final variantId = int.tryParse(v.id.toString().split('/').last) ?? 0;
-                    final productId = int.tryParse(p.id.toString().split('/').last) ?? 0;
-
-                    double price = double.tryParse(
-                            v.price.replaceAll(RegExp(r'[^\d.]'), '')) ??
-                        0.0;
-
-                    // Consolidated Event tracking via AttributionService (Meta + AppsFlyer)
-                    AttributionService.logInitiateCheckout(price, [p.id]);
-
-                    // Firebase Event: begin_checkout
-                    FirebaseEvents.beginCheckout(price);
 
                     await CartController.addToCart(
                       variantId: v.id,

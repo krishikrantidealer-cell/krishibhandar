@@ -1457,7 +1457,8 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
     }
 
     final productIds = _cartItems.map((item) => item.productId ?? item.id).toList();
-    AttributionService.logInitiateCheckout(_getFinalTotal(), productIds);
+    // Fixed: Added await for Meta event tracking
+    await AttributionService.logInitiateCheckout(_getFinalTotal(), productIds);
 
     setState(() {
       _isProcessingOrder = true;

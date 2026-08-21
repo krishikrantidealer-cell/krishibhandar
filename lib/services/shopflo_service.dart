@@ -33,13 +33,29 @@ class ShopfloService {
     String successUrl = defaultSuccessUrl,
   }) async {
     try {
-      if (Constants.shopfloApiKey.isEmpty || Constants.shopfloMerchantId.isEmpty) {
-        debugPrint('🛍️ [ShopfloService] Error: Missing SHOPFLO_API_KEY or SHOPFLO_MERCHANT_ID in environment');
+      final hasApiKey = Constants.shopfloApiKey.isNotEmpty;
+      final hasMerchantId = Constants.shopfloMerchantId.isNotEmpty;
+
+      debugPrint('🛍️ [ShopfloConfig] API key configured: $hasApiKey');
+      debugPrint('🛍️ [ShopfloConfig] Merchant ID configured: $hasMerchantId');
+
+      if (!hasApiKey || !hasMerchantId) {
+        String errorMsg = 'Shopflo configuration missing.';
+        if (!hasApiKey && !hasMerchantId) {
+          errorMsg = 'Both SHOPFLO_API_KEY and SHOPFLO_MERCHANT_ID are missing.';
+        } else if (!hasApiKey) {
+          errorMsg = 'SHOPFLO_API_KEY is missing.';
+        } else {
+          errorMsg = 'SHOPFLO_MERCHANT_ID is missing.';
+        }
+        
+        debugPrint('🛍️ [ShopfloService] Error: $errorMsg Please check app environment settings (.env).');
         return ShopfloTokenResult.failure(
           errorMessage: 'Shopflo configuration missing. Please check app environment settings.',
         );
       }
 
+      debugPrint('🛍️ [Shopflo] Creating checkout...');
       final sessionId = generateSessionId();
 
       // Map cart items according to Shopflo V2 specification for Shopify
@@ -130,8 +146,8 @@ class ShopfloService {
 
       if (kDebugMode) {
         debugPrint('🛍️ [ShopfloService] Request Endpoint: $_tokenEndpoint');
-        debugPrint('🛍️ [ShopfloService] Request Headers: $headers');
-        debugPrint('🛍️ [ShopfloService] Request Payload: ${jsonEncode(payload)}');
+        debugPrint('🛍️ [ShopfloService] Request Headers: {Authorization: [REDACTED], Merchant: ${Constants.shopfloMerchantId}}');
+        debugPrint('🛍️ [ShopfloService] Request Payload: {sf_session_id: $sessionId, items_count: ${items.length}}');
       }
 
       final response = await http.post(
@@ -170,6 +186,8 @@ class ShopfloService {
         }
 
         if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
+          debugPrint('🛍️ [Shopflo] Checkout token/url received');
+          debugPrint('🛍️ [Shopflo] Opening checkout');
           return ShopfloTokenResult.success(
             checkoutUrl: checkoutUrl,
             token: token,

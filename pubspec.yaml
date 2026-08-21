@@ -3,7 +3,7 @@ description: "Krishi Bhandar shopify website's App"
 
 publish_to: 'none'
 
-version: 3.0.22+49
+version: 3.0.23+50
 
 environment:
   sdk: ^3.5.3
@@ -69,7 +69,6 @@ flutter:
   assets:
     - assets/
     - assets/technical_names.json
-    - google_fonts/
     - .env
 
 flutter_launcher_icons:
