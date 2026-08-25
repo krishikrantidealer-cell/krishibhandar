@@ -964,12 +964,14 @@ class ShopifyAPI {
       }
 
       if (numericId != null) {
-        // 2. Fetch existing order note_attributes first to preserve other metadata
+        // 2. Fetch existing order note_attributes and tags first to preserve other metadata
         var res = await http.get(
           Uri.parse('$_baseUrl/orders/$numericId.json'),
           headers: _header,
         );
         List<Map<String, dynamic>> existingAttributes = [];
+        Set<String> tagSet = {};
+
         if (res.statusCode == 200) {
           final order = jsonDecode(res.body)['order'];
           final rawAttributes = order['note_attributes'] as List? ?? [];
@@ -979,6 +981,15 @@ class ShopifyAPI {
               "value": attr['value']?.toString() ?? ''
             };
           }).toList();
+
+          final existingTagsStr = order['tags']?.toString() ?? '';
+          if (existingTagsStr.isNotEmpty) {
+            tagSet = existingTagsStr
+                .split(',')
+                .map((t) => t.trim())
+                .where((t) => t.isNotEmpty)
+                .toSet();
+          }
         }
 
         // 3. Remove any existing UTM attributes to avoid duplicates
@@ -988,18 +999,48 @@ class ShopifyAPI {
             attr['name'] == 'utm_campaign' ||
             attr['name'] == 'utm_term' ||
             attr['name'] == 'utm_content' ||
-            attr['name'] == 'fbclid');
+            attr['name'] == 'fbclid' ||
+            attr['name'] == 'gclid');
 
         // 4. Add the new UTM attributes
         existingAttributes.addAll(attribution.entries
+            .where((e) => e.value.isNotEmpty)
             .map((e) => {"name": e.key, "value": e.value})
             .toList());
 
-        // 5. Send PUT request to update the order
+        // 5. Update Order Tags for easy filtering in Shopify Admin and reporting apps
+        tagSet.removeWhere((tag) =>
+            tag.startsWith('utm_source:') ||
+            tag.startsWith('source:') ||
+            tag.startsWith('utm_medium:') ||
+            tag.startsWith('utm_campaign:') ||
+            tag.startsWith('utm:') ||
+            tag.startsWith('fbclid:'));
+
+        final utmSource = attribution['utm_source'];
+        if (utmSource != null && utmSource.isNotEmpty && utmSource != 'organic') {
+          tagSet.add('utm_source:$utmSource');
+          tagSet.add('source:$utmSource');
+        }
+        final utmCampaign = attribution['utm_campaign'];
+        if (utmCampaign != null && utmCampaign.isNotEmpty) {
+          tagSet.add('utm_campaign:$utmCampaign');
+        }
+        final utmMedium = attribution['utm_medium'];
+        if (utmMedium != null && utmMedium.isNotEmpty && utmMedium != 'app') {
+          tagSet.add('utm_medium:$utmMedium');
+        }
+        final fbclid = attribution['fbclid'];
+        if (fbclid != null && fbclid.isNotEmpty) {
+          tagSet.add('meta_ad_click');
+        }
+
+        // 6. Send PUT request to update the order
         final payload = {
           "order": {
             "id": int.parse(numericId),
-            "note_attributes": existingAttributes
+            "note_attributes": existingAttributes,
+            "tags": tagSet.join(', ')
           }
         };
 
@@ -1011,11 +1052,11 @@ class ShopifyAPI {
 
         if (updateRes.statusCode == 200 || updateRes.statusCode == 201) {
           debugPrint(
-              "✅ Shopify Order Attribution Updated Successfully for Order: $numericId");
+              "✅ Shopify Order Attribution Updated Successfully for Order: $numericId (Tags: ${tagSet.join(', ')})");
           return numericId;
         } else {
           debugPrint(
-              "❌ Failed to update Shopify Order Attribution: Status ${updateRes.statusCode}");
+              "❌ Failed to update Shopify Order Attribution: Status ${updateRes.statusCode} - ${updateRes.body}");
         }
       } else {
         debugPrint(
