@@ -518,18 +518,19 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
       String orderNumber, String? shippingPhone, List<CartItem> cartItems, double totalAmount) async {
     debugPrint('🛍️ [ShopfloCheckoutView] Starting sync for $orderNumber');
     String finalOrderId = orderNumber;
+
+    // 1. Resolve Shopify Order ID & Update Shopify Order Note Attributes with UTMs
     try {
       final resolvedId = await ShopifyAPI.updateOrderAttribution(orderNumber);
       if (resolvedId != null && resolvedId.isNotEmpty) {
         finalOrderId = resolvedId;
         debugPrint("🎯 [ShopfloCheckoutView] Shopify Order ID resolved: $finalOrderId");
       }
-      await AttributionService().clearAttribution();
     } catch (e) {
       debugPrint("Error updating Shopify order notes: $e");
     }
 
-    // Attribution tracking (Meta + Firebase) with resolved Shopify ID
+    // 2. Attribution tracking (Meta Purchase) while attribution parameters are intact
     try {
       final productIds = cartItems.map((item) => item.productId ?? item.id).toList();
       await AttributionService.logPurchase(totalAmount, productIds, orderId: finalOrderId);
@@ -537,6 +538,7 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
       debugPrint("Error logging Purchase attribution: $e");
     }
 
+    // 3. Firebase Purchase tracking
     try {
       final productList = cartItems.map((item) {
         final price =
@@ -557,6 +559,13 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
       );
     } catch (e) {
       debugPrint("Error logging Firebase Purchase: $e");
+    }
+
+    // 4. Clear attribution data after all consumers (Shopify, Meta, Firebase) have processed
+    try {
+      await AttributionService().clearAttribution();
+    } catch (e) {
+      debugPrint("Error clearing attribution: $e");
     }
 
     try {

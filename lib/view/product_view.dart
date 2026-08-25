@@ -1208,6 +1208,13 @@ class _ProductViewState extends State<ProductView>
                         ? p.variants[_varientIndex]
                         : p.variants.first;
 
+                    final priceVal = double.tryParse(
+                            v.price.replaceAll(RegExp(r'[^\d.]'), '')) ??
+                        0.0;
+                    await AttributionService.logAddToCart(
+                        p.id, p.title, priceVal);
+                    FirebaseEvents.addToCart(p.id, v.price);
+
                     await CartController.addToCart(
                       variantId: v.id,
                       productId: p.id,

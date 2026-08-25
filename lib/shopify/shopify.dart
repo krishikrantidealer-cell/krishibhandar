@@ -1012,8 +1012,6 @@ class ShopifyAPI {
         if (updateRes.statusCode == 200 || updateRes.statusCode == 201) {
           debugPrint(
               "✅ Shopify Order Attribution Updated Successfully for Order: $numericId");
-          // Clear attribution after success
-          await AttributionService().clearAttribution();
           return numericId;
         } else {
           debugPrint(
