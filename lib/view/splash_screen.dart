@@ -221,16 +221,35 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _initNonCriticalServices() async {
+    // 1. Firebase Messaging (CRITICAL: Handlers must be registered ASAP)
+    try {
+      await NotificationService.init().timeout(const Duration(seconds: 10));
+    } catch (e) {
+      debugPrint("[FCM] Notification Service init timed out/failed: $e");
+    }
+
+    // 2. Firebase App Check
     try {
       await FirebaseAppCheck.instance.activate(
         androidProvider:
             kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
-      ).timeout(const Duration(seconds: 5));
-      await NotificationService.init().timeout(const Duration(seconds: 5));
+      ).timeout(const Duration(seconds: 10));
+    } catch (e) {
+      debugPrint("App Check init error: $e");
+    }
+
+    // 3. Meta Events
+    try {
       await MetaEvents.init().timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint("Meta Events init error: $e");
+    }
+
+    // 4. Attribution Service
+    try {
       await AttributionService().init().timeout(const Duration(seconds: 5));
     } catch (e) {
-      debugPrint("Non-critical init error: $e");
+      debugPrint("Attribution Service init error: $e");
     }
   }
 

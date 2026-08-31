@@ -13,15 +13,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 
 import 'controller/constants.dart';
+import 'controller/routers.dart';
 import 'firebase_options.dart';
 import 'utils/notification_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'controller/language_controller.dart';
 import 'view/splash_screen.dart';
-import 'view/product_view.dart';
-import 'view/collection_view.dart';
-import 'view/cart_view.dart';
-import 'view/home_view.dart';
 
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
@@ -243,33 +240,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
           navigatorKey: navigatorKey,
-          onGenerateRoute: (settings) {
-            final name = settings.name ?? '';
-            if (name.startsWith('/product/')) {
-              final id = name.replaceFirst('/product/', '');
-              return MaterialPageRoute(
-                builder: (context) => ProductView(id: id),
-              );
-            }
-            if (name.startsWith('/category/')) {
-              final id = name.replaceFirst('/category/', '');
-              return MaterialPageRoute(
-                builder: (context) => CollectionView(collectionId: id),
-              );
-            }
-            if (name == '/cart') {
-              return MaterialPageRoute(
-                builder: (context) => const CartView(),
-              );
-            }
-            if (name == '/home') {
-              return MaterialPageRoute(
-                builder: (context) => const MyHomePage(),
-              );
-            }
-            // Add other routes as needed
-            return null;
-          },
+          onGenerateRoute: Routers.generateRoute,
           home: const SplashScreen(),
         );
       },
