@@ -40,4 +40,24 @@ void main() {
     expect(attribution['utm_content'], 'video_ad_1');
     expect(attribution['fbclid'], 'IwAR_TEST_FBCLID_999');
   });
+
+  test('Sanitizes (not set) values and recovers source=meta via fbclid', () async {
+    final attributionService = AttributionService();
+    await attributionService.saveAttributionFromMap({
+      'utm_source': '(not set)',
+      'utm_medium': '(not set)',
+      'utm_campaign': '(not set)',
+      'utm_term': 'null',
+      'utm_content': 'undefined',
+      'fbclid': 'IwAR_TEST_FBCLID_456',
+    });
+
+    final attribution = await attributionService.getAttribution();
+    expect(attribution['utm_source'], 'meta');
+    expect(attribution['utm_medium'], 'cpc');
+    expect(attribution['utm_campaign'], '');
+    expect(attribution['utm_term'], '');
+    expect(attribution['utm_content'], '');
+    expect(attribution['fbclid'], 'IwAR_TEST_FBCLID_456');
+  });
 }

@@ -1002,9 +1002,26 @@ class ShopifyAPI {
             attr['name'] == 'fbclid' ||
             attr['name'] == 'gclid');
 
-        // 4. Add the new UTM attributes
+        bool isValidUtmVal(String? val) {
+          if (val == null) return false;
+          final trimmed = val.trim().toLowerCase();
+          return trimmed.isNotEmpty &&
+              trimmed != 'organic' &&
+              trimmed != 'app' &&
+              trimmed != 'none' &&
+              trimmed != 'null' &&
+              trimmed != 'undefined' &&
+              trimmed != 'unknown' &&
+              trimmed != '(not set)' &&
+              trimmed != '(notset)' &&
+              trimmed != 'not set' &&
+              trimmed != 'not_set' &&
+              trimmed != 'notset';
+        }
+
+        // 4. Add the new UTM attributes (filtering out (not set) and empty values)
         existingAttributes.addAll(attribution.entries
-            .where((e) => e.value.isNotEmpty)
+            .where((e) => e.value.isNotEmpty && isValidUtmVal(e.value))
             .map((e) => {"name": e.key, "value": e.value})
             .toList());
 
@@ -1018,21 +1035,25 @@ class ShopifyAPI {
             tag.startsWith('fbclid:'));
 
         final utmSource = attribution['utm_source'];
-        if (utmSource != null && utmSource.isNotEmpty && utmSource != 'organic') {
+        if (isValidUtmVal(utmSource)) {
           tagSet.add('utm_source:$utmSource');
           tagSet.add('source:$utmSource');
         }
         final utmCampaign = attribution['utm_campaign'];
-        if (utmCampaign != null && utmCampaign.isNotEmpty) {
+        if (isValidUtmVal(utmCampaign)) {
           tagSet.add('utm_campaign:$utmCampaign');
         }
         final utmMedium = attribution['utm_medium'];
-        if (utmMedium != null && utmMedium.isNotEmpty && utmMedium != 'app') {
+        if (isValidUtmVal(utmMedium)) {
           tagSet.add('utm_medium:$utmMedium');
         }
         final fbclid = attribution['fbclid'];
-        if (fbclid != null && fbclid.isNotEmpty) {
+        if (isValidUtmVal(fbclid)) {
           tagSet.add('meta_ad_click');
+          if (!tagSet.any((t) => t.startsWith('utm_source:'))) {
+            tagSet.add('utm_source:meta');
+            tagSet.add('source:meta');
+          }
         }
 
         // 6. Send PUT request to update the order

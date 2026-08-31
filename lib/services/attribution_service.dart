@@ -130,50 +130,69 @@ class AttributionService {
     }
   }
 
+  /// Helper to check if a UTM parameter has meaningful value (filters out (not set), none, null, organic, etc.)
+  static bool isValidUtm(String? val) {
+    if (val == null) return false;
+    final trimmed = val.trim().toLowerCase();
+    if (trimmed.isEmpty) return false;
+    if (trimmed == 'organic' ||
+        trimmed == 'none' ||
+        trimmed == 'null' ||
+        trimmed == 'undefined' ||
+        trimmed == 'unknown' ||
+        trimmed == '(not set)' ||
+        trimmed == '(notset)' ||
+        trimmed == 'not set' ||
+        trimmed == 'not_set' ||
+        trimmed == 'notset') {
+      return false;
+    }
+    return true;
+  }
+
   /// Save UTM parameters directly from map (e.g. from deep link query params or install referrer)
   Future<void> saveAttributionFromMap(Map<String, String> queryParams) async {
     final prefs = await SharedPreferences.getInstance();
     
-    String? source = queryParams['utm_source'] ?? queryParams['source'];
-    String? medium = queryParams['utm_medium'] ?? queryParams['medium'];
-    String? campaign = queryParams['utm_campaign'] ?? queryParams['campaign'] ?? queryParams['campaign_id'];
-    String? content = queryParams['utm_content'] ?? queryParams['content'] ?? queryParams['ad_id'];
-    String? term = queryParams['utm_term'] ?? queryParams['term'] ?? queryParams['adset_id'];
+    String? rawSource = queryParams['utm_source'] ?? queryParams['source'];
+    String? rawMedium = queryParams['utm_medium'] ?? queryParams['medium'];
+    String? rawCampaign = queryParams['utm_campaign'] ?? queryParams['campaign'] ?? queryParams['campaign_id'];
+    String? rawContent = queryParams['utm_content'] ?? queryParams['content'] ?? queryParams['ad_id'];
+    String? rawTerm = queryParams['utm_term'] ?? queryParams['term'] ?? queryParams['adset_id'];
     
     final fbclid = queryParams['fbclid'];
     final gclid = queryParams['gclid'];
 
+    String? source = isValidUtm(rawSource) ? rawSource : null;
+    String? medium = isValidUtm(rawMedium) ? rawMedium : null;
+    String? campaign = isValidUtm(rawCampaign) ? rawCampaign : null;
+    String? content = isValidUtm(rawContent) ? rawContent : null;
+    String? term = isValidUtm(rawTerm) ? rawTerm : null;
+
     // 1. Capture Meta Click ID (fbclid) if present
-    if (fbclid != null && fbclid.isNotEmpty) {
+    if (fbclid != null && fbclid.isNotEmpty && isValidUtm(fbclid)) {
       await prefs.setString('fbclid', fbclid);
       if (kDebugMode) debugPrint("🔵 Captured Meta Click ID (fbclid): $fbclid");
       
-      // Auto-infer Meta source if utm_source is not explicitly set
-      if (source == null || source.isEmpty || source.toLowerCase() == 'organic' || source.toLowerCase() == 'none') {
+      // Auto-infer Meta source if utm_source is missing or was (not set)
+      if (source == null) {
         source = 'meta';
         medium = medium ?? 'cpc';
       }
     }
 
     // 2. Capture Google Click ID (gclid) if present
-    if (gclid != null && gclid.isNotEmpty) {
+    if (gclid != null && gclid.isNotEmpty && isValidUtm(gclid)) {
       await prefs.setString('gclid', gclid);
       if (kDebugMode) debugPrint("🟢 Captured Google Click ID (gclid): $gclid");
 
-      if (source == null || source.isEmpty || source.toLowerCase() == 'organic' || source.toLowerCase() == 'none') {
+      if (source == null) {
         source = 'google';
         medium = medium ?? 'cpc';
       }
     }
 
-    final normalizedSource = source?.toLowerCase() ?? '';
-    
-    if (source != null && 
-        source.isNotEmpty && 
-        normalizedSource != 'organic' && 
-        normalizedSource != 'none' && 
-        normalizedSource != 'null') {
-      
+    if (source != null && source.isNotEmpty) {
       await prefs.setString('utm_source', source);
       await prefs.setString('utm_medium', medium ?? 'app');
       await prefs.setString('utm_campaign', campaign ?? '');
