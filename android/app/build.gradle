@@ -39,7 +39,7 @@ android {
         applicationId = "com.snss.ebs.kisan_sewa_kendra"
 
         minSdkVersion flutter.minSdkVersion
-        targetSdk 36
+        targetSdk 35
 
         versionCode = flutter.versionCode
         versionName = flutter.versionName

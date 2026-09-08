@@ -1,0 +1,11 @@
+# Functions local artifacts
+node_modules/
+.runtimeconfig.json
+lib/
+firebase-debug.log
+firebase-debug.*.log
+
+# Private keys (safety check)
+*.json
+!package.json
+!package-lock.json

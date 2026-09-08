@@ -1,0 +1,12 @@
+{
+  "name": "dev-fcm-tester",
+  "version": "1.0.0",
+  "description": "Development-only data-only FCM test sender",
+  "main": "send_data_only.js",
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  },
+  "scripts": {
+    "send": "node send_data_only.js"
+  }
+}

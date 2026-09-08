@@ -1,0 +1,25 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Notifications Collection: Locked for clients.
+    // Triggered by Cloud Functions using Admin SDK.
+    match /notifications/{notificationId} {
+      allow read, write: if false;
+    }
+
+    // Scheduled Notifications Collection:
+    // Readable by Admins, Managed via Callable functions.
+    match /scheduled_notifications/{scheduleId} {
+      allow read: if request.auth != null && request.auth.token.admin == true;
+      allow write: if false;
+    }
+
+    // Default: Allow authenticated users to read/write their own data if needed,
+    // but for now, keep everything else locked unless specified.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -30,6 +30,7 @@ class _MyHomePageState extends State<MyHomePage>
   bool get wantKeepAlive => true;
 
   int _currentIndex = 0;
+  int _adminTriggerCount = 0;
   final ScrollController _scrollController = ScrollController();
   bool _isDataLoaded = false;
 
@@ -423,13 +424,30 @@ class _MyHomePageState extends State<MyHomePage>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      "KrishiBhandar v3.0.0",
-                      style: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        // Secret Trigger: Triple-tap version info
+                        debugPrint("[ADMIN-TRIGGER] Version tapped: ${_adminTriggerCount + 1}");
+                        _adminTriggerCount++;
+                        if (_adminTriggerCount >= 3) {
+                          debugPrint("[ADMIN-TRIGGER] Triple tap detected");
+                          _adminTriggerCount = 0;
+                          debugPrint("[ADMIN-TRIGGER] Navigating to admin login: ${Routers.adminLogin}");
+                          Navigator.pushNamed(context, Routers.adminLogin);
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Text(
+                          "KrishiBhandar v3.0.0",
+                          style: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
