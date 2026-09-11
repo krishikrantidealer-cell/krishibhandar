@@ -858,10 +858,11 @@ class AppLocalizationsTa extends AppLocalizations {
   String get cancel => 'ரத்து';
 
   @override
-  String get addFollowingToGetFree => 'Add following to get free:';
+  String get addFollowingToGetFree =>
+      'இலவசமாகப் பெற பின்வருவனவற்றைச் சேர்க்கவும்:';
 
   @override
-  String get loading => 'Loading...';
+  String get loading => 'ஏற்றுகிறது...';
 
   @override
   String get shippingInfo => 'ஷிப்பிங் தகவல்';

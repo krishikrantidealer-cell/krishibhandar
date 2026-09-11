@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:kisan_sewa_kendra/components/cart_icon.dart';
 import 'package:kisan_sewa_kendra/components/products_grid.dart';
 import 'package:kisan_sewa_kendra/controller/constants.dart';
-import 'package:kisan_sewa_kendra/shopify/shopify.dart';
+import '../services/api_service.dart';
 
 import '../controller/pref.dart';
 import '../controller/routers.dart';
@@ -97,7 +97,7 @@ class _CollectionViewState extends State<CollectionView>
   _init() async {
     if (!mounted) return;
     var col =
-        await Shopify.getCollectionDetails(context, id: widget.collectionId);
+        await ApiService.getCollection(id: widget.collectionId);
     if (mounted && widget.title == null) {
       setState(() {
         _title = "${col['title'] ?? ''}";

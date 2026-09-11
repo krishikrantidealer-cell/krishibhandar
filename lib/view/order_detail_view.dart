@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../model/order_model.dart';
 import '../controller/constants.dart';
-import '../shopify/shopify.dart';
+import '../services/api_service.dart';
 import '../components/network_image.dart';
 import '../controller/cart_controller.dart';
 import '../controller/routers.dart';
@@ -34,8 +34,8 @@ class _OrderDetailViewState extends State<OrderDetailView> {
   Future<void> _refreshOrder() async {
     setState(() => _isLoading = true);
     try {
-      final data = await ShopifyAPI.getOrderFullDetails(widget.order.id);
-      if (data.isNotEmpty && mounted) {
+      final data = await ApiService.getOrderById(widget.order.id);
+      if (data != null && data.isNotEmpty && mounted) {
         OrderModel freshOrder = OrderModel.fromJson(data);
 
         // Preserve images from initial order if fresh data is missing them
@@ -267,7 +267,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                   }
                 },
                 icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                label: Text(AppLocalizations.of(context)!.trackOnShopify),
+                label: Text(AppLocalizations.of(context)!.trackOrder),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Constants.baseColor,
                   side: BorderSide(color: Constants.baseColor, width: 1.5),
@@ -783,8 +783,8 @@ class _OrderDetailViewState extends State<OrderDetailView> {
     ).then((confirmed) async {
       if (confirmed == true && mounted) {
         setState(() => _isLoading = true);
-        final success = await ShopifyAPI.cancelOrder(widget.order.id);
-        if (success) {
+        final res = await ApiService.cancelOrder(widget.order.id);
+        if (res.success) {
           if (mounted) {
             // Immediately update local state so the Cancel button hides at once,
             // without waiting for _refreshOrder() to get the updated API response.

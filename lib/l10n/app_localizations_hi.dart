@@ -848,7 +848,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get addFollowingToGetFree => 'मुफ्त पाने के लिए निम्नलिखित जोड़ें:';
 
   @override
-  String get loading => 'Loading...';
+  String get loading => 'लोड हो रहा है...';
 
   @override
   String get shippingInfo => 'शिपिंग जानकारी';

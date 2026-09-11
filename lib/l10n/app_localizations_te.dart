@@ -849,10 +849,11 @@ class AppLocalizationsTe extends AppLocalizations {
   String get cancel => 'రద్దు చేయి';
 
   @override
-  String get addFollowingToGetFree => 'Add following to get free:';
+  String get addFollowingToGetFree =>
+      'ఉచితంగా పొందడానికి కింది వాటిని జోడించండి:';
 
   @override
-  String get loading => 'Loading...';
+  String get loading => 'లోడ్ అవుతోంది...';
 
   @override
   String get shippingInfo => 'షిప్పింగ్ సమాచారం';

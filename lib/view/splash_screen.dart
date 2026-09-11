@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:kisan_sewa_kendra/controller/auth_controller.dart';
 import 'package:kisan_sewa_kendra/controller/technical_mapping_controller.dart';
 import 'package:kisan_sewa_kendra/view/home_view.dart';
+import 'package:kisan_sewa_kendra/view/auth/login_view.dart';
+import 'package:kisan_sewa_kendra/view/auth/complete_profile_view.dart';
 import '../controller/constants.dart';
 import '../controller/update_service.dart';
 
@@ -104,18 +106,14 @@ class _SplashScreenState extends State<SplashScreen>
       await Constants.fetchRemoteConfig(context);
       await TechnicalMappingController().ensureLoaded();
 
-      // Auto-heal missing Shopify Customer ID if phone is already saved
+      // Sync customer profile status if phone is already saved
       final phone = await AuthController.getSavedPhone();
-      final shopifyId = await AuthController.getShopifyCustomerId();
-      if (phone != null &&
-          phone.isNotEmpty &&
-          (shopifyId == null || shopifyId.isEmpty || shopifyId == "null")) {
-        debugPrint(
-            "Splash: Auto-healing missing Shopify Customer ID for phone: $phone");
-        // Run Shopify sync to fetch and save customer ID in background
-        AuthController.syncWithShopify(phone).catchError((e) {
-          debugPrint("Splash: Auto-heal error: $e");
-        });
+      if (phone != null && phone.isNotEmpty) {
+        try {
+          await AuthController.syncWithBackend(phone).timeout(const Duration(seconds: 3));
+        } catch (e) {
+          debugPrint("Splash: Profile sync error: $e");
+        }
       }
     } catch (e) {
       debugPrint("Init Error: $e");
@@ -135,11 +133,26 @@ class _SplashScreenState extends State<SplashScreen>
       await Future.delayed(const Duration(milliseconds: 500));
 
       if (mounted) {
+        final bool loggedIn = await AuthController.isLoggedIn();
+        final bool isProfileCompleted = await AuthController.isProfileCompleted();
+        final String? savedPhone = await AuthController.getSavedPhone();
+        final String? savedName = await AuthController.getSavedName();
+        final String? customerId = await AuthController.getCustomerId();
+
+        final Widget destination = !loggedIn
+            ? const LoginView()
+            : (!isProfileCompleted
+                ? CompleteProfileView(
+                    phone: savedPhone ?? '',
+                    name: savedName,
+                    customerId: customerId,
+                  )
+                : const MyHomePage());
+
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const MyHomePage(),
+            pageBuilder: (context, animation, secondaryAnimation) => destination,
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);

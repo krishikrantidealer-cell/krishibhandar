@@ -21,7 +21,7 @@ import '../components/widget_button.dart';
 import '../controller/constants.dart';
 import '../controller/routers.dart';
 import '../model/product_model.dart';
-import '../shopify/shopify.dart';
+import '../services/api_service.dart';
 import '../controller/cart_controller.dart';
 import '../services/attribution_service.dart';
 import '../utils/meta_events.dart';
@@ -62,8 +62,7 @@ class MyWidgetFactory extends WidgetFactory {
     double? width,
   }) {
     debugPrint("DEBUG: [MyWidgetFactory] buildWebView called for URL: $url");
-    // Returning null or SizedBox.shrink() here suppresses the internal iframe rendering
-    // so we can use our dedicated ShopifyIframeWidget without duplication.
+    // Suppresses the internal iframe rendering
     return const SizedBox.shrink();
   }
 }
@@ -201,14 +200,12 @@ class _ProductViewState extends State<ProductView>
     final productId = widget.product?.id.toString() ?? widget.id;
     if (productId == null) return;
 
-    final localized = await Shopify.getProductDetails(
-      context,
+    final localized = await ApiService.getProductDetails(
       productId: productId,
     );
     if (!mounted) return;
-    _recommend = await Shopify.getProductsRecommend(
-      context,
-      id: productId,
+    _recommend = await ApiService.getProductsRecommend(
+      productId: productId,
     );
 
     if (widget.product == null && localized != null) {
@@ -1721,20 +1718,20 @@ class _PromoBannersState extends State<_PromoBanners> {
           children: const [
             _PromoBannerCard(
               imageUrl:
-                  "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Dizoxy_Top_6af007fe-8df9-446e-bf10-7c37add2e8ed.png?v=1778659719",
-              productId: "8270562328729",
+                  "https://storage.googleapis.com/bhandar-product-images/banners/home/home_banner1_1782219844203_full.webp",
+              productId: "rakshak-novaluron-indoxacarb-sc",
             ),
             SizedBox(height: 16),
             _PromoBannerCard(
               imageUrl:
-                  "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Cargar_76360ba7-5801-464e-a78a-b9c81a5a8d63.png?v=1778660266",
-              productId: "7926676848793",
+                  "https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Insecticides_1782219848442_full.webp",
+              productId: "krishikranti-clearmite-insecticide-for-mites-thrips-control-in-chilli-cotton-vegetables",
             ),
             SizedBox(height: 16),
             _PromoBannerCard(
               imageUrl:
-                  "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/ChatGPT_Image_May_13_2026_12_55_33_PM.png?v=1778657162",
-              productId: "8074173350041",
+                  "https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Fungicides_1782219847975_full.webp",
+              productId: "krishikranti-vardha-kasugamycin-3-sl-systemic-fungicide-bactericide",
             ),
           ],
         ),
@@ -1765,7 +1762,7 @@ class _PromoBannerCardState extends State<_PromoBannerCard> {
       onTap: () async {
         try {
           if (!mounted) return;
-          final product = await Shopify.getProductDetails(context,
+          final product = await ApiService.getProductDetails(
               productId: widget.productId);
           if (product != null && mounted) {
             Routers.goTO(context, toBody: ProductView(product: product));

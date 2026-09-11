@@ -30,7 +30,7 @@ class _AgriAdvisorState extends State<AgriAdvisor> {
             ),
           ),
           KskNetworkImage(
-            "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/NEW_PRODUCT_480x480.png?v=1723707591",
+            "https://storage.googleapis.com/bhandar-product-images/banners/home/home_banner1_1782219844203_full.webp",
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),

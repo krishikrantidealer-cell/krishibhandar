@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../controller/constants.dart';
 import '../controller/auth_controller.dart';
-import '../shopify/shopify.dart';
+import '../services/api_service.dart';
 import '../model/order_model.dart';
 import 'order_detail_view.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -73,10 +73,12 @@ class _OrderViewState extends State<OrderView>
             const Duration(seconds: 10)) {
       return;
     }
-    final customerId = await AuthController.getShopifyCustomerId();
-    if (customerId == null) return;
+    final phone = await AuthController.getSavedPhone();
+    final customerId = await AuthController.getCustomerId();
+    final identifier = (phone != null && phone.isNotEmpty) ? phone : customerId;
+    if (identifier == null || identifier.isEmpty) return;
     try {
-      final orderData = await ShopifyAPI.getCustomerOrders(customerId);
+      final orderData = await ApiService.getOrdersByCustomer(identifier);
       if (mounted) {
         setState(() {
           _orders = orderData.map((e) => OrderModel.fromJson(e)).toList();
@@ -86,30 +88,20 @@ class _OrderViewState extends State<OrderView>
     } catch (_) {}
   }
 
-  /// Fetch orders using the Shopify customer ID saved after checkout.
-  /// No login required — customer ID is set automatically via syncCustomerFromOrder.
+  /// Fetch orders using the customer phone / ID saved after checkout or login.
   Future<void> _fetchOrders() async {
-    var customerId = await AuthController.getShopifyCustomerId();
+    final phone = await AuthController.getSavedPhone();
+    final customerId = await AuthController.getCustomerId();
+    final identifier = (phone != null && phone.isNotEmpty) ? phone : customerId;
 
-    // Auto-heal missing customer ID if phone is saved when loading the screen
-    if (customerId == null || customerId.isEmpty || customerId == "null") {
-      final phone = await AuthController.getSavedPhone();
-      if (phone != null && phone.isNotEmpty) {
-        if (mounted) setState(() => _isLoadingOrders = true);
-        await AuthController.syncWithShopify(phone);
-        customerId = await AuthController.getShopifyCustomerId();
-      }
-    }
-
-    // No customer ID means user hasn't placed an order yet — show empty state.
-    if (customerId == null || customerId.isEmpty || customerId == "null") {
+    if (identifier == null || identifier.isEmpty || identifier == "null") {
       if (mounted) setState(() => _isLoadingOrders = false);
       return;
     }
 
     if (mounted) setState(() => _isLoadingOrders = true);
     try {
-      final orderData = await ShopifyAPI.getCustomerOrders(customerId);
+      final orderData = await ApiService.getOrdersByCustomer(identifier);
       if (mounted) {
         setState(() {
           _orders = orderData.map((e) => OrderModel.fromJson(e)).toList();

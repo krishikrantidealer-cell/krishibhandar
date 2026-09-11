@@ -6,7 +6,7 @@ import '../controller/routers.dart';
 import '../controller/technical_mapping_controller.dart';
 import '../model/product_model.dart';
 import '../model/technical_mapping_model.dart';
-import '../shopify/shopify.dart';
+import '../services/api_service.dart';
 import '../view/product_view.dart';
 import 'network_image.dart';
 import '../services/attribution_service.dart';
@@ -177,7 +177,7 @@ class CustomSearchDelegate extends SearchDelegate<String> {
     }
 
     return FutureBuilder<List<ProductModel>>(
-      future: Shopify.fetchSearchResults(context, query: query),
+      future: ApiService.fetchSearchResults(query: query),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -206,7 +206,7 @@ class CustomSearchDelegate extends SearchDelegate<String> {
     }
 
     return FutureBuilder<List<ProductModel>>(
-      future: Shopify.fetchSearchResults(context, query: query),
+      future: ApiService.fetchSearchResults(query: query),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());

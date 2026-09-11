@@ -8,7 +8,7 @@ import 'package:kisan_sewa_kendra/view/cart_view.dart';
 import '../controller/constants.dart';
 import '../controller/routers.dart';
 import '../model/product_model.dart';
-import '../shopify/shopify.dart';
+import '../services/api_service.dart';
 import '../view/product_view.dart';
 import '../controller/cart_controller.dart';
 import '../utils/firebase_events.dart';
@@ -101,18 +101,16 @@ class ProductsGridState extends State<ProductsGrid>
       List<ProductModel> list = [];
 
       if (widget.id != null && widget.id!.isNotEmpty && widget.id != "0") {
-        final result = await Shopify.getProductsFromCollections(
-          context,
+        final result = await ApiService.getProductsFromCollections(
           id: widget.id!,
           limit: widget.limit != null
               ? (widget.limit! + (widget.excludeIds?.length ?? 0))
               : null,
         );
-        list = (result['product'] as List<dynamic>?)?.cast<ProductModel>() ??
+        list = (result['products'] as List<dynamic>?)?.cast<ProductModel>() ??
             <ProductModel>[];
       } else if (widget.query != null && widget.query!.isNotEmpty) {
-        list = await Shopify.fetchSearchResults(
-          context,
+        list = await ApiService.fetchSearchResults(
           query: widget.query!,
         );
       }

@@ -11,7 +11,7 @@ import '../controller/cart_controller.dart';
 import '../controller/auth_controller.dart';
 import 'checkout/address_view.dart';
 import 'checkout/coupons_view.dart';
-import 'checkout/shiprocket_checkout_view.dart';
+import 'checkout/checkout_view.dart';
 
 class CartView extends StatefulWidget {
   const CartView({super.key});
@@ -38,9 +38,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Reload cart when returning to foreground — catches the case where
-    // clearCart() was called in ShiprocketCheckoutView (underneath in stack)
-    // and the in-memory _cartItems list still holds stale data.
+    // Reload cart when returning to foreground
     if (state == AppLifecycleState.resumed) {
       _init(skipValidation: true);
     }
@@ -1189,7 +1187,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
       // Automatically open checkout after address is saved on first time,
       // so user doesn't have to tap the button again.
       if (mounted) {
-        _openShiprocketCheckout();
+        _openCheckout();
       }
     } else {
       _loadDefaultAddress();
@@ -1256,14 +1254,14 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                 ),
               )
             else
-              // Online Payment
+              // Proceed to Checkout
               Expanded(
                 child: GestureDetector(
-                  onTap: _isProcessingOrder ? null : _openShiprocketCheckout,
+                  onTap: _isProcessingOrder ? null : _openCheckout,
                   child: _checkoutButton(
-                    label: AppLocalizations.of(context)!.onlinePayment,
+                    label: AppLocalizations.of(context)!.checkout,
                     color: Constants.baseColor,
-                    icon: Icons.payment_rounded,
+                    icon: Icons.shopping_bag_outlined,
                   ),
                 ),
               ),
@@ -1310,7 +1308,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                       style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w900,
                           color: Colors.white,
-                          fontSize: 12,
+                          fontSize: 14,
                           letterSpacing: 0.5),
                     ),
                   ),
@@ -1320,13 +1318,13 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
     );
   }
 
-  /// Opens Shiprocket checkout — user picks online payment or COD inside Shiprocket.
-  void _openShiprocketCheckout() {
+  /// Opens native Checkout screen (Razorpay online payment or Cash on Delivery).
+  void _openCheckout() {
     AttributionService.logInitiateCheckout(_getFinalTotal());
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ShiprocketCheckoutView(
+        builder: (_) => CheckoutView(
           cartItems: _cartItems,
           totalAmount: _getFinalTotal(),
           couponCode: _appliedDiscount?['code']?.toString(),
@@ -1339,9 +1337,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
         ),
       ),
     ).then((_) {
-      // Reload cart from SharedPreferences when returning from checkout.
-      // Handles the case where clearCart() was called on order success
-      // but CartView was still alive in the stack with stale in-memory data.
+      // Reload cart when returning from checkout (in case order was placed and cart cleared)
       if (mounted) {
         _init(skipValidation: true);
       }

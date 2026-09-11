@@ -6,6 +6,10 @@ enum PrefKey {
   checkoutId,
   userAccessToken,
   userAccessTokenExp,
+  authToken,
+  customerId,
+  customerRole,
+  isProfileCompleted,
 }
 
 class Pref {

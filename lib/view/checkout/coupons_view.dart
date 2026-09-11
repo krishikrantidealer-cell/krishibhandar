@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kisan_sewa_kendra/controller/auth_controller.dart';
 import '../../controller/constants.dart';
-import '../../shopify/shopify.dart';
+import '../../services/api_service.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import '../product_view.dart';
 import '../../model/product_model.dart';
@@ -53,8 +53,6 @@ class _CouponsViewState extends State<CouponsView> {
     // New Customer Check
     final selection = coupon['customerSelection'];
     if (selection != null && selection['allCustomers'] == false) {
-      // Since segments query was breaking visibility, we use keywords as a fallback
-      // plus the fact that it's restricted (allCustomers = false)
       final title = (coupon['title'] ?? '').toString().toLowerCase();
       final summary = (coupon['summary'] ?? '').toString().toLowerCase();
       bool isNewCustomerTargeted =
@@ -106,15 +104,17 @@ class _CouponsViewState extends State<CouponsView> {
 
     // Fetch customer orders to check "new customer" or "one use" status
     try {
-      final customerId = await AuthController.getShopifyCustomerId();
-      if (customerId != null) {
-        _customerOrders = await ShopifyAPI.getCustomerOrders(customerId);
+      final phone = await AuthController.getSavedPhone();
+      final customerId = await AuthController.getCustomerId();
+      final identifier = (phone != null && phone.isNotEmpty) ? phone : customerId;
+      if (identifier != null && identifier.isNotEmpty) {
+        _customerOrders = await ApiService.getOrdersByCustomer(identifier);
       }
     } catch (e) {
       debugPrint("Error fetching customer orders for coupon validation: $e");
     }
 
-    final results = await ShopifyAdmin.getAvailableDiscounts();
+    final results = await ApiService.getAvailableDiscounts();
 
     // Filter out coupons that have already been used by this customer
     final filteredResults = results.where((coupon) {
@@ -141,7 +141,7 @@ class _CouponsViewState extends State<CouponsView> {
     if (code.isEmpty) return;
     setState(() => _isLoading = true);
 
-    final result = await ShopifyAdmin.validateDiscountCode(code: code);
+    final result = await ApiService.validateDiscountCode(code);
 
     if (mounted) {
       if (result != null) {

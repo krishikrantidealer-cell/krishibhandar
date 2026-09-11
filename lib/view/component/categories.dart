@@ -7,7 +7,7 @@ import '../../components/widget_button.dart';
 import '../../controller/constants.dart';
 import '../../controller/routers.dart';
 import '../../model/categories_model.dart';
-import '../../shopify/shopify.dart';
+import '../../services/api_service.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import '../collection_view.dart';
 
@@ -49,7 +49,7 @@ class _CategoriesState extends State<Categories>
       setState(() => _isLoading = true);
     }
 
-    final all = await Shopify.getCategories(context);
+    final all = await ApiService.getCategoriesList();
 
     // 1. Filter out meta-categories, promotional banners, and irrelevant sections
     // 2. Ensure only categories with valid images are shown

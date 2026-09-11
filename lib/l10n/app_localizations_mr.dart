@@ -843,10 +843,10 @@ class AppLocalizationsMr extends AppLocalizations {
   String get cancel => 'रद्द करा';
 
   @override
-  String get addFollowingToGetFree => 'Add following to get free:';
+  String get addFollowingToGetFree => 'मोफत मिळवण्यासाठी खालील जोडा:';
 
   @override
-  String get loading => 'Loading...';
+  String get loading => 'लोड होत आहे...';
 
   @override
   String get shippingInfo => 'शिपिंग माहिती';

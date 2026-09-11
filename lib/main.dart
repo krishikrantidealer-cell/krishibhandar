@@ -17,6 +17,15 @@ import 'utils/meta_events.dart';
 import 'utils/notification_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'controller/language_controller.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'blocs/cart/cart_bloc.dart';
+import 'blocs/cart/cart_event.dart';
+import 'blocs/auth/auth_bloc.dart';
+import 'blocs/auth/auth_event.dart';
+import 'blocs/language/language_bloc.dart';
+import 'blocs/language/language_event.dart';
+import 'blocs/language/language_state.dart';
+import 'controller/routers.dart';
 import 'view/splash_screen.dart';
 import 'view/product_view.dart';
 import 'view/collection_view.dart';
@@ -109,8 +118,23 @@ void main() async {
     debugPrint("Core Firebase Error: $e");
   }
 
-  // 7. Always run the app
-  runApp(MyApp(languageController: Constants.languageController));
+  // 7. Always run the app with MultiBlocProvider
+  runApp(
+    MultiBlocProvider(
+      providers: [
+        BlocProvider<CartBloc>(
+          create: (_) => CartBloc()..add(const LoadCartEvent()),
+        ),
+        BlocProvider<AuthBloc>(
+          create: (_) => AuthBloc()..add(const CheckAuthStatusEvent()),
+        ),
+        BlocProvider<LanguageBloc>(
+          create: (_) => LanguageBloc()..add(const LoadLanguageEvent()),
+        ),
+      ],
+      child: MyApp(languageController: Constants.languageController),
+    ),
+  );
 }
 
 void _initDeepLinks() {
@@ -194,13 +218,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: languageController,
-      builder: (context, child) {
+    return BlocBuilder<LanguageBloc, LanguageState>(
+      builder: (context, languageState) {
         return MaterialApp(
           title: Constants.title,
           debugShowCheckedModeBanner: false,
-          locale: languageController.locale,
+          locale: languageState.locale,
           localizationsDelegates: const [
             AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,
@@ -251,33 +274,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
           navigatorKey: navigatorKey,
-          onGenerateRoute: (settings) {
-            final name = settings.name ?? '';
-            if (name.startsWith('/product/')) {
-              final id = name.replaceFirst('/product/', '');
-              return MaterialPageRoute(
-                builder: (context) => ProductView(id: id),
-              );
-            }
-            if (name.startsWith('/category/')) {
-              final id = name.replaceFirst('/category/', '');
-              return MaterialPageRoute(
-                builder: (context) => CollectionView(collectionId: id),
-              );
-            }
-            if (name == '/cart') {
-              return MaterialPageRoute(
-                builder: (context) => const CartView(),
-              );
-            }
-            if (name == '/home') {
-              return MaterialPageRoute(
-                builder: (context) => const MyHomePage(),
-              );
-            }
-            // Add other routes as needed
-            return null;
-          },
+          onGenerateRoute: Routers.generateRoute,
           home: const SplashScreen(),
         );
       },

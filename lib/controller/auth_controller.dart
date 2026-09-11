@@ -1,41 +1,25 @@
 import 'dart:convert';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
 import '../services/attribution_service.dart';
-import 'constants.dart';
 import 'pref.dart';
 
 class AuthController {
-  static final FirebaseAuth _auth = FirebaseAuth.instance;
   static bool isSyncing = false;
 
   // Keys for SharedPreferences
   static const String _keyPhone = 'user_phone';
   static const String _keyName = 'user_name';
-  static const String _keyShopifyId = 'shopify_customer_id';
+  static const String _keyCustomerId = 'customer_id';
   static const String _keyEmail = 'user_email';
   static const String _keyState = 'user_state';
   static const String _keyAddressList = 'user_address_list';
-
+  static const String _keyIsProfileCompleted = 'is_profile_completed';
 
   static Future<String?> getSavedPhone() async {
     final prefs = await SharedPreferences.getInstance();
-    String? phone = prefs.getString(_keyPhone);
-    if (phone == null || phone.isEmpty) {
-      final addresses = await getStoredAddresses();
-      if (addresses.isNotEmpty) {
-        for (var addr in addresses) {
-          final p = addr['phone'];
-          if (p != null && p.trim().isNotEmpty) {
-            phone = p.trim();
-            break;
-          }
-        }
-      }
-    }
-    return phone;
+    return prefs.getString(_keyPhone);
   }
 
   static Future<String?> getSavedName() async {
@@ -43,14 +27,29 @@ class AuthController {
     return prefs.getString(_keyName);
   }
 
-  static Future<String?> getShopifyCustomerId() async {
+  static Future<String?> getCustomerId() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_keyShopifyId);
+    return prefs.getString(_keyCustomerId);
   }
 
   static Future<String?> getSavedEmail() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_keyEmail);
+  }
+
+  static Future<bool> isProfileCompleted() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyIsProfileCompleted) ?? false;
+  }
+
+  static Future<void> setProfileCompleted(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyIsProfileCompleted, value);
+  }
+
+  static Future<bool> isLoggedIn() async {
+    final token = await ApiService.getAuthToken();
+    return token != null && token.trim().isNotEmpty;
   }
 
   static Future<void> saveAddress({
@@ -78,18 +77,26 @@ class AuthController {
     };
 
     List<Map<String, String>> current = await getStoredAddresses();
-
     current.insert(0, address); // Add new address at the top
     await prefs.setString(_keyAddressList, jsonEncode(current));
 
-    if (name != null) {
+    if (name != null && name.isNotEmpty) {
       await prefs.setString(_keyName, name);
-      // Background sync name to Shopify
-      _updateShopifyCustomerName(name);
+      _updateCustomerName(name);
     }
 
     if (phone != null && phone.isNotEmpty) {
       await prefs.setString(_keyPhone, phone);
+    }
+
+    // Sync address to backend if authenticated
+    try {
+      final custId = await getCustomerId();
+      if (custId != null && custId.isNotEmpty) {
+        await ApiService.addAddress(custId, address);
+      }
+    } catch (e) {
+      debugPrint('AuthController: saveAddress remote sync error: $e');
     }
   }
 
@@ -128,32 +135,21 @@ class AuthController {
     }
   }
 
-  static Future<void> _updateShopifyCustomerName(String name) async {
+  static Future<void> _updateCustomerName(String name) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final String? customerId = prefs.getString(_keyShopifyId);
-      if (customerId == null) return;
+      final custId = await getCustomerId();
+      if (custId == null || custId.isEmpty) return;
 
       final names = name.split(' ');
       final firstName = names.first;
       final lastName = names.length > 1 ? names.sublist(1).join(' ') : '';
 
-      const String baseUrl = "https://3b7f20-3.myshopify.com/admin/api/2024-10";
-      await http.put(
-        Uri.parse('$baseUrl/customers/$customerId.json'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': Constants.shopifyAccessToken,
-        },
-        body: jsonEncode({
-          "customer": {
-            "id": customerId,
-            "first_name": firstName,
-            "last_name": lastName,
-          }
-        }),
-      );
-      debugPrint('AuthController: Synced name "$name" to Shopify');
+      await ApiService.updateCustomer(custId, {
+        "name": name,
+        "first_name": firstName,
+        "last_name": lastName,
+      });
+      debugPrint('AuthController: Synced name "$name" to backend');
     } catch (e) {
       debugPrint('AuthController: Name sync error: $e');
     }
@@ -199,240 +195,137 @@ class AuthController {
     };
   }
 
-  // ─── Send OTP (Bypassed) ──────────────────────────────────────────────────
-  static Future<void> sendOtp({
+  // ─── Send OTP via Backend ──────────────────────────────────────────────────
+  static Future<ApiResponse<Map<String, dynamic>>> sendOtp({
     required String phone,
-    required Function(String verificationId) onCodeSent,
-    required Function(String error) onError,
-    required VoidCallback onAutoVerified,
   }) async {
-    // Firebase OTP login is commented out completely
-    onError('Firebase OTP is disabled');
+    return await ApiService.sendOtp(phone);
   }
 
-  // ─── Verify OTP (Bypassed) ────────────────────────────────────────────────
-  static Future<bool> verifyOtp({
-    required String verificationId,
-    required String smsCode,
+  // ─── Verify OTP via Backend ────────────────────────────────────────────────
+  static Future<ApiResponse<Map<String, dynamic>>> verifyOtp({
     required String phone,
-    required Function(String error) onError,
+    required String otp,
   }) async {
-    // Firebase OTP login is commented out completely
-    return true;
-  }
+    final cleanPhone = phone.replaceAll(RegExp(r'[^\d]'), '');
+    final response = await ApiService.verifyOtp(cleanPhone, otp);
 
-  // ─── Sync with Shopify ────────────────────────────────────────────────────
-  static Future<void> syncWithShopify(String phone) async {
-    isSyncing = true;
-    
-    // AppsFlyer Event: Login
-    AttributionService.logLogin();
-
-    try {
-      const String baseUrl = "https://3b7f20-3.myshopify.com/admin/api/2024-10";
-      Map<String, String> headers = {
-        'Content-Type': 'application/json',
-        'X-Shopify-Access-Token': Constants.shopifyAccessToken,
-      };
-
+    if (response.success && response.data != null) {
       final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyPhone, cleanPhone);
 
-      // ── User-switch guard ────────────────────────────────────────────────
-      // If a different phone is logging in (e.g. app update, shared device),
-      // wipe the previous user's data so their orders/addresses don't leak.
+      final customer = response.data!['customer'];
+      if (customer != null) {
+        await _saveCustomerToPrefs(customer, prefs);
+      } else {
+        await prefs.setBool(_keyIsProfileCompleted, false);
+      }
+
+      // Attribution
+      AttributionService.logLogin();
+    }
+
+    return response;
+  }
+
+  // ─── Sync with Backend ────────────────────────────────────────────────────
+  static Future<void> syncWithBackend(String phone) async {
+    isSyncing = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
       final savedPhone = prefs.getString(_keyPhone);
       final normalizedIncoming = phone.replaceAll(RegExp(r'[^\d]'), '');
       final normalizedSaved = savedPhone?.replaceAll(RegExp(r'[^\d]'), '') ?? '';
+
       if (normalizedSaved.isNotEmpty && normalizedSaved != normalizedIncoming) {
-        debugPrint('AuthController: New user detected ($normalizedSaved → $normalizedIncoming). Clearing old user data.');
+        debugPrint('AuthController: New user detected. Clearing old user data.');
         await Future.wait([
           prefs.remove(_keyPhone),
           prefs.remove(_keyName),
-          prefs.remove(_keyShopifyId),
+          prefs.remove(_keyCustomerId),
           prefs.remove(_keyEmail),
           prefs.remove(_keyAddressList),
           prefs.remove(_keyState),
         ]);
+        await ApiService.clearAuthToken();
       }
-      // ────────────────────────────────────────────────────────────────────
 
-      // 1. Consolidated Search (Faster: 1 request instead of 3)
-      // We search for E.164, local format, and raw digits in one go using OR
-      final String query = 'phone:"+91$phone" OR phone:"$phone" OR "$phone"';
-      var searchRes = await http.get(
-        Uri.parse(
-            '$baseUrl/customers/search.json?query=${Uri.encodeComponent(query)}&limit=1'),
-        headers: headers,
-      );
+      await prefs.setString(_keyPhone, normalizedIncoming);
 
-      var searchData =
-          searchRes.statusCode == 200 ? jsonDecode(searchRes.body) : {};
-      var customers = searchData['customers'] as List?;
-
-      // 2. Process Result or Create
-      if (customers != null && customers.isNotEmpty) {
-        final customer = customers[0];
-        await _saveShopifyCustomerToPrefs(customer, prefs);
-      } else {
-        // Create new customer
-        final createRes = await http.post(
-          Uri.parse('$baseUrl/customers.json'),
-          headers: headers,
-          body: jsonEncode({
-            "customer": {
-              "phone": "+91$phone",
-              "first_name": "Krishi",
-              "last_name": "Customer",
-              "tags": "mobile-app",
-            }
-          }),
-        );
-
-        if (createRes.statusCode == 201) {
-          final createData = jsonDecode(createRes.body);
-          await _saveShopifyCustomerToPrefs(createData['customer'], prefs);
-        } else if (createRes.statusCode == 422) {
-          // If creation fails because phone is "taken" but search didn't find them,
-          // it's likely a formatting edge case. Do a final broad digits-only search.
-          var finalSearch = await http.get(
-            Uri.parse('$baseUrl/customers/search.json?query=$phone&limit=1'),
-            headers: headers,
-          );
-          var finalData =
-              finalSearch.statusCode == 200 ? jsonDecode(finalSearch.body) : {};
-          var finalCustomers = finalData['customers'] as List?;
-          if (finalCustomers != null && finalCustomers.isNotEmpty) {
-            await _saveShopifyCustomerToPrefs(finalCustomers[0], prefs);
-          }
-        }
+      // Fetch profile if token exists
+      final profile = await ApiService.getCurrentCustomer();
+      if (profile != null) {
+        await _saveCustomerToPrefs(profile, prefs);
       }
     } catch (e) {
-      debugPrint('AuthController: Shopify sync error: $e');
+      debugPrint('AuthController: syncWithBackend error: $e');
     } finally {
       isSyncing = false;
     }
   }
 
-  static Future<void> _saveShopifyCustomerToPrefs(
+  static Future<void> _saveCustomerToPrefs(
       dynamic customer, SharedPreferences prefs) async {
-    await prefs.setString(_keyShopifyId, customer['id'].toString());
-    await prefs.setString(
-        _keyName,
-        '${customer['first_name'] ?? ''} ${customer['last_name'] ?? ''}'
-            .trim());
-    await prefs.setString(_keyEmail, customer['email'] ?? '');
-    debugPrint('AuthController: Synced Shopify Customer ID: ${customer['id']}');
+    final id = (customer['_id'] ?? customer['id'])?.toString() ?? '';
+    if (id.isNotEmpty) {
+      await prefs.setString(_keyCustomerId, id);
+    }
+
+    final name = (customer['name'] ?? '${customer['first_name'] ?? ''} ${customer['last_name'] ?? ''}').toString().trim();
+    if (name.isNotEmpty) {
+      await prefs.setString(_keyName, name);
+    }
+
+    if (customer['email'] != null) {
+      await prefs.setString(_keyEmail, customer['email'].toString());
+    }
+
+    // Determine isProfileCompleted status
+    final hasAddresses = (customer['addresses'] is List && (customer['addresses'] as List).isNotEmpty) ||
+        (customer['defaultAddress'] != null &&
+            ((customer['defaultAddress']['address1']?.toString().isNotEmpty == true) ||
+                (customer['defaultAddress']['city']?.toString().isNotEmpty == true) ||
+                (customer['defaultAddress']['zip']?.toString().isNotEmpty == true)));
+
+    final isCompleted = customer['isprofilecompleted'] == true ||
+        customer['isProfileCompleted'] == true ||
+        (name.isNotEmpty && hasAddresses);
+
+    await prefs.setBool(_keyIsProfileCompleted, isCompleted);
+
+    // Load addresses from customer object if available
+    if (customer['addresses'] is List && (customer['addresses'] as List).isNotEmpty) {
+      final addrList = (customer['addresses'] as List).map((a) {
+        if (a is Map) {
+          return {
+            'pincode': (a['zip'] ?? a['pincode'] ?? '').toString(),
+            'address1': (a['address1'] ?? '').toString(),
+            'address2': (a['address2'] ?? '').toString(),
+            'city': (a['city'] ?? '').toString(),
+            'state': (a['province'] ?? a['state'] ?? '').toString(),
+            'name': (a['name'] ?? name).toString(),
+            'phone': (a['phone'] ?? customer['phone'] ?? '').toString(),
+          };
+        }
+        return <String, String>{};
+      }).where((m) => m.isNotEmpty).toList();
+
+      if (addrList.isNotEmpty) {
+        await prefs.setString(_keyAddressList, jsonEncode(addrList));
+      }
+    }
+
+    debugPrint('AuthController: Synced Customer ID: $id, isProfileCompleted: $isCompleted');
   }
 
   static Future<void> syncCustomerFromOrder(String orderIdOrName) async {
     try {
-      const String baseUrl = "https://3b7f20-3.myshopify.com/admin/api/2024-10";
-      Map<String, String> headers = {
-        'Content-Type': 'application/json',
-        'X-Shopify-Access-Token': Constants.shopifyAccessToken,
-      };
-
-      dynamic order;
-
-      // 1. Try fetching as order ID first (numeric)
-      if (RegExp(r'^\d+$').hasMatch(orderIdOrName)) {
-        var res = await http.get(
-          Uri.parse('$baseUrl/orders/$orderIdOrName.json'),
-          headers: headers,
-        );
-        if (res.statusCode == 200) {
-          order = jsonDecode(res.body)['order'];
-        }
-      } else {
-        // A. Search matching order by checking latest orders (to handle checkout_token / cart_token / name)
-        // We poll up to 5 times (total 15 seconds) because external checkout systems (Fastrr) 
-        // create orders asynchronously.
-        int attempts = 5;
-        for (int i = 0; i < attempts; i++) {
-          var res = await http.get(
-            Uri.parse('$baseUrl/orders.json?limit=30&status=any'),
-            headers: headers,
-          );
-          if (res.statusCode == 200) {
-            final orders = jsonDecode(res.body)['orders'] as List?;
-            if (orders != null && orders.isNotEmpty) {
-              for (var ord in orders) {
-                final ordToken = ord['checkout_token']?.toString() ?? '';
-                final ordCartToken = ord['cart_token']?.toString() ?? '';
-                final ordName = ord['name']?.toString() ?? '';
-
-                if (ordToken.toLowerCase() == orderIdOrName.toLowerCase() ||
-                    ordCartToken.toLowerCase() == orderIdOrName.toLowerCase() ||
-                    ordName.toLowerCase() == orderIdOrName.toLowerCase()) {
-                  order = ord;
-                  debugPrint("🎯 syncCustomerFromOrder: Found matching order: ${ord['id']} on attempt ${i + 1}");
-                  break;
-                }
-              }
-            }
-          }
-
-          if (order != null) break;
-
-          if (i < attempts - 1) {
-            debugPrint("⏳ syncCustomerFromOrder: Order $orderIdOrName not found in Shopify yet (attempt ${i + 1}/$attempts). Retrying in 3 seconds...");
-            await Future.delayed(const Duration(seconds: 3));
-          }
-        }
-
-        // B. Fallback: Search latest order in the system if created in the last 10 minutes
-        if (order == null) {
-          var res = await http.get(
-            Uri.parse('$baseUrl/orders.json?limit=1&status=any'),
-            headers: headers,
-          );
-          if (res.statusCode == 200) {
-            final orders = jsonDecode(res.body)['orders'] as List?;
-            if (orders != null && orders.isNotEmpty) {
-              final latestOrder = orders.first;
-              final createdAtStr = latestOrder['created_at']?.toString();
-              if (createdAtStr != null) {
-                final createdAt = DateTime.tryParse(createdAtStr);
-                if (createdAt != null) {
-                  final difference = DateTime.now().toUtc().difference(createdAt.toUtc()).inMinutes;
-                  if (difference.abs() <= 10) {
-                    order = latestOrder;
-                    debugPrint("🎯 syncCustomerFromOrder: Matched order based on latest order fallback (created $difference min ago): ${order['id']}");
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-
+      final order = await ApiService.getOrderById(orderIdOrName);
       if (order != null) {
         final customer = order['customer'];
-        final shipping = order['shipping_address'];
-        final billing = order['billing_address'];
-
-        String? phone;
-        if (customer != null && customer['phone'] != null) {
-          phone = customer['phone'].toString();
-        }
-        phone ??= shipping?['phone']?.toString() ?? billing?['phone']?.toString();
-
-        if (phone != null && phone.isNotEmpty) {
-          // Normalize phone number to 10 digits
-          phone = phone.replaceAll(RegExp(r'[^\d]'), '');
-          if (phone.startsWith('91') && phone.length > 10) {
-            phone = phone.substring(2);
-          }
-
+        if (customer != null) {
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString(_keyPhone, phone);
-          
-          if (customer != null && customer['id'] != null) {
-            await _saveShopifyCustomerToPrefs(customer, prefs);
-            debugPrint('AuthController: Synced Customer ID ${customer['id']} from Order successfully.');
-          } else {
-            await syncWithShopify(phone);
-          }
+          await _saveCustomerToPrefs(customer, prefs);
         }
       }
     } catch (e) {
@@ -443,17 +336,20 @@ class AuthController {
   // ─── Sign Out ─────────────────────────────────────────────────────────────
   static Future<void> signOut() async {
     try {
-      await _auth.signOut();
+      await ApiService.logout();
     } catch (_) {}
+
     final prefs = await SharedPreferences.getInstance();
     await Future.wait([
       prefs.remove(_keyPhone),
       prefs.remove(_keyName),
-      prefs.remove(_keyShopifyId),
+      prefs.remove(_keyCustomerId),
       prefs.remove(_keyEmail),
       prefs.remove(_keyAddressList),
       prefs.remove(_keyState),
+      prefs.remove(_keyIsProfileCompleted),
     ]);
+    await Pref.removePrefKey(PrefKey.authToken);
     debugPrint('AuthController: All user data cleared on sign-out');
   }
 }

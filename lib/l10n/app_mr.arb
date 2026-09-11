@@ -262,5 +262,7 @@
   "clearCartConfirm": "कार्ट रिकामी करायची?",
   "clearCartConfirmMsg": "तुम्ही खरोखर तुमच्या कार्टमधून सर्व आयटम काढू इच्छिता?",
   "cancel": "रद्द करा",
+  "addFollowingToGetFree": "मोफत मिळवण्यासाठी खालील जोडा:",
+  "loading": "लोड होत आहे...",
   "shippingInfo": "शिपिंग माहिती"
 }

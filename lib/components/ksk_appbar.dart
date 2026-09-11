@@ -11,7 +11,6 @@ import '../controller/constants.dart';
 import '../controller/pref.dart';
 import '../controller/routers.dart';
 import '../model/product_model.dart';
-import '../shopify/shopify.dart';
 import '../view/cart_view.dart';
 import '../view/home_view.dart';
 import '../view/product_view.dart';

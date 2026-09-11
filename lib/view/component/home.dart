@@ -18,7 +18,7 @@ import '../collection_view.dart';
 import '../product_view.dart';
 import '../../model/categories_model.dart';
 import '../../model/product_model.dart';
-import '../../shopify/shopify.dart';
+import '../../services/api_service.dart';
 
 class Home extends StatefulWidget {
   final ScrollController scrollController;
@@ -78,39 +78,37 @@ class _HomeState extends State<Home> {
   }
 
   Future<void> _fetchBanners() async {
-    final banners = await Shopify.getBannerCollections(context);
+    final homeBanners = await ApiService.getBanners(type: 'home');
+    List<CategoriesModel> bannerList = [];
+    if (homeBanners.isNotEmpty) {
+      bannerList = homeBanners.map((e) => CategoriesModel.fromJson({
+        'id': e['_id'] ?? e['id'] ?? '',
+        'title': e['title'] ?? '',
+        'handle': e['linkValue'] ?? e['handle'] ?? '',
+        'image': e['imageUrl'] ?? e['image'] ?? '',
+      })).toList();
+    } else {
+      bannerList = await ApiService.getBannerCollections();
+    }
     if (mounted) {
       setState(() {
-        _banners = banners;
+        _banners = bannerList;
         _isLoadingBanners = false;
       });
-      // Preload banner images (DISABLED for 3GB RAM stability)
-      // for (var banner in _banners) {
-      //   if (banner.image.isNotEmpty) {
-      //     precacheImage(NetworkImage(banner.image), context);
-      //   }
-      // }
     }
   }
 
   Future<void> _fetchBestSellerIds() async {
     final allCats = Constants.homeScreenCatBanners;
-    String? bestSellerId;
-    for (var cat in allCats) {
-      if (cat['image']?.toLowerCase().contains('best') ?? false) {
-        bestSellerId = cat['id'];
-        break;
-      }
-    }
+    String? bestSellerId = allCats.isNotEmpty ? allCats.first['id'] : null;
 
     if (bestSellerId != null) {
-      final result = await Shopify.getProductsFromCollections(
-        context,
+      final result = await ApiService.getProductsFromCollections(
         id: bestSellerId,
         limit: 10,
       );
       final List<ProductModel> products =
-          (result['product'] as List<dynamic>?)?.cast<ProductModel>() ?? [];
+          (result['products'] as List<dynamic>?)?.cast<ProductModel>() ?? [];
       if (mounted) {
         setState(() {
           _bestSellerIds = products.map((p) => p.id).toList();
@@ -120,86 +118,59 @@ class _HomeState extends State<Home> {
   }
 
   void _handleBannerClick(CategoriesModel banner) async {
-    int index = _banners.indexOf(banner);
+    if (banner.handle.isNotEmpty) {
+      if (banner.handle.startsWith('http')) {
+        await launchUrlString(banner.handle, mode: LaunchMode.externalApplication);
+        return;
+      } else if (banner.handle.length == 24) {
+        // Category ObjectId
+        Routers.goTO(context, toBody: CollectionView(collectionId: banner.handle, title: banner.title));
+        return;
+      } else {
+        await _openProduct(banner.handle);
+        return;
+      }
+    }
 
-    // 🟢 Banner 1 → Product: Rakshak
+    int index = _banners.indexOf(banner);
     if (index == 0) {
       await _openProduct("rakshak-novaluron-indoxacarb-sc");
-    }
-
-    // 🟢 Banner 2 → Play Store
-    else if (index == 1) {
+    } else if (index == 1) {
       await launchUrlString(
           "https://play.google.com/store/apps/details?id=com.snss.ebs.kisan_sewa_kendra",
           mode: LaunchMode.externalApplication);
-    }
-
-    // 🟢 Banner 3 → Product: Grow Genius
-    else if (index == 2) {
-      await _openProduct("grow-genius-gibberellic-acid-0-001-l-plant-growth-regulator");
-    }
-
-    // 🟢 Banner 4 → Play Store
-    else if (index == 3) {
-      await launchUrlString(
-          "https://play.google.com/store/apps/details?id=com.snss.ebs.kisan_sewa_kendra",
-          mode: LaunchMode.externalApplication);
-    }
-
-    // 🟢 Banner 5 → Product: Humic Acid
-    else if (index == 4) {
-      await _openProduct("humic-acid-premium-quality");
-    }
-
-    // 🛑 Fallback
-    else {
-      Routers.goTO(
-        context,
-        toBody: CollectionView(
-          collectionId: "329026142361",
-        ),
-      );
     }
   }
 
   Future<void> _openProduct(String handle,
       {String? fallbackCollectionId}) async {
     try {
-      // debugPrint("🔍 Fetching product handle: $handle");
+      final product = await ApiService.getProductDetails(productId: handle);
+      if (product != null && mounted) {
+        Routers.goTO(context, toBody: ProductView(product: product));
+        return;
+      }
 
-      final results = await Shopify.fetchSearchResults(context, query: handle);
-
-      // debugPrint("🔍 Search results count: ${results.length}");
-      // debugPrint("   → handle: ${r.handle}  title: ${r.title}");
-
-      if (results.isNotEmpty) {
-        // Try exact handle match first, fallback to first result
-        final product = results.any((p) => p.handle == handle)
+      final results = await ApiService.fetchSearchResults(query: handle);
+      if (results.isNotEmpty && mounted) {
+        final found = results.any((p) => p.handle == handle)
             ? results.firstWhere((p) => p.handle == handle)
             : results.first;
-
-        if (mounted) {
-          Routers.goTO(context, toBody: ProductView(product: product));
-        }
-      } else {
-        // debugPrint("⚠️ Product not found: $handle");
-        if (mounted) {
-          // Fallback → go to a collection if provided
-          if (fallbackCollectionId != null) {
-            Routers.goTO(context,
-                toBody: CollectionView(collectionId: fallbackCollectionId));
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Product not available right now."),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
+        Routers.goTO(context, toBody: ProductView(product: found));
+      } else if (mounted) {
+        if (fallbackCollectionId != null) {
+          Routers.goTO(context,
+              toBody: CollectionView(collectionId: fallbackCollectionId));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Product not available right now."),
+              duration: Duration(seconds: 2),
+            ),
+          );
         }
       }
     } catch (e) {
-      // debugPrint("❌ Product open error: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -213,7 +184,7 @@ class _HomeState extends State<Home> {
 
   Future<void> _openProductById(String id) async {
     try {
-      final product = await Shopify.getProductDetails(context, productId: id);
+      final product = await ApiService.getProductDetails(productId: id);
       if (product != null && mounted) {
         Routers.goTO(context, toBody: ProductView(product: product));
       } else if (mounted) {
@@ -237,70 +208,89 @@ class _HomeState extends State<Home> {
   }
 
   Future<void> _initCategories() async {
-    final allCategories =
-        await Shopify.getCategories(context, forcedLang: 'EN');
+    final allCategories = await ApiService.getCategoriesList();
 
-    final List<String> orderedTitles = [
-      'PGRs',
-      'Insecticides',
-      'Fungicides',
-      'Fertilizers',
-      'Herbicides',
-      'NPK Fertilizers',
-      'Bio-Pesticides',
-      'Bio-Fungicide',
-      'Bio-Fertilizers',
+    final List<Map<String, dynamic>> target9Categories = [
+      {
+        'title': 'PGRs',
+        'aliases': ['pgrs', 'pgr', 'growth promoter', 'plant growth regulator'],
+        'defaultImage':
+            'https://storage.googleapis.com/bhandar-product-images/banners/category/Bio-Products_1782219846548_full.webp',
+      },
+      {
+        'title': 'Insecticides',
+        'aliases': ['insecticides', 'insecticide', 'organic insecticides'],
+        'defaultImage':
+            'https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Insecticides_1782219848442_full.webp',
+      },
+      {
+        'title': 'Fungicides',
+        'aliases': ['fungicides', 'fungicide', 'organic fungicdes'],
+        'defaultImage':
+            'https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Fungicides_1782219847975_full.webp',
+      },
+      {
+        'title': 'Fertilizers',
+        'aliases': ['fertilizer', 'fertilizers', 'organic fertilizers'],
+        'defaultImage':
+            'https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Fertilizers_1782219847513_full.webp',
+      },
+      {
+        'title': 'Herbicides',
+        'aliases': ['herbicides', 'herbicide', 'weedicide', 'weedicides'],
+        'defaultImage':
+            'https://storage.googleapis.com/bhandar-product-images/banners/category/Bio_Nematicide_1782219846072_full.webp',
+      },
+      {
+        'title': 'NPK Fertilizers',
+        'aliases': ['npk fertilizers', 'npk', 'npk fertilizer'],
+        'defaultImage':
+            'https://storage.googleapis.com/bhandar-product-images/banners/category/Micronutrients_1782219847036_full.webp',
+      },
+      {
+        'title': 'Bio-Pesticides',
+        'aliases': [
+          'bio-pesticides',
+          'bio-pesticide',
+          'bio pesticide',
+          'bio pesticides',
+          'biological pesticide'
+        ],
+        'defaultImage':
+            'https://storage.googleapis.com/bhandar-product-images/banners/category/Bio-Products_1782219846548_full.webp',
+      },
+      {
+        'title': 'Bio-Fungicide',
+        'aliases': [
+          'bio-fungicide',
+          'bio-fungicides',
+          'bio fungicide',
+          'bio fungicides'
+        ],
+        'defaultImage':
+            'https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Fungicides_1782219847975_full.webp',
+      },
+      {
+        'title': 'Bio-Fertilizers',
+        'aliases': [
+          'bio_fertilizers',
+          'bio-fertilizer',
+          'bio-fertilizers',
+          'bio fertilizer',
+          'bio fertilizers'
+        ],
+        'defaultImage':
+            'https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Fertilizers_1782219847513_full.webp',
+      },
     ];
 
-    final Map<String, List<String>> titleAliases = {
-      'PGRs': [
-        'PGR',
-        'Growth Promoter',
-        'Plant Growth Regulator',
-        'Growth Promoters',
-        'Growth Promotors',
-        'Promoter',
-        'PGRS'
-      ],
-      'Insecticides': ['Insecticide', 'Insecticides'],
-      'Fungicides': ['Fungicide', 'Fungicides'],
-      'Fertilizers': [
-        'Fertilizer',
-        'Fertilizers',
-        'Organic Fertilizer',
-        'Organic Fertilizers',
-        'Bio-Fertilizer',
-        'Bio Fertilizer'
-      ],
-      'Herbicides': ['Herbicide', 'Herbicides', 'Weedicide'],
-      'NPK Fertilizers': ['NPK', 'NPK Fertilizer', 'NPK Fertilizers'],
-      'Bio-Pesticides': [
-        'Bio-Pesticide',
-        'Bio Pesticide',
-        'Biological Pesticide',
-        'Bio-Insecticide',
-        'Bio Insecticide',
-        'Bio-Pesticides'
-      ],
-      'Bio-Fungicide': [
-        'Bio-Fungicide',
-        'Bio Fungicide',
-        'Biological Fungicide',
-        'Bio-Fungicides'
-      ],
-      'Bio-Fertilizers': [
-        'Bio-Fertilizer',
-        'Bio Fertilizer',
-        'Biological Fertilizer',
-        'Bio-Fertilizers'
-      ],
-    };
-
     List<CategoriesModel> filtered = [];
-    for (var title in orderedTitles) {
-      CategoriesModel? found;
+    for (var target in target9Categories) {
+      final title = target['title'] as String;
+      final aliases = target['aliases'] as List<String>;
+      final defaultImage = target['defaultImage'] as String;
 
-      List<String> aliases = titleAliases[title] ?? [title];
+      CategoriesModel? found;
       for (var alias in aliases) {
         for (var cat in allCategories) {
           final catTitle = cat.title.toLowerCase().trim();
@@ -314,19 +304,21 @@ class _HomeState extends State<Home> {
         if (found != null) break;
       }
 
-      if (found != null) {
-        final isSvg =
-            found.image.split('?').first.toLowerCase().endsWith('.svg');
-        if (isSvg) {
-          filtered.add(CategoriesModel(
-            id: found.id,
-            title: _getLocalizedCategoryTitle(context, title),
-            handle: found.handle,
-            description: found.description,
-            image: found.image,
-          ));
-        }
-      }
+      final categoryId = found?.id ?? title.toLowerCase().replaceAll(' ', '-');
+      final categoryHandle = found?.handle.isNotEmpty == true
+          ? found!.handle
+          : title.toLowerCase().replaceAll(' ', '-');
+      final categoryImage = (found != null && found.image.isNotEmpty)
+          ? found.image
+          : defaultImage;
+
+      filtered.add(CategoriesModel(
+        id: categoryId,
+        title: _getLocalizedCategoryTitle(context, title),
+        handle: categoryHandle,
+        description: found?.description ?? '',
+        image: categoryImage,
+      ));
     }
 
     if (mounted) {
@@ -334,12 +326,6 @@ class _HomeState extends State<Home> {
         _categories = filtered;
         _isLoadingCats = false;
       });
-      // Pre-cache SVGs (DISABLED for 3GB RAM stability)
-      // for (var cat in _categories) {
-      //   if (cat.image.isNotEmpty) {
-      //     DefaultCacheManager().downloadFile(cat.image);
-      //   }
-      // }
     }
   }
 
@@ -590,43 +576,8 @@ class _HomeState extends State<Home> {
       return const SizedBox.shrink();
     }
 
-    // Mapping Titles and Subtitles from instructions
-    String title = "";
-    String subtitle = "";
-
-    switch (id) {
-      case "329119367321":
-        title = "Best Seller";
-        subtitle = "Top performing farming products";
-        break;
-      case "329026371737":
-        title = "Insecticide";
-        subtitle = "Protect crops from insects";
-        break;
-      case "329026175129":
-        title = "Fungicide";
-        subtitle = "Advanced disease control";
-        break;
-      case "329026142361":
-        title = "Fertilizer";
-        subtitle = "Better nutrition for crops";
-        break;
-      case "329026240665":
-        title = "Herbicide";
-        subtitle = "Effective weed management";
-        break;
-      case "329026470041":
-        title = "Top Growth Promoters";
-        subtitle = "Faster and healthier growth";
-        break;
-      case "333391134873":
-        title = "Buy 1 Get 1 Free";
-        subtitle = "Limited time special offers";
-        break;
-      default:
-        title = "Featured Selection";
-        subtitle = "Premium quality farming essentials";
-    }
+    String title = data['title'] ?? "Featured Selection";
+    String subtitle = data['subtitle'] ?? "Premium quality farming essentials";
 
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 250),
@@ -713,31 +664,31 @@ class _HomeState extends State<Home> {
             children: [
               _CollectionCard(
                 imageUrl:
-                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Bio-Products.png?v=1778653230",
+                    "https://storage.googleapis.com/bhandar-product-images/banners/category/Bio-Products_1782219846548_full.webp",
                 onTap: () => Routers.goTO(context,
-                    toBody: CollectionView(
-                        collectionId: "329337798809", title: "Bio Products")),
+                    toBody: const CollectionView(
+                        collectionId: "6a3935cebd6e0cfbef015a6a", title: "Bio Products")),
               ),
               _CollectionCard(
                 imageUrl:
-                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Insecticides_caa2d9e9-b52e-41e8-ab52-2d7ba95a8da0.png?v=1778653230",
+                    "https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Insecticides_1782219848442_full.webp",
                 onTap: () => Routers.goTO(context,
-                    toBody: CollectionView(
-                        collectionId: "329026371737", title: "Insecticides")),
+                    toBody: const CollectionView(
+                        collectionId: "6a3935cebd6e0cfbef015a5f", title: "Insecticides")),
               ),
               _CollectionCard(
                 imageUrl:
-                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Fungicides_b66a7ccd-99d4-40ee-a069-17413504bcf2.png?v=1778653230",
+                    "https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Fungicides_1782219847975_full.webp",
                 onTap: () => Routers.goTO(context,
-                    toBody: CollectionView(
-                        collectionId: "329026175129", title: "Fungicides")),
+                    toBody: const CollectionView(
+                        collectionId: "6a3935cebd6e0cfbef015a5d", title: "Fungicides")),
               ),
               _CollectionCard(
                 imageUrl:
-                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/PGRs.png?v=1778653230",
+                    "https://storage.googleapis.com/bhandar-product-images/banners/category/Bio-Products_1782219846548_full.webp",
                 onTap: () => Routers.goTO(context,
-                    toBody: CollectionView(
-                        collectionId: "329026470041", title: "PGRs")),
+                    toBody: const CollectionView(
+                        collectionId: "6a3935cebd6e0cfbef015a60", title: "PGRs")),
               ),
             ],
           ),
@@ -746,8 +697,8 @@ class _HomeState extends State<Home> {
         Center(
           child: _PremiumExploreButton(
             onTap: () => Routers.goTO(context,
-                toBody: CollectionView(
-                    collectionId: "329119367321", title: "Best Sellers")),
+                toBody: const CollectionView(
+                    collectionId: "6a3935cebd6e0cfbef015a5f", title: "Best Sellers")),
           ),
         ),
         const SizedBox(height: 24),
@@ -794,25 +745,17 @@ class _HomeState extends State<Home> {
             children: [
               _CollectionCard(
                 imageUrl:
-                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/NPK_Fertilizers.png?v=1778656835",
+                    "https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Fertilizers_1782219847513_full.webp",
                 onTap: () => Routers.goTO(context,
-                    toBody: CollectionView(
-                        collectionId: "329027715225", title: "NPK Fertilizers")),
+                    toBody: const CollectionView(
+                        collectionId: "6a3935cebd6e0cfbef015a69", title: "NPK Fertilizers")),
               ),
               _CollectionCard(
                 imageUrl:
-                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/ChatGPT_Image_May_13_2026_12_14_51_PM.png?v=1778654730",
-                onTap: () => _openProductById("8507485225113"),
-              ),
-              _CollectionCard(
-                imageUrl:
-                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Proper_404_ff6ed463-0058-4ab1-ae59-53942d0a8acc.png?v=1778654565",
-                onTap: () => _openProductById("7926581362841"),
-              ),
-              _CollectionCard(
-                imageUrl:
-                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/ChatGPT_Image_May_16_2026_11_58_03_AM.png?v=1778912897",
-                onTap: () => _openProductById("8568815157401"),
+                    "https://storage.googleapis.com/bhandar-product-images/banners/category/Micronutrients_1782219847036_full.webp",
+                onTap: () => Routers.goTO(context,
+                    toBody: const CollectionView(
+                        collectionId: "6a3935cebd6e0cfbef015a65", title: "Micronutrients")),
               ),
             ],
           ),

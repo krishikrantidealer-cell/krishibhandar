@@ -6,22 +6,17 @@ import 'package:shimmer/shimmer.dart';
 import '../controller/language_controller.dart';
 import '../controller/cart_controller.dart';
 import '../model/localization_model.dart';
-import '../shopify/shopify.dart';
+import '../services/api_service.dart';
 import 'pref.dart';
 
 class Constants {
   static final LanguageController languageController = LanguageController();
   static final CartController cartController = CartController();
   static String cdnUrl =
-      "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/";
+      "https://storage.googleapis.com/bhandar-product-images/";
   static String inr = "₹", title = "Krishi Bhandar";
   static Color baseColor = const Color(0xff26842c);
   static String razorpayKey = dotenv.get('RAZORPAY_KEY', fallback: "");
-
-  static String shopifyAccessToken =
-      dotenv.get('SHOPIFY_ADMIN_ACCESS_TOKEN', fallback: "");
-  static String storefrontAccessToken =
-      dotenv.get('SHOPIFY_STOREFRONT_ACCESS_TOKEN', fallback: "");
 
   static String lang = 'EN';
   static String payOnlineDiscountCode = "PAYONLINE60";
@@ -29,45 +24,59 @@ class Constants {
   static List<Map<String, String>> circles = [],
       homeScreenCatBanners = [
         {
-          "id": "329119367321",
+          "id": "6a3935cebd6e0cfbef015a5f",
+          "title": "Insecticides",
+          "subtitle": "Protect crops from insects",
           "image":
-              "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/best_seller_hindi_new.png?v=1771321702",
-          "color": "#eef9f2",
-        },
-        {
-          "id": "329026371737",
-          "image":
-              "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/insecticides_hindi_new.png?v=1771321759",
+              "https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Insecticides_1782219848442_full.webp",
           "color": "#f0f4ff",
         },
         {
-          "id": "329026175129",
+          "id": "6a3935cebd6e0cfbef015a5d",
+          "title": "Fungicides",
+          "subtitle": "Advanced disease control",
           "image":
-              "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/fungicides_hindi_new.png?v=1771321776",
+              "https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Fungicides_1782219847975_full.webp",
           "color": "#f9f0ff",
         },
         {
-          "id": "329026142361",
+          "id": "6a3935cebd6e0cfbef015a60",
+          "title": "PGRs & Growth Promoters",
+          "subtitle": "Faster and healthier growth",
           "image":
-              "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/fertilizers_hindi_new.png?v=1771321821",
-          "color": "#f0fff4",
-        },
-        {
-          "id": "329026240665",
-          "image":
-              "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/herbicides_hindi_new.png?v=1771321839",
-          "color": "#fff0f0",
-        },
-        {
-          "id": "329026470041",
-          "image":
-              "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/growth_promotors_hindi_new.png?v=1771321881",
+              "https://storage.googleapis.com/bhandar-product-images/banners/category/Bio-Products_1782219846548_full.webp",
           "color": "#f0fcff",
         },
         {
-          "id": "333391134873",
+          "id": "6a3935cebd6e0cfbef015a63",
+          "title": "Bio Fertilizers",
+          "subtitle": "Better nutrition for crops",
           "image":
-              "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/buy_1_get_1_free.png?v=1771321912",
+              "https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Fertilizers_1782219847513_full.webp",
+          "color": "#f0fff4",
+        },
+        {
+          "id": "6a3935cebd6e0cfbef015a5e",
+          "title": "Herbicides",
+          "subtitle": "Effective weed management",
+          "image":
+              "https://storage.googleapis.com/bhandar-product-images/banners/category/Bio_Nematicide_1782219846072_full.webp",
+          "color": "#fff0f0",
+        },
+        {
+          "id": "6a3935cebd6e0cfbef015a69",
+          "title": "NPK Fertilizers",
+          "subtitle": "Water soluble plant nutrition",
+          "image":
+              "https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Fertilizers_1782219847513_full.webp",
+          "color": "#eef9f2",
+        },
+        {
+          "id": "6a3935cebd6e0cfbef015a65",
+          "title": "Micronutrients",
+          "subtitle": "Essential trace elements for yield",
+          "image":
+              "https://storage.googleapis.com/bhandar-product-images/banners/category/Micronutrients_1782219847036_full.webp",
           "color": "#fff9f0",
         },
       ],
@@ -101,33 +110,36 @@ class Constants {
       Color(int.parse(color.replaceFirst('#', '0XFF')));
 
   static Future<void> fetchRemoteConfig(
-    context,
+    BuildContext? context,
   ) async {
     try {
-      final allLangs = await Shopify.getLocalization(context);
-      final allowedIsos = ['HI', 'EN', 'TE'];
-
-      languageList = allLangs
-          .where((l) => allowedIsos.contains(l.iso.toUpperCase()))
-          .toList();
-
-      if (!languageList.any((l) => l.iso.toUpperCase() == 'HI')) {
-        languageList.add(LocalizationModel(name: 'हिंदी', iso: 'HI'));
-      }
-      if (!languageList.any((l) => l.iso.toUpperCase() == 'EN')) {
-        languageList.add(LocalizationModel(name: 'English', iso: 'EN'));
-      }
-      if (!languageList.any((l) => l.iso.toUpperCase() == 'TE')) {
-        languageList.add(LocalizationModel(name: 'తెలుగు', iso: 'TE'));
-      }
+      languageList = [
+        LocalizationModel(name: 'English', iso: 'EN'),
+        LocalizationModel(name: 'हिंदी', iso: 'HI'),
+        LocalizationModel(name: 'తెలుగు', iso: 'TE'),
+      ];
 
       lang = (await Pref.getPref(PrefKey.lang)) ?? "EN";
 
-      final disc =
-          await ShopifyAdmin.validateDiscountCode(code: payOnlineDiscountCode);
-      if (disc != null && disc['type'] == 'fixed_amount') {
-        payOnlineDiscountAmount = disc['value'].toDouble();
-      }
+      // Fetch dynamic banners from backend if available
+      try {
+        final catBanners = await ApiService.getBanners(type: 'category');
+        if (catBanners.isNotEmpty) {
+          homeScreenCatBanners = catBanners.map((b) => {
+            "id": (b['_id'] ?? b['id'] ?? '').toString(),
+            "image": (b['imageUrl'] ?? b['image'] ?? '').toString(),
+            "color": (b['color'] ?? '#f0f4ff').toString(),
+          }).toList();
+        }
+      } catch (_) {}
+
+      // Validate default online discount from backend
+      try {
+        final disc = await ApiService.validateCoupon(payOnlineDiscountCode);
+        if (disc != null) {
+          payOnlineDiscountAmount = (disc['value'] ?? disc['discountValue'] ?? 60.0).toDouble();
+        }
+      } catch (_) {}
     } catch (e) {
       debugPrint("Failed to fetch remote config: $e");
     }

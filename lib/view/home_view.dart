@@ -8,6 +8,7 @@ import 'package:kisan_sewa_kendra/view/support_view.dart';
 import 'package:kisan_sewa_kendra/view/policy_pages.dart';
 
 import '../components/ksk_appbar.dart';
+import '../controller/auth_controller.dart';
 import '../controller/constants.dart';
 import '../controller/routers.dart';
 import '../generated/assets.dart';
@@ -312,6 +313,57 @@ class _MyHomePageState extends State<MyHomePage>
                                   AppLocalizations.of(context)!.termsConditions,
                               content: PolicyContent.termsConditions));
                     }),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                  child: Divider(height: 1, color: Color(0xFFF0F0F0)),
+                ),
+                _drawerItem(
+                  icon: Icons.logout_rounded,
+                  title: "Sign Out",
+                  iconColor: Colors.red.shade600,
+                  textColor: Colors.red.shade600,
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        title: const Text(
+                          "Sign Out",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        content: const Text(
+                          "Are you sure you want to sign out from Krishi Bhandar?",
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text("Cancel"),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red.shade600,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text("Sign Out"),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true && context.mounted) {
+                      await AuthController.signOut();
+                      if (context.mounted) {
+                        Routers.goToLogin(context);
+                      }
+                    }
+                  },
+                ),
               ],
             ),
           ),
@@ -386,6 +438,8 @@ class _MyHomePageState extends State<MyHomePage>
     required String title,
     required VoidCallback onTap,
     bool isSelected = false,
+    Color? iconColor,
+    Color? textColor,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 1.5),
@@ -420,7 +474,9 @@ class _MyHomePageState extends State<MyHomePage>
               Icon(
                 isSelected ? (activeIcon ?? icon) : icon,
                 size: 20,
-                color: isSelected ? Constants.baseColor : Colors.grey[600],
+                color: isSelected
+                    ? Constants.baseColor
+                    : (iconColor ?? Colors.grey[600]),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -429,11 +485,13 @@ class _MyHomePageState extends State<MyHomePage>
                   style: TextStyle(
                     fontSize: 14.2,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                    color: isSelected ? Constants.baseColor : Colors.black87,
+                    color: isSelected
+                        ? Constants.baseColor
+                        : (textColor ?? Colors.black87),
                   ),
                 ),
               ),
-              if (!isSelected)
+              if (!isSelected && iconColor == null)
                 Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 10,

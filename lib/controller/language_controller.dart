@@ -26,4 +26,9 @@ class LanguageController extends ChangeNotifier {
     await Pref.setPref(key: PrefKey.lang, value: langCode);
     notifyListeners();
   }
+
+  void changeLanguage(Locale locale) {
+    setLocale(locale.languageCode);
+  }
 }
+

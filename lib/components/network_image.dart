@@ -35,34 +35,11 @@ class _KskNetworkImageState extends State<KskNetworkImage> {
       );
     }
 
-    // 1. URL Cleanup & Shopify Cloud Transformation
+    // 1. URL Cleanup & Cloud CDN Optimization
     String cleanUrl = widget.imageUrl.trim();
     String finalUrl = cleanUrl;
 
-    if (cleanUrl.contains('shopify.com')) {
-      // Create a clean base URL without existing width/format params
-      Uri uri = Uri.parse(cleanUrl);
-      Map<String, String> params = Map.from(uri.queryParameters);
-
-      // Determine target width (2x for retina density)
-      int widthParam = (widget.width != null &&
-              widget.width! > 0 &&
-              widget.width! != double.infinity)
-          ? (widget.width! * 2).toInt()
-          : 800;
-
-      // FORCE PNG conversion even if the original is an SVG
-      // This solves the 'unimplemented' crash and avoids using vector data
-      params['format'] = 'png';
-      params['width'] = widthParam.toString();
-      params['quality'] = '75'; // Lossy PNG compression for faster loads
-      params['transparent'] = 'true';
-      params['pad'] = '0';
-
-      finalUrl = uri.replace(queryParameters: params).toString();
-    }
-
-    // 2. High-Performance Progressive Loader for PNGs
+    // 2. High-Performance Progressive Image Loader
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: CachedNetworkImage(

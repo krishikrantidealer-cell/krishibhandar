@@ -99,8 +99,7 @@ class OrderModel {
   }
 
   bool get isCancellable {
-    // Also check financialStatus: Shopify sets it to 'voided' or 'refunded'
-    // immediately on cancel, sometimes before cancelled_at propagates in the API.
+    // Also check financialStatus: voided or refunded orders are not cancellable
     final fs = financialStatus.toLowerCase();
     if (fs == 'voided' || fs == 'refunded') return false;
     return cancelledAt == null &&
@@ -175,11 +174,12 @@ class OrderModel {
   }
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
-    List<LineItem> items = (json['line_items'] as List? ?? [])
-        .map((item) => LineItem.fromJson(item))
+    var rawItems = json['line_items'] ?? json['lineItems'] ?? json['items'];
+    List<LineItem> items = (rawItems as List? ?? [])
+        .map((item) => LineItem.fromJson(item is Map ? Map<String, dynamic>.from(item) : {}))
         .toList();
 
-    String? subtotal = json['subtotal_price']?.toString();
+    String? subtotal = (json['subtotal_price'] ?? json['subtotalPrice'] ?? json['subtotal'])?.toString();
     if (subtotal == null ||
         subtotal == '0' ||
         subtotal == '0.0' ||
@@ -191,29 +191,55 @@ class OrderModel {
       subtotal = calculated.toStringAsFixed(2);
     }
 
+    String orderId = (json['id'] ?? json['_id'] ?? '').toString();
+    String orderNum = (json['order_number'] ?? json['orderNumber'] ?? json['name'] ?? orderId).toString();
+
+    // Customer names
+    String? fName = json['customer_first_name']?.toString() ?? json['customer']?['first_name']?.toString() ?? json['customer']?['name']?.toString();
+    String? lName = json['customer_last_name']?.toString() ?? json['customer']?['last_name']?.toString();
+    String? phone = json['customer_phone']?.toString() ?? json['customer']?['phone']?.toString();
+
+    // Shipping address
+    String? shippingAddr;
+    if (json['shipping_address'] != null) {
+      if (json['shipping_address'] is Map) {
+        final sa = json['shipping_address'];
+        shippingAddr = "${sa['address1'] ?? ''}, ${sa['city'] ?? ''}, ${sa['province'] ?? sa['state'] ?? ''} - ${sa['zip'] ?? sa['pincode'] ?? ''}".trim();
+      } else {
+        shippingAddr = json['shipping_address'].toString();
+      }
+    } else if (json['shippingAddress'] != null) {
+      if (json['shippingAddress'] is Map) {
+        final sa = json['shippingAddress'];
+        shippingAddr = "${sa['address1'] ?? ''}, ${sa['city'] ?? ''}, ${sa['province'] ?? sa['state'] ?? ''} - ${sa['zip'] ?? sa['pincode'] ?? ''}".trim();
+      } else {
+        shippingAddr = json['shippingAddress'].toString();
+      }
+    }
+
     return OrderModel(
-      id: json['id'].toString(),
-      orderNumber: json['order_number'].toString(),
-      createdAt: json['created_at'] ?? '',
-      totalPrice: json['total_price'] ?? '0.00',
+      id: orderId,
+      orderNumber: orderNum,
+      createdAt: json['created_at'] ?? json['createdAt'] ?? '',
+      totalPrice: (json['total_price'] ?? json['totalPrice'] ?? json['totalAmount'] ?? '0.00').toString(),
       currency: json['currency'] ?? 'INR',
-      fulfillmentStatus: json['fulfillment_status'] ?? 'pending',
-      financialStatus: json['financial_status'] ?? 'pending',
-      cancelledAt: json['cancelled_at'],
-      closedAt: json['closed_at'],
-      confirmed: json['confirmed'] ?? false,
+      fulfillmentStatus: json['fulfillment_status'] ?? json['fulfillmentStatus'] ?? 'pending',
+      financialStatus: json['financial_status'] ?? json['financialStatus'] ?? 'pending',
+      cancelledAt: json['cancelled_at'] ?? json['cancelledAt'],
+      closedAt: json['closed_at'] ?? json['closedAt'],
+      confirmed: json['confirmed'] ?? true,
       lineItems: items,
       fulfillments: (json['fulfillments'] as List? ?? [])
-          .map((f) => Fulfillment.fromJson(f))
+          .map((f) => Fulfillment.fromJson(f is Map ? Map<String, dynamic>.from(f) : {}))
           .toList(),
       subtotalPrice: subtotal,
-      totalTax: json['total_tax']?.toString(),
-      totalShipping: json['total_shipping']?.toString(),
-      shippingAddress: json['shipping_address']?.toString(),
-      firstName: json['customer_first_name']?.toString(),
-      lastName: json['customer_last_name']?.toString(),
-      customerPhone: json['customer_phone']?.toString(),
-      orderStatusUrl: json['order_status_url']?.toString(),
+      totalTax: (json['total_tax'] ?? json['totalTax'])?.toString(),
+      totalShipping: (json['total_shipping'] ?? json['totalShipping'])?.toString(),
+      shippingAddress: shippingAddr,
+      firstName: fName,
+      lastName: lName,
+      customerPhone: phone,
+      orderStatusUrl: (json['order_status_url'] ?? json['orderStatusUrl'])?.toString(),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../controller/auth_controller.dart';
 import '../controller/constants.dart';
 
 class SupportView extends StatefulWidget {
@@ -23,6 +24,29 @@ class _SupportViewState extends State<SupportView>
 
   @override
   bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    final name = await AuthController.getSavedName();
+    final phone = await AuthController.getSavedPhone();
+    final email = await AuthController.getSavedEmail();
+    if (mounted) {
+      if (name != null && name.isNotEmpty && _nameController.text.isEmpty) {
+        _nameController.text = name;
+      }
+      if (phone != null && phone.isNotEmpty && _phoneController.text.isEmpty) {
+        _phoneController.text = phone;
+      }
+      if (email != null && email.isNotEmpty && _emailController.text.isEmpty) {
+        _emailController.text = email;
+      }
+    }
+  }
 
   Future<void> _submitToWhatsApp() async {
     if (!_formKey.currentState!.validate()) return;
