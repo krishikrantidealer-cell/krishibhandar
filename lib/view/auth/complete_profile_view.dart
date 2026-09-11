@@ -441,13 +441,20 @@ class _CompleteProfileViewState extends State<CompleteProfileView> {
       await AuthController.setProfileCompleted(true);
 
       // 2. Sync with Backend API
-      final customerId = widget.customerId ?? await AuthController.getCustomerId();
+      String? customerId = widget.customerId ?? await AuthController.getCustomerId();
+      if (customerId == null || customerId.isEmpty) {
+        final currentCustomer = await ApiService.getCurrentCustomer();
+        customerId = (currentCustomer?['_id'] ?? currentCustomer?['id'])?.toString();
+      }
+
       if (customerId != null && customerId.isNotEmpty) {
         final updatePayload = {
           'firstName': firstName,
           'lastName': lastName,
+          'name': fullName,
           'email': email,
           'phone': phone,
+          'isProfileCompleted': true,
           'isprofilecompleted': true,
           'defaultAddress': {
             'company': '',

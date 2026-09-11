@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../controller/pref.dart';
 import '../model/categories_model.dart';
 import '../model/product_model.dart';
@@ -22,7 +23,8 @@ class ApiResponse<T> {
 
 class ApiService {
   static String get baseUrl {
-    String url = dotenv.get('BACKEND_URL', fallback: 'http://localhost:5000').trim();
+    String url =
+        dotenv.get('BACKEND_URL', fallback: 'http://localhost:5000').trim();
     if (url.endsWith('/')) {
       url = url.substring(0, url.length - 1);
     }
@@ -43,7 +45,8 @@ class ApiService {
     await Pref.removePrefKey(PrefKey.customerRole);
   }
 
-  static Future<Map<String, String>> _headers({bool isAuthRequired = false}) async {
+  static Future<Map<String, String>> _headers(
+      {bool isAuthRequired = false}) async {
     final headers = <String, String>{
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -73,19 +76,22 @@ class ApiService {
 
       final data = jsonDecode(res.body);
       return ApiResponse(
-        success: res.statusCode == 200 && (data['success'] == true || data['status'] == true),
+        success: res.statusCode == 200 &&
+            (data['success'] == true || data['status'] == true),
         message: data['message'] ?? 'OTP sent',
         data: data is Map<String, dynamic> ? data : null,
         statusCode: res.statusCode,
       );
     } catch (e) {
       debugPrint('ApiService.sendOtp error: $e');
-      return ApiResponse(success: false, message: e.toString(), statusCode: 500);
+      return ApiResponse(
+          success: false, message: e.toString(), statusCode: 500);
     }
   }
 
   /// Verify OTP and obtain JWT Auth Token
-  static Future<ApiResponse<Map<String, dynamic>>> verifyOtp(String phone, String otp) async {
+  static Future<ApiResponse<Map<String, dynamic>>> verifyOtp(
+      String phone, String otp) async {
     try {
       final cleanPhone = phone.replaceAll(RegExp(r'[^\d]'), '');
       final res = await http.post(
@@ -95,24 +101,32 @@ class ApiService {
       );
 
       final data = jsonDecode(res.body);
-      final bool ok = res.statusCode == 200 && (data['success'] == true || data['token'] != null);
+      final bool ok = res.statusCode == 200 &&
+          (data['success'] == true || data['token'] != null);
 
       if (ok && data['token'] != null) {
         await saveAuthToken(data['token'].toString());
         if (data['customer'] != null && data['customer']['_id'] != null) {
-          await Pref.setPref(key: PrefKey.customerId, value: data['customer']['_id'].toString());
+          final custId = data['customer']['_id'].toString();
+          await Pref.setPref(
+              key: PrefKey.customerId,
+              value: custId);
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('customer_id', custId);
         }
       }
 
       return ApiResponse(
         success: ok,
-        message: data['message'] ?? (ok ? 'Verified successfully' : 'Verification failed'),
+        message: data['message'] ??
+            (ok ? 'Verified successfully' : 'Verification failed'),
         data: data is Map<String, dynamic> ? data : null,
         statusCode: res.statusCode,
       );
     } catch (e) {
       debugPrint('ApiService.verifyOtp error: $e');
-      return ApiResponse(success: false, message: e.toString(), statusCode: 500);
+      return ApiResponse(
+          success: false, message: e.toString(), statusCode: 500);
     }
   }
 
@@ -159,13 +173,15 @@ class ApiService {
   static Future<List<CategoriesModel>> getBannerCollections() async {
     try {
       final list = await getBanners(type: 'category');
-      return list.map((e) => CategoriesModel.fromJson({
-        'id': e['_id'] ?? e['id'] ?? 0,
-        'title': e['title'] ?? '',
-        'handle': e['linkUrl'] ?? e['handle'] ?? '',
-        'description': '',
-        'image': e['imageUrl'] ?? e['image'] ?? '',
-      })).toList();
+      return list
+          .map((e) => CategoriesModel.fromJson({
+                'id': e['_id'] ?? e['id'] ?? 0,
+                'title': e['title'] ?? '',
+                'handle': e['linkUrl'] ?? e['handle'] ?? '',
+                'description': '',
+                'image': e['imageUrl'] ?? e['image'] ?? '',
+              }))
+          .toList();
     } catch (e) {
       debugPrint('ApiService.getBannerCollections error: $e');
       return [];
@@ -219,7 +235,9 @@ class ApiService {
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        return data is Map<String, dynamic> ? (data['data'] ?? data['category'] ?? data) : null;
+        return data is Map<String, dynamic>
+            ? (data['data'] ?? data['category'] ?? data)
+            : null;
       }
     } catch (e) {
       debugPrint('ApiService.getCategoryById error: $e');
@@ -234,8 +252,12 @@ class ApiService {
         return {
           "title": cat['title']?.toString() ?? cat['name']?.toString() ?? '',
           "handle": cat['handle']?.toString() ?? cat['slug']?.toString() ?? id,
-          "pro": (cat['products_count'] ?? cat['productCount'] ?? '0').toString(),
-          "image": (cat['image'] is Map ? (cat['image']['src'] ?? cat['image']['url']) : cat['image'] ?? cat['imageUrl'] ?? '').toString(),
+          "pro":
+              (cat['products_count'] ?? cat['productCount'] ?? '0').toString(),
+          "image": (cat['image'] is Map
+                  ? (cat['image']['src'] ?? cat['image']['url'])
+                  : cat['image'] ?? cat['imageUrl'] ?? '')
+              .toString(),
         };
       }
     } catch (e) {
@@ -271,7 +293,8 @@ class ApiService {
         queryParams['sort'] = sort;
       }
 
-      final uri = Uri.parse('$baseUrl/api/products').replace(queryParameters: queryParams);
+      final uri = Uri.parse('$baseUrl/api/products')
+          .replace(queryParameters: queryParams);
       final res = await http.get(uri, headers: await _headers());
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
@@ -287,11 +310,16 @@ class ApiService {
     return {'data': [], 'total': 0};
   }
 
-  static Future<List<ProductModel>> getProductsList({int? limit, String? search, String? categoryId}) async {
+  static Future<List<ProductModel>> getProductsList(
+      {int? limit, String? search, String? categoryId}) async {
     try {
-      final data = await getProducts(limit: limit ?? 50, search: search, categoryId: categoryId);
+      final data = await getProducts(
+          limit: limit ?? 50, search: search, categoryId: categoryId);
       final list = (data['data'] as List? ?? data['products'] as List? ?? []);
-      return list.map((e) => ProductModel.fromJson(e is Map ? Map<String, dynamic>.from(e) : {})).toList();
+      return list
+          .map((e) => ProductModel.fromJson(
+              e is Map ? Map<String, dynamic>.from(e) : {}))
+          .toList();
     } catch (e) {
       debugPrint('ApiService.getProductsList error: $e');
       return [];
@@ -299,7 +327,8 @@ class ApiService {
   }
 
   /// Get products by category
-  static Future<List<Map<String, dynamic>>> getProductsByCategory(String categoryId) async {
+  static Future<List<Map<String, dynamic>>> getProductsByCategory(
+      String categoryId) async {
     try {
       final cleanId = categoryId.trim();
       final res = await http.get(
@@ -336,7 +365,10 @@ class ApiService {
       };
     } catch (e) {
       debugPrint('ApiService.getProductsFromCollections error: $e');
-      return {'products': <ProductModel>[], 'pageInfo': {'hasNextPage': false}};
+      return {
+        'products': <ProductModel>[],
+        'pageInfo': {'hasNextPage': false}
+      };
     }
   }
 
@@ -364,7 +396,8 @@ class ApiService {
     return null;
   }
 
-  static Future<ProductModel?> getProductDetails({required String productId}) async {
+  static Future<ProductModel?> getProductDetails(
+      {required String productId}) async {
     try {
       final p = await getProductByHandle(productId);
       if (p != null) {
@@ -376,11 +409,13 @@ class ApiService {
     return null;
   }
 
-  static Future<List<ProductModel>> getProductsRecommend({required String productId}) async {
+  static Future<List<ProductModel>> getProductsRecommend(
+      {required String productId}) async {
     return await getProductsList(limit: 6);
   }
 
-  static Future<List<ProductModel>> fetchSearchResults({required String query, int? limit}) async {
+  static Future<List<ProductModel>> fetchSearchResults(
+      {required String query, int? limit}) async {
     return await getProductsList(search: query, limit: limit ?? 20);
   }
 
@@ -421,7 +456,8 @@ class ApiService {
   }
 
   /// Update item quantity in cart
-  static Future<bool> updateCartItem(String variantIdOrSku, int quantity) async {
+  static Future<bool> updateCartItem(
+      String variantIdOrSku, int quantity) async {
     try {
       final res = await http.put(
         Uri.parse('$baseUrl/api/cart/items/$variantIdOrSku'),
@@ -450,7 +486,8 @@ class ApiService {
   }
 
   /// Apply coupon to cart
-  static Future<ApiResponse<Map<String, dynamic>>> applyCoupon(String code) async {
+  static Future<ApiResponse<Map<String, dynamic>>> applyCoupon(
+      String code) async {
     try {
       final res = await http.post(
         Uri.parse('$baseUrl/api/cart/apply-coupon'),
@@ -466,7 +503,8 @@ class ApiService {
       );
     } catch (e) {
       debugPrint('ApiService.applyCoupon error: $e');
-      return ApiResponse(success: false, message: e.toString(), statusCode: 500);
+      return ApiResponse(
+          success: false, message: e.toString(), statusCode: 500);
     }
   }
 
@@ -518,7 +556,9 @@ class ApiService {
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        return data is Map<String, dynamic> ? (data['order'] ?? data['data'] ?? data) : null;
+        return data is Map<String, dynamic>
+            ? (data['order'] ?? data['data'] ?? data)
+            : null;
       }
     } catch (e) {
       debugPrint('ApiService.createRazorpayOrder error: $e');
@@ -527,7 +567,8 @@ class ApiService {
   }
 
   /// Create a new order (COD or Online)
-  static Future<ApiResponse<Map<String, dynamic>>> createOrder(Map<String, dynamic> orderData) async {
+  static Future<ApiResponse<Map<String, dynamic>>> createOrder(
+      Map<String, dynamic> orderData) async {
     try {
       final res = await http.post(
         Uri.parse('$baseUrl/api/orders'),
@@ -538,17 +579,21 @@ class ApiService {
       return ApiResponse(
         success: res.statusCode == 200 || res.statusCode == 201,
         message: data['message'],
-        data: data is Map<String, dynamic> ? (data['data'] ?? data['order'] ?? data) : null,
+        data: data is Map<String, dynamic>
+            ? (data['data'] ?? data['order'] ?? data)
+            : null,
         statusCode: res.statusCode,
       );
     } catch (e) {
       debugPrint('ApiService.createOrder error: $e');
-      return ApiResponse(success: false, message: e.toString(), statusCode: 500);
+      return ApiResponse(
+          success: false, message: e.toString(), statusCode: 500);
     }
   }
 
   /// Get orders for a specific customer by phone or email
-  static Future<List<Map<String, dynamic>>> getOrdersByCustomer(String emailOrPhone) async {
+  static Future<List<Map<String, dynamic>>> getOrdersByCustomer(
+      String emailOrPhone) async {
     try {
       final encoded = Uri.encodeComponent(emailOrPhone.trim());
       final res = await http.get(
@@ -580,7 +625,9 @@ class ApiService {
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        return data is Map<String, dynamic> ? (data['data'] ?? data['order'] ?? data) : null;
+        return data is Map<String, dynamic>
+            ? (data['data'] ?? data['order'] ?? data)
+            : null;
       }
     } catch (e) {
       debugPrint('ApiService.getOrderById error: $e');
@@ -589,7 +636,8 @@ class ApiService {
   }
 
   /// Cancel an order
-  static Future<ApiResponse<Map<String, dynamic>>> cancelOrder(String orderId) async {
+  static Future<ApiResponse<Map<String, dynamic>>> cancelOrder(
+      String orderId) async {
     try {
       final res = await http.post(
         Uri.parse('$baseUrl/api/orders/$orderId/cancel'),
@@ -597,14 +645,16 @@ class ApiService {
       );
       final data = jsonDecode(res.body);
       return ApiResponse(
-        success: res.statusCode == 200 && (data['success'] == true || data['status'] == true),
+        success: res.statusCode == 200 &&
+            (data['success'] == true || data['status'] == true),
         message: data['message'] ?? 'Order cancelled',
         data: data is Map<String, dynamic> ? data : null,
         statusCode: res.statusCode,
       );
     } catch (e) {
       debugPrint('ApiService.cancelOrder error: $e');
-      return ApiResponse(success: false, message: e.toString(), statusCode: 500);
+      return ApiResponse(
+          success: false, message: e.toString(), statusCode: 500);
     }
   }
 
@@ -638,16 +688,22 @@ class ApiService {
   static Future<List<Map<String, dynamic>>> getAvailableDiscounts() async {
     try {
       final coupons = await getCoupons();
-      return coupons.map((c) => {
-        'code': c['code'] ?? '',
-        'summary': c['description'] ?? '${c['value'] ?? ''} OFF',
-        'type': (c['valueType'] == 'percentage' || c['discountType'] == 'percentage') ? 'percentage' : 'fixed_amount',
-        'value': c['value'] ?? c['discountValue'] ?? 0,
-        'min_subtotal': c['minimumPurchase'] ?? c['minOrderAmount'] ?? 0,
-        'minAmount': c['minimumPurchase'] ?? c['minOrderAmount'] ?? 0,
-        'appliesOncePerCustomer': c['appliesOncePerCustomer'] ?? false,
-        'startsAt': c['startDate'] ?? c['startsAt'],
-      }).toList();
+      return coupons
+          .map((c) => {
+                'code': c['code'] ?? '',
+                'summary': c['description'] ?? '${c['value'] ?? ''} OFF',
+                'type': (c['valueType'] == 'percentage' ||
+                        c['discountType'] == 'percentage')
+                    ? 'percentage'
+                    : 'fixed_amount',
+                'value': c['value'] ?? c['discountValue'] ?? 0,
+                'min_subtotal':
+                    c['minimumPurchase'] ?? c['minOrderAmount'] ?? 0,
+                'minAmount': c['minimumPurchase'] ?? c['minOrderAmount'] ?? 0,
+                'appliesOncePerCustomer': c['appliesOncePerCustomer'] ?? false,
+                'startsAt': c['startDate'] ?? c['startsAt'],
+              })
+          .toList();
     } catch (e) {
       debugPrint('ApiService.getAvailableDiscounts error: $e');
       return [];
@@ -663,14 +719,24 @@ class ApiService {
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        final coupon = data is Map && data['data'] != null ? data['data'] : (data is Map && data['coupon'] != null ? data['coupon'] : data);
+        final coupon = data is Map && data['data'] != null
+            ? data['data']
+            : (data is Map && data['coupon'] != null ? data['coupon'] : data);
         if (coupon is Map<String, dynamic>) {
           return {
             'code': coupon['code'] ?? code,
-            'type': (coupon['valueType'] == 'percentage' || coupon['discountType'] == 'percentage') ? 'percentage' : 'fixed_amount',
-            'value': (coupon['value'] ?? coupon['discountValue'] ?? 0).toDouble(),
-            'min_subtotal': (coupon['minimumPurchase'] ?? coupon['minOrderAmount'] ?? 0).toDouble(),
-            'minAmount': (coupon['minimumPurchase'] ?? coupon['minOrderAmount'] ?? 0).toDouble(),
+            'type': (coupon['valueType'] == 'percentage' ||
+                    coupon['discountType'] == 'percentage')
+                ? 'percentage'
+                : 'fixed_amount',
+            'value':
+                (coupon['value'] ?? coupon['discountValue'] ?? 0).toDouble(),
+            'min_subtotal':
+                (coupon['minimumPurchase'] ?? coupon['minOrderAmount'] ?? 0)
+                    .toDouble(),
+            'minAmount':
+                (coupon['minimumPurchase'] ?? coupon['minOrderAmount'] ?? 0)
+                    .toDouble(),
           };
         }
       }
@@ -697,7 +763,14 @@ class ApiService {
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        return data is Map<String, dynamic> ? (data['customer'] ?? data) : null;
+        if (data is Map<String, dynamic>) {
+          if (data['data'] is Map<String, dynamic>) {
+            return Map<String, dynamic>.from(data['data']);
+          } else if (data['customer'] is Map<String, dynamic>) {
+            return Map<String, dynamic>.from(data['customer']);
+          }
+          return data;
+        }
       }
     } catch (e) {
       debugPrint('ApiService.getCurrentCustomer error: $e');
@@ -706,7 +779,8 @@ class ApiService {
   }
 
   /// Update customer details
-  static Future<bool> updateCustomer(String customerId, Map<String, dynamic> updateData) async {
+  static Future<bool> updateCustomer(
+      String customerId, Map<String, dynamic> updateData) async {
     try {
       final res = await http.put(
         Uri.parse('$baseUrl/api/customers/$customerId'),
@@ -721,7 +795,8 @@ class ApiService {
   }
 
   /// Add address to customer address book
-  static Future<Map<String, dynamic>?> addAddress(String customerId, Map<String, dynamic> address) async {
+  static Future<Map<String, dynamic>?> addAddress(
+      String customerId, Map<String, dynamic> address) async {
     try {
       final res = await http.post(
         Uri.parse('$baseUrl/api/customers/$customerId/addresses'),

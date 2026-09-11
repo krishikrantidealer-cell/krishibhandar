@@ -1,23 +1,18 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
 import 'package:google_fonts/google_fonts.dart';
 import '../../components/network_image.dart';
-import '../../components/products_grid.dart';
 import '../../components/widget_button.dart';
 import '../../controller/constants.dart';
 import '../../controller/routers.dart';
 import '../collection_view.dart';
 import '../product_view.dart';
 import '../../model/categories_model.dart';
-import '../../model/product_model.dart';
 import '../../services/api_service.dart';
 
 class Home extends StatefulWidget {
@@ -35,9 +30,9 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   List<CategoriesModel> _categories = [];
   List<CategoriesModel> _banners = [];
+  List<CategoriesModel> _categoryStripBanners = [];
   bool _isLoadingCats = true;
   bool _isLoadingBanners = true;
-  List<String> _bestSellerIds = [];
 
   @override
   void initState() {
@@ -51,9 +46,6 @@ class _HomeState extends State<Home> {
     if (!mounted) return;
     await Future.delayed(const Duration(milliseconds: 300));
     await _initCategories();
-    if (!mounted) return;
-    await Future.delayed(const Duration(milliseconds: 300));
-    await _fetchBestSellerIds();
   }
 
   @override
@@ -73,7 +65,6 @@ class _HomeState extends State<Home> {
     await Future.wait([
       _fetchBanners(),
       _initCategories(),
-      _fetchBestSellerIds(),
     ]);
   }
 
@@ -95,25 +86,6 @@ class _HomeState extends State<Home> {
         _banners = bannerList;
         _isLoadingBanners = false;
       });
-    }
-  }
-
-  Future<void> _fetchBestSellerIds() async {
-    final allCats = Constants.homeScreenCatBanners;
-    String? bestSellerId = allCats.isNotEmpty ? allCats.first['id'] : null;
-
-    if (bestSellerId != null) {
-      final result = await ApiService.getProductsFromCollections(
-        id: bestSellerId,
-        limit: 10,
-      );
-      final List<ProductModel> products =
-          (result['products'] as List<dynamic>?)?.cast<ProductModel>() ?? [];
-      if (mounted) {
-        setState(() {
-          _bestSellerIds = products.map((p) => p.id).toList();
-        });
-      }
     }
   }
 
@@ -182,148 +154,56 @@ class _HomeState extends State<Home> {
     }
   }
 
-  Future<void> _openProductById(String id) async {
-    try {
-      final product = await ApiService.getProductDetails(productId: id);
-      if (product != null && mounted) {
-        Routers.goTO(context, toBody: ProductView(product: product));
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Product not found."),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Something went wrong. Please try again."),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    }
-  }
-
   Future<void> _initCategories() async {
+    // 1. Fetch categories directly from database
     final allCategories = await ApiService.getCategoriesList();
 
-    final List<Map<String, dynamic>> target9Categories = [
-      {
-        'title': 'PGRs',
-        'aliases': ['pgrs', 'pgr', 'growth promoter', 'plant growth regulator'],
-        'defaultImage':
-            'https://storage.googleapis.com/bhandar-product-images/banners/category/Bio-Products_1782219846548_full.webp',
-      },
-      {
-        'title': 'Insecticides',
-        'aliases': ['insecticides', 'insecticide', 'organic insecticides'],
-        'defaultImage':
-            'https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Insecticides_1782219848442_full.webp',
-      },
-      {
-        'title': 'Fungicides',
-        'aliases': ['fungicides', 'fungicide', 'organic fungicdes'],
-        'defaultImage':
-            'https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Fungicides_1782219847975_full.webp',
-      },
-      {
-        'title': 'Fertilizers',
-        'aliases': ['fertilizer', 'fertilizers', 'organic fertilizers'],
-        'defaultImage':
-            'https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Fertilizers_1782219847513_full.webp',
-      },
-      {
-        'title': 'Herbicides',
-        'aliases': ['herbicides', 'herbicide', 'weedicide', 'weedicides'],
-        'defaultImage':
-            'https://storage.googleapis.com/bhandar-product-images/banners/category/Bio_Nematicide_1782219846072_full.webp',
-      },
-      {
-        'title': 'NPK Fertilizers',
-        'aliases': ['npk fertilizers', 'npk', 'npk fertilizer'],
-        'defaultImage':
-            'https://storage.googleapis.com/bhandar-product-images/banners/category/Micronutrients_1782219847036_full.webp',
-      },
-      {
-        'title': 'Bio-Pesticides',
-        'aliases': [
-          'bio-pesticides',
-          'bio-pesticide',
-          'bio pesticide',
-          'bio pesticides',
-          'biological pesticide'
-        ],
-        'defaultImage':
-            'https://storage.googleapis.com/bhandar-product-images/banners/category/Bio-Products_1782219846548_full.webp',
-      },
-      {
-        'title': 'Bio-Fungicide',
-        'aliases': [
-          'bio-fungicide',
-          'bio-fungicides',
-          'bio fungicide',
-          'bio fungicides'
-        ],
-        'defaultImage':
-            'https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Fungicides_1782219847975_full.webp',
-      },
-      {
-        'title': 'Bio-Fertilizers',
-        'aliases': [
-          'bio_fertilizers',
-          'bio-fertilizer',
-          'bio-fertilizers',
-          'bio fertilizer',
-          'bio fertilizers'
-        ],
-        'defaultImage':
-            'https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Fertilizers_1782219847513_full.webp',
-      },
-    ];
+    // 2. Fetch category strip banners directly from database
+    final rawCategoryBanners = await ApiService.getBanners(type: 'category');
 
-    List<CategoriesModel> filtered = [];
-    for (var target in target9Categories) {
-      final title = target['title'] as String;
-      final aliases = target['aliases'] as List<String>;
-      final defaultImage = target['defaultImage'] as String;
-
-      CategoriesModel? found;
-      for (var alias in aliases) {
-        for (var cat in allCategories) {
-          final catTitle = cat.title.toLowerCase().trim();
-          final aliasLower = alias.toLowerCase().trim();
-
-          if (catTitle == aliasLower || catTitle.contains(aliasLower)) {
-            found = cat;
-            break;
-          }
-        }
-        if (found != null) break;
-      }
-
-      final categoryId = found?.id ?? title.toLowerCase().replaceAll(' ', '-');
-      final categoryHandle = found?.handle.isNotEmpty == true
-          ? found!.handle
-          : title.toLowerCase().replaceAll(' ', '-');
-      final categoryImage = (found != null && found.image.isNotEmpty)
-          ? found.image
-          : defaultImage;
-
-      filtered.add(CategoriesModel(
-        id: categoryId,
-        title: _getLocalizedCategoryTitle(context, title),
-        handle: categoryHandle,
-        description: found?.description ?? '',
-        image: categoryImage,
-      ));
+    List<CategoriesModel> stripBanners = [];
+    if (rawCategoryBanners.isNotEmpty) {
+      stripBanners = rawCategoryBanners.map((b) {
+        final id = (b['_id'] ?? b['id'] ?? b['linkValue'] ?? '').toString();
+        final title = (b['title'] ?? '').toString();
+        final handle = (b['linkValue'] ?? b['handle'] ?? id).toString();
+        final img = (b['imageUrl'] ?? b['image'] ?? '').toString();
+        return CategoriesModel(
+          id: id,
+          title: _getLocalizedCategoryTitle(context, title),
+          handle: handle,
+          description: '',
+          image: img,
+        );
+      }).toList();
+    } else {
+      // Fallback: use database categories' images
+      stripBanners = allCategories.where((c) => c.image.isNotEmpty).map((c) {
+        return CategoriesModel(
+          id: c.id,
+          title: _getLocalizedCategoryTitle(context, c.title),
+          handle: c.handle,
+          description: c.description,
+          image: c.image,
+        );
+      }).toList();
     }
+
+    // Grid categories directly from database (Limit to 9 for 3x3 Home grid)
+    final localizedCategories = allCategories.map((c) {
+      return CategoriesModel(
+        id: c.id,
+        title: _getLocalizedCategoryTitle(context, c.title),
+        handle: c.handle,
+        description: c.description,
+        image: c.image,
+      );
+    }).take(9).toList();
 
     if (mounted) {
       setState(() {
-        _categories = filtered;
+        _categories = localizedCategories;
+        _categoryStripBanners = stripBanners;
         _isLoadingCats = false;
       });
     }
@@ -331,25 +211,35 @@ class _HomeState extends State<Home> {
 
   String _getLocalizedCategoryTitle(BuildContext context, String title) {
     if (!mounted) return title;
-    final l10n = AppLocalizations.of(context)!;
-    switch (title) {
-      case 'PGRs':
+    final l10n = AppLocalizations.of(context);
+    if (l10n == null) return title;
+    switch (title.toLowerCase().trim()) {
+      case 'pgrs':
+      case 'pgr':
         return l10n.pgr;
-      case 'Insecticides':
+      case 'insecticides':
+      case 'insecticide':
         return l10n.insecticides;
-      case 'Fungicides':
+      case 'fungicides':
+      case 'fungicide':
         return l10n.fungicides;
-      case 'Fertilizers':
+      case 'fertilizers':
+      case 'fertilizer':
         return l10n.fertilizers;
-      case 'Herbicides':
+      case 'herbicides':
+      case 'herbicide':
         return l10n.herbicides;
-      case 'NPK Fertilizers':
+      case 'npk fertilizers':
+      case 'npk fertilizer':
         return l10n.npkFertilizer;
-      case 'Bio-Pesticides':
+      case 'bio-pesticides':
+      case 'bio-pesticide':
         return l10n.bioPesticide;
-      case 'Bio-Fungicide':
+      case 'bio-fungicide':
+      case 'bio-fungicides':
         return l10n.bioFungicide;
-      case 'Bio-Fertilizers':
+      case 'bio-fertilizers':
+      case 'bio-fertilizer':
         return l10n.bioFertilizer;
       default:
         return title;
@@ -358,24 +248,6 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
-    final allCats = Constants.homeScreenCatBanners;
-
-    Map<String, String>? bestSeller;
-    for (var cat in allCats) {
-      if (cat['image']?.toLowerCase().contains('best') ?? false) {
-        bestSeller = cat;
-        break;
-      }
-    }
-
-    Map<String, String>? badiBachat;
-    for (var cat in allCats) {
-      if (cat['image']?.toLowerCase().contains('bachat') ?? false) {
-        badiBachat = cat;
-        break;
-      }
-    }
-
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -537,26 +409,57 @@ class _HomeState extends State<Home> {
                       ),
                     ),
 
-                  // --- DYNAMIC SECTIONS ---
-                  if (bestSeller != null)
-                    SliverToBoxAdapter(
-                        child: _buildDynamicSection(bestSeller, [])),
+                  const SliverToBoxAdapter(child: SizedBox(height: 10)),
 
-                  // --- NEW COLLECTIONS SECTION ---
-                  SliverToBoxAdapter(child: _buildCollectionsSection()),
+                  // --- CATEGORY STRIP BANNERS ---
+                  if (_categoryStripBanners.isNotEmpty)
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final banner = _categoryStripBanners[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: WidgetButton(
+                                onTap: () => Routers.goTO(
+                                  context,
+                                  toBody: CollectionView(
+                                    collectionId: banner.id.toString(),
+                                    title: banner.title,
+                                  ),
+                                ),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(10),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.03),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: AspectRatio(
+                                      aspectRatio: 4.8,
+                                      child: KskNetworkImage(
+                                        banner.image,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                          childCount: _categoryStripBanners.length,
+                        ),
+                      ),
+                    ),
 
-                  if (badiBachat != null)
-                    SliverToBoxAdapter(
-                        child:
-                            _buildDynamicSection(badiBachat, _bestSellerIds)),
-
-                  for (var section in allCats)
-                    if (section != bestSeller && section != badiBachat) ...[
-                      SliverToBoxAdapter(
-                          child: _buildDynamicSection(section, [])),
-                      if (section['id'] == "329026240665")
-                        SliverToBoxAdapter(child: _buildExclusiveSection()),
-                    ],
+                  const SliverToBoxAdapter(child: SizedBox(height: 10)),
 
                   // --- PREMIUM FOOTER ---
                   SliverToBoxAdapter(child: _buildPremiumFooter()),
@@ -566,202 +469,6 @@ class _HomeState extends State<Home> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildDynamicSection(
-      Map<String, String> data, List<String> excludeIds) {
-    final id = data['id'];
-    if (id == null || id.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    String title = data['title'] ?? "Featured Selection";
-    String subtitle = data['subtitle'] ?? "Premium quality farming essentials";
-
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 250),
-      tween: Tween(begin: 0.0, end: 1.0),
-      curve: Curves.easeOut,
-      builder: (context, value, child) {
-        return Opacity(
-          opacity: value,
-          child: Transform.translate(
-            offset: Offset(0, 20 * (1 - value)),
-            child: child,
-          ),
-        );
-      },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 24),
-          SectionHeader(
-            title: title,
-            subtitle: subtitle,
-            onViewAll: () => Routers.goTO(context,
-                toBody: CollectionView(collectionId: id, title: title)),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            decoration: BoxDecoration(
-              color: Constants.stringToColor(color: data['color'] ?? "#fff")
-                  .withOpacity(0.04),
-            ),
-            child: Column(
-              children: [
-                ProductsGrid(
-                  id: id,
-                  limit: 4,
-                  shrinkWrap: true,
-                  excludeIds: excludeIds,
-                ),
-                const SizedBox(height: 12),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCollectionsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: Row(
-            children: [
-              Container(
-                width: 4.5,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF26842c),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                "Collections",
-                style: GoogleFonts.outfit(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.8),
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.2,
-            children: [
-              _CollectionCard(
-                imageUrl:
-                    "https://storage.googleapis.com/bhandar-product-images/banners/category/Bio-Products_1782219846548_full.webp",
-                onTap: () => Routers.goTO(context,
-                    toBody: const CollectionView(
-                        collectionId: "6a3935cebd6e0cfbef015a6a", title: "Bio Products")),
-              ),
-              _CollectionCard(
-                imageUrl:
-                    "https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Insecticides_1782219848442_full.webp",
-                onTap: () => Routers.goTO(context,
-                    toBody: const CollectionView(
-                        collectionId: "6a3935cebd6e0cfbef015a5f", title: "Insecticides")),
-              ),
-              _CollectionCard(
-                imageUrl:
-                    "https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Fungicides_1782219847975_full.webp",
-                onTap: () => Routers.goTO(context,
-                    toBody: const CollectionView(
-                        collectionId: "6a3935cebd6e0cfbef015a5d", title: "Fungicides")),
-              ),
-              _CollectionCard(
-                imageUrl:
-                    "https://storage.googleapis.com/bhandar-product-images/banners/category/Bio-Products_1782219846548_full.webp",
-                onTap: () => Routers.goTO(context,
-                    toBody: const CollectionView(
-                        collectionId: "6a3935cebd6e0cfbef015a60", title: "PGRs")),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Center(
-          child: _PremiumExploreButton(
-            onTap: () => Routers.goTO(context,
-                toBody: const CollectionView(
-                    collectionId: "6a3935cebd6e0cfbef015a5f", title: "Best Sellers")),
-          ),
-        ),
-        const SizedBox(height: 24),
-      ],
-    );
-  }
-
-  Widget _buildExclusiveSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Row(
-            children: [
-              Container(
-                width: 4.5,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF26842c),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                "Exclusive",
-                style: GoogleFonts.outfit(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.8),
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.2,
-            children: [
-              _CollectionCard(
-                imageUrl:
-                    "https://storage.googleapis.com/bhandar-product-images/banners/category/Organic_Fertilizers_1782219847513_full.webp",
-                onTap: () => Routers.goTO(context,
-                    toBody: const CollectionView(
-                        collectionId: "6a3935cebd6e0cfbef015a69", title: "NPK Fertilizers")),
-              ),
-              _CollectionCard(
-                imageUrl:
-                    "https://storage.googleapis.com/bhandar-product-images/banners/category/Micronutrients_1782219847036_full.webp",
-                onTap: () => Routers.goTO(context,
-                    toBody: const CollectionView(
-                        collectionId: "6a3935cebd6e0cfbef015a65", title: "Micronutrients")),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-      ],
     );
   }
 
@@ -844,61 +551,6 @@ class _HomeState extends State<Home> {
   }
 }
 
-class _CollectionCard extends StatefulWidget {
-  final String imageUrl;
-  final VoidCallback onTap;
-
-  const _CollectionCard({
-    required this.imageUrl,
-    required this.onTap,
-  });
-
-  @override
-  State<_CollectionCard> createState() => _CollectionCardState();
-}
-
-class _CollectionCardState extends State<_CollectionCard> {
-  double _scale = 1.0;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _scale = 0.93),
-      onTapUp: (_) => setState(() => _scale = 1.0),
-      onTapCancel: () => setState(() => _scale = 1.0),
-      onTap: widget.onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedScale(
-        scale: _scale,
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeInOut,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: _scale < 1.0 ? 12 : 6,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: WidgetButton(
-            onTap: widget.onTap,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: KskNetworkImage(
-                widget.imageUrl,
-                fit: BoxFit.fill,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class SectionHeader extends StatelessWidget {
   final String title;
@@ -1047,99 +699,7 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-class _PremiumExploreButton extends StatefulWidget {
-  final VoidCallback onTap;
-  const _PremiumExploreButton({super.key, required this.onTap});
 
-  @override
-  State<_PremiumExploreButton> createState() => _PremiumExploreButtonState();
-}
-
-class _PremiumExploreButtonState extends State<_PremiumExploreButton>
-    with SingleTickerProviderStateMixin {
-  bool _isPressed = false;
-  late AnimationController _arrowController;
-  late Animation<double> _arrowAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _arrowController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    )..repeat(reverse: true);
-    _arrowAnimation = Tween<double>(begin: 0.0, end: 4.0).animate(
-      CurvedAnimation(parent: _arrowController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _arrowController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) => setState(() => _isPressed = false),
-      onTapCancel: () => setState(() => _isPressed = false),
-      onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _isPressed ? 0.95 : 1.0,
-        duration: const Duration(milliseconds: 150),
-        child: Container(
-          height: 44,
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: Colors.grey.withOpacity(0.2),
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                AppLocalizations.of(context)!.viewAll,
-                style: GoogleFonts.outfit(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Constants.baseColor,
-                ),
-              ),
-              const SizedBox(width: 8),
-              AnimatedBuilder(
-                animation: _arrowAnimation,
-                builder: (context, child) {
-                  return Transform.translate(
-                    offset: Offset(_arrowAnimation.value, 0),
-                    child: child,
-                  );
-                },
-                child: Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 13,
-                  color: Constants.baseColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class HomeCarousel extends StatefulWidget {
   final List<CategoriesModel> banners;

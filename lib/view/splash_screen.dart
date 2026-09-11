@@ -110,7 +110,8 @@ class _SplashScreenState extends State<SplashScreen>
       final phone = await AuthController.getSavedPhone();
       if (phone != null && phone.isNotEmpty) {
         try {
-          await AuthController.syncWithBackend(phone).timeout(const Duration(seconds: 3));
+          await AuthController.syncWithBackend(phone)
+              .timeout(const Duration(seconds: 3));
         } catch (e) {
           debugPrint("Splash: Profile sync error: $e");
         }
@@ -134,7 +135,8 @@ class _SplashScreenState extends State<SplashScreen>
 
       if (mounted) {
         final bool loggedIn = await AuthController.isLoggedIn();
-        final bool isProfileCompleted = await AuthController.isProfileCompleted();
+        final bool isProfileCompleted =
+            await AuthController.isProfileCompleted();
         final String? savedPhone = await AuthController.getSavedPhone();
         final String? savedName = await AuthController.getSavedName();
         final String? customerId = await AuthController.getCustomerId();
@@ -152,7 +154,8 @@ class _SplashScreenState extends State<SplashScreen>
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => destination,
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                destination,
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);

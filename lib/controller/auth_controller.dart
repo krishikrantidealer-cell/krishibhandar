@@ -17,6 +17,17 @@ class AuthController {
   static const String _keyAddressList = 'user_address_list';
   static const String _keyIsProfileCompleted = 'is_profile_completed';
 
+  static String normalizePhone(String? phone) {
+    if (phone == null) return '';
+    String digits = phone.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.length == 12 && digits.startsWith('91')) {
+      digits = digits.substring(2);
+    } else if (digits.length == 11 && digits.startsWith('0')) {
+      digits = digits.substring(1);
+    }
+    return digits;
+  }
+
   static Future<String?> getSavedPhone() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_keyPhone);
@@ -29,7 +40,9 @@ class AuthController {
 
   static Future<String?> getCustomerId() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_keyCustomerId);
+    final id = prefs.getString(_keyCustomerId);
+    if (id != null && id.isNotEmpty) return id;
+    return await Pref.getPref(PrefKey.customerId);
   }
 
   static Future<String?> getSavedEmail() async {
@@ -39,12 +52,16 @@ class AuthController {
 
   static Future<bool> isProfileCompleted() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_keyIsProfileCompleted) ?? false;
+    final isCompleted = prefs.getBool(_keyIsProfileCompleted);
+    if (isCompleted != null) return isCompleted;
+    final prefStr = await Pref.getPref(PrefKey.isProfileCompleted);
+    return prefStr == 'true';
   }
 
   static Future<void> setProfileCompleted(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyIsProfileCompleted, value);
+    await Pref.setPref(key: PrefKey.isProfileCompleted, value: value.toString());
   }
 
   static Future<bool> isLoggedIn() async {
@@ -234,11 +251,13 @@ class AuthController {
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedPhone = prefs.getString(_keyPhone);
-      final normalizedIncoming = phone.replaceAll(RegExp(r'[^\d]'), '');
-      final normalizedSaved = savedPhone?.replaceAll(RegExp(r'[^\d]'), '') ?? '';
+      final normalizedIncoming = normalizePhone(phone);
+      final normalizedSaved = normalizePhone(savedPhone);
 
-      if (normalizedSaved.isNotEmpty && normalizedSaved != normalizedIncoming) {
-        debugPrint('AuthController: New user detected. Clearing old user data.');
+      if (normalizedSaved.isNotEmpty &&
+          normalizedIncoming.isNotEmpty &&
+          normalizedSaved != normalizedIncoming) {
+        debugPrint('AuthController: New user detected ($normalizedSaved -> $normalizedIncoming). Clearing old user data.');
         await Future.wait([
           prefs.remove(_keyPhone),
           prefs.remove(_keyName),
@@ -246,11 +265,15 @@ class AuthController {
           prefs.remove(_keyEmail),
           prefs.remove(_keyAddressList),
           prefs.remove(_keyState),
+          prefs.remove(_keyIsProfileCompleted),
         ]);
+        await Pref.removePrefKey(PrefKey.isProfileCompleted);
         await ApiService.clearAuthToken();
       }
 
-      await prefs.setString(_keyPhone, normalizedIncoming);
+      if (normalizedIncoming.isNotEmpty) {
+        await prefs.setString(_keyPhone, normalizedIncoming);
+      }
 
       // Fetch profile if token exists
       final profile = await ApiService.getCurrentCustomer();
@@ -266,45 +289,74 @@ class AuthController {
 
   static Future<void> _saveCustomerToPrefs(
       dynamic customer, SharedPreferences prefs) async {
-    final id = (customer['_id'] ?? customer['id'])?.toString() ?? '';
+    if (customer == null) return;
+
+    final Map<String, dynamic> cust = (customer is Map && customer['customer'] is Map)
+        ? Map<String, dynamic>.from(customer['customer'])
+        : ((customer is Map && customer['data'] is Map)
+            ? Map<String, dynamic>.from(customer['data'])
+            : (customer is Map ? Map<String, dynamic>.from(customer) : <String, dynamic>{}));
+
+    if (cust.isEmpty) return;
+
+    final id = (cust['_id'] ?? cust['id'])?.toString() ?? '';
     if (id.isNotEmpty) {
       await prefs.setString(_keyCustomerId, id);
+      await Pref.setPref(key: PrefKey.customerId, value: id);
     }
 
-    final name = (customer['name'] ?? '${customer['first_name'] ?? ''} ${customer['last_name'] ?? ''}').toString().trim();
+    final firstName = (cust['firstName'] ?? cust['first_name'] ?? '').toString().trim();
+    final lastName = (cust['lastName'] ?? cust['last_name'] ?? '').toString().trim();
+    final fullName = [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
+    final name = (cust['name'] != null && cust['name'].toString().trim().isNotEmpty)
+        ? cust['name'].toString().trim()
+        : fullName;
+
     if (name.isNotEmpty) {
       await prefs.setString(_keyName, name);
     }
 
-    if (customer['email'] != null) {
-      await prefs.setString(_keyEmail, customer['email'].toString());
+    if (cust['email'] != null && cust['email'].toString().trim().isNotEmpty) {
+      await prefs.setString(_keyEmail, cust['email'].toString().trim());
+    }
+
+    if (cust['phone'] != null && cust['phone'].toString().trim().isNotEmpty) {
+      final p = normalizePhone(cust['phone'].toString());
+      if (p.isNotEmpty) {
+        await prefs.setString(_keyPhone, p);
+      }
     }
 
     // Determine isProfileCompleted status
-    final hasAddresses = (customer['addresses'] is List && (customer['addresses'] as List).isNotEmpty) ||
-        (customer['defaultAddress'] != null &&
-            ((customer['defaultAddress']['address1']?.toString().isNotEmpty == true) ||
-                (customer['defaultAddress']['city']?.toString().isNotEmpty == true) ||
-                (customer['defaultAddress']['zip']?.toString().isNotEmpty == true)));
+    final hasAddresses = (cust['addresses'] is List && (cust['addresses'] as List).isNotEmpty) ||
+        (cust['defaultAddress'] != null &&
+            ((cust['defaultAddress']['address1']?.toString().isNotEmpty == true) ||
+                (cust['defaultAddress']['city']?.toString().isNotEmpty == true) ||
+                (cust['defaultAddress']['zip']?.toString().isNotEmpty == true)));
 
-    final isCompleted = customer['isprofilecompleted'] == true ||
-        customer['isProfileCompleted'] == true ||
-        (name.isNotEmpty && hasAddresses);
+    final alreadyCompleted = (prefs.getBool(_keyIsProfileCompleted) ?? false) ||
+        (await Pref.getPref(PrefKey.isProfileCompleted) == 'true');
+        
+    final isCompleted = cust['isprofilecompleted'] == true ||
+        cust['isProfileCompleted'] == true ||
+        (name.isNotEmpty && (hasAddresses || alreadyCompleted)) ||
+        alreadyCompleted;
 
     await prefs.setBool(_keyIsProfileCompleted, isCompleted);
+    await Pref.setPref(key: PrefKey.isProfileCompleted, value: isCompleted.toString());
 
     // Load addresses from customer object if available
-    if (customer['addresses'] is List && (customer['addresses'] as List).isNotEmpty) {
-      final addrList = (customer['addresses'] as List).map((a) {
+    if (cust['addresses'] is List && (cust['addresses'] as List).isNotEmpty) {
+      final addrList = (cust['addresses'] as List).map((a) {
         if (a is Map) {
           return {
             'pincode': (a['zip'] ?? a['pincode'] ?? '').toString(),
-            'address1': (a['address1'] ?? '').toString(),
+            'address1': (a['address1'] ?? a['street'] ?? '').toString(),
             'address2': (a['address2'] ?? '').toString(),
             'city': (a['city'] ?? '').toString(),
             'state': (a['province'] ?? a['state'] ?? '').toString(),
             'name': (a['name'] ?? name).toString(),
-            'phone': (a['phone'] ?? customer['phone'] ?? '').toString(),
+            'phone': (a['phone'] ?? cust['phone'] ?? '').toString(),
           };
         }
         return <String, String>{};
@@ -313,6 +365,18 @@ class AuthController {
       if (addrList.isNotEmpty) {
         await prefs.setString(_keyAddressList, jsonEncode(addrList));
       }
+    } else if (cust['defaultAddress'] is Map && cust['defaultAddress']['address1'] != null) {
+      final da = cust['defaultAddress'] as Map;
+      final singleAddr = [{
+        'pincode': (da['zip'] ?? da['pincode'] ?? '').toString(),
+        'address1': (da['address1'] ?? '').toString(),
+        'address2': (da['address2'] ?? '').toString(),
+        'city': (da['city'] ?? '').toString(),
+        'state': (da['province'] ?? da['state'] ?? '').toString(),
+        'name': (da['name'] ?? name).toString(),
+        'phone': (da['phone'] ?? cust['phone'] ?? '').toString(),
+      }];
+      await prefs.setString(_keyAddressList, jsonEncode(singleAddr));
     }
 
     debugPrint('AuthController: Synced Customer ID: $id, isProfileCompleted: $isCompleted');
