@@ -328,11 +328,12 @@ class ApiService {
 
   /// Get products by category
   static Future<List<Map<String, dynamic>>> getProductsByCategory(
-      String categoryId) async {
+      String categoryId, {int? limit}) async {
     try {
       final cleanId = categoryId.trim();
+      final queryParam = limit != null ? '?limit=$limit' : '';
       final res = await http.get(
-        Uri.parse('$baseUrl/api/products/category/$cleanId'),
+        Uri.parse('$baseUrl/api/products/category/$cleanId$queryParam'),
         headers: await _headers(),
       );
       if (res.statusCode == 200) {
@@ -357,7 +358,7 @@ class ApiService {
     String? cursor,
   }) async {
     try {
-      final rawList = await getProductsByCategory(id);
+      final rawList = await getProductsByCategory(id, limit: limit);
       final products = rawList.map((e) => ProductModel.fromJson(e)).toList();
       return {
         'products': products,
@@ -826,4 +827,60 @@ class ApiService {
       return false;
     }
   }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 📍 POSTAL / PINCODE LOOKUP
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /// Lookup city/district and state by Indian 6-digit postal PIN code
+  static Future<PincodeDetails?> fetchPincodeDetails(String pincode) async {
+    final cleanPin = pincode.replaceAll(RegExp(r'[^\d]'), '');
+    if (cleanPin.length != 6) return null;
+
+    try {
+      final uri = Uri.parse('https://api.postalpincode.in/pincode/$cleanPin');
+      final res = await http.get(uri).timeout(const Duration(seconds: 8));
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data is List && data.isNotEmpty && data[0]['Status'] == 'Success') {
+          final postOfficeList = data[0]['PostOffice'] as List?;
+          if (postOfficeList != null && postOfficeList.isNotEmpty) {
+            final po = postOfficeList[0] as Map<String, dynamic>;
+            final state = po['State']?.toString() ?? '';
+            final district = po['District']?.toString() ?? '';
+            final allPoNames = postOfficeList
+                .map((p) => (p is Map) ? (p['Name']?.toString() ?? '') : '')
+                .where((name) => name.isNotEmpty)
+                .toList();
+
+            return PincodeDetails(
+              pincode: cleanPin,
+              state: state,
+              district: district,
+              postOffices: allPoNames,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('ApiService.fetchPincodeDetails error: $e');
+    }
+    return null;
+  }
 }
+
+class PincodeDetails {
+  final String pincode;
+  final String state;
+  final String district;
+  final List<String> postOffices;
+
+  const PincodeDetails({
+    required this.pincode,
+    required this.state,
+    required this.district,
+    this.postOffices = const [],
+  });
+}
+

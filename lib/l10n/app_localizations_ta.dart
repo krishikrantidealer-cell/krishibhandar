@@ -245,9 +245,6 @@ class AppLocalizationsTa extends AppLocalizations {
   String get statusUpdatedRecently => 'நிலை ఇటీవల నవీకరించబడింది';
 
   @override
-  String get trackOnShopify => 'Shopify இல் పిన్రొడరవుం';
-
-  @override
   String get orderInfo => 'ஆர்டர் தகவல்';
 
   @override

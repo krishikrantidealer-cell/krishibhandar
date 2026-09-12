@@ -20,6 +20,8 @@ class Categories extends StatefulWidget {
 
 class _CategoriesState extends State<Categories>
     with AutomaticKeepAliveClientMixin {
+  static List<CategoriesModel>? _cachedCategories;
+
   @override
   void initState() {
     super.initState();
@@ -35,48 +37,97 @@ class _CategoriesState extends State<Categories>
 
   void _onLanguageChanged() {
     if (mounted) {
-      _init();
+      setState(() {});
     }
   }
 
-  List<CategoriesModel> _categories = [];
-  bool _isLoading = true;
+  List<CategoriesModel> _categories = _cachedCategories ?? [];
+  bool _isLoading = _cachedCategories == null || _cachedCategories!.isEmpty;
 
   Future<void> _init({bool isRefresh = false}) async {
     if (!mounted) return;
-    // On first load show full spinner; on refresh keep list & show indicator
-    if (!isRefresh) {
+    if (!isRefresh && (_cachedCategories == null || _cachedCategories!.isEmpty)) {
       setState(() => _isLoading = true);
     }
 
     final all = await ApiService.getCategoriesList();
 
-    // 1. Filter out meta-categories, promotional banners, and irrelevant sections
-    // 2. Ensure only categories with valid images are shown
+    // Include all categories returned from the MongoDB collection with valid title and image
     final filtered = all.where((cat) {
       final title = cat.title.toLowerCase().trim();
       final hasImage = cat.image.isNotEmpty;
-
-      // Extended Blacklist for non-category/promotional sections
-      final isNotHomePage = title != "home page";
-      final isNotHydroponics = !title.contains('hydroponics');
-      final isNotSale =
-          !title.contains('sale') && !title.contains('republic day');
-      final isNotBanner =
-          !title.contains('banner') && !title.contains('best seller');
-
-      return hasImage &&
-          isNotHomePage &&
-          isNotHydroponics &&
-          isNotSale &&
-          isNotBanner;
+      final isNotHomePage = title != "home page" && !title.contains('home page');
+      return hasImage && isNotHomePage && cat.title.trim().isNotEmpty;
     }).toList();
 
+    // Sort by agricultural priority so major categories appear first
+    int getPriority(String name) {
+      final n = name.toLowerCase().trim();
+      if (n == 'insecticides' || n == 'insecticide') return 1;
+      if (n == 'fungicides' || n == 'fungicide') return 2;
+      if (n == 'herbicides' || n == 'herbicide') return 3;
+      if (n == 'fertilizers' || n == 'fertilizer') return 4;
+      if (n == 'pgrs' || n == 'pgr') return 5;
+      if (n == 'bio products' || n == 'bio-products') return 6;
+      if (n == 'micronutrients' || n == 'micronutrient') return 7;
+      if (n == 'organic fertilizers' || n == 'organic-fertilizers' || n == 'organic fertilizer') return 8;
+      if (n == 'antibiotics' || n == 'antibiotic') return 9;
+      if (n.startsWith('bio-') || n.startsWith('bio ')) return 10;
+      if (n.startsWith('organic-') || n.startsWith('organic ')) return 11;
+      if (n.startsWith('npk')) return 12;
+      return 50;
+    }
+
+    filtered.sort((a, b) {
+      final pA = getPriority(a.title);
+      final pB = getPriority(b.title);
+      if (pA != pB) return pA.compareTo(pB);
+      return a.title.compareTo(b.title);
+    });
+
+    _cachedCategories = filtered;
     if (mounted) {
       setState(() {
         _categories = filtered;
         _isLoading = false;
       });
+    }
+  }
+
+  String _getLocalizedCategoryTitle(BuildContext context, String title) {
+    if (!mounted) return title;
+    final l10n = AppLocalizations.of(context);
+    if (l10n == null) return title;
+    switch (title.toLowerCase().trim()) {
+      case 'pgrs':
+      case 'pgr':
+        return l10n.pgr;
+      case 'insecticides':
+      case 'insecticide':
+        return l10n.insecticides;
+      case 'fungicides':
+      case 'fungicide':
+        return l10n.fungicides;
+      case 'fertilizers':
+      case 'fertilizer':
+        return l10n.fertilizers;
+      case 'herbicides':
+      case 'herbicide':
+        return l10n.herbicides;
+      case 'npk fertilizers':
+      case 'npk fertilizer':
+        return l10n.npkFertilizer;
+      case 'bio-pesticides':
+      case 'bio-pesticide':
+        return l10n.bioPesticide;
+      case 'bio-fungicide':
+      case 'bio-fungicides':
+        return l10n.bioFungicide;
+      case 'bio-fertilizers':
+      case 'bio-fertilizer':
+        return l10n.bioFertilizer;
+      default:
+        return title;
     }
   }
 
@@ -108,7 +159,7 @@ class _CategoriesState extends State<Categories>
                   width: 200,
                   height: 200,
                   decoration: BoxDecoration(
-                    color: Constants.baseColor.withOpacity(0.05),
+                    color: Constants.baseColor.withValues(alpha: 0.05),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -120,7 +171,7 @@ class _CategoriesState extends State<Categories>
                   width: 100,
                   height: 100,
                   decoration: BoxDecoration(
-                    color: Constants.baseColor.withOpacity(0.03),
+                    color: Constants.baseColor.withValues(alpha: 0.03),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -255,12 +306,13 @@ class _CategoriesState extends State<Categories>
   }
 
   Widget _buildCategoryCard(CategoriesModel category) {
+    final localizedTitle = _getLocalizedCategoryTitle(context, category.title);
     return WidgetButton(
       onTap: () {
         Routers.goTO(
           context,
           toBody: CollectionView(
-              collectionId: category.id.toString(), title: category.title),
+              collectionId: category.id.toString(), title: localizedTitle),
         );
       },
       child: Container(
@@ -269,13 +321,13 @@ class _CategoriesState extends State<Categories>
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Constants.baseColor.withOpacity(0.08),
+              color: Constants.baseColor.withValues(alpha: 0.08),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
           ],
           border: Border.all(
-            color: Constants.baseColor.withOpacity(0.05),
+            color: Constants.baseColor.withValues(alpha: 0.05),
             width: 1.5,
           ),
         ),

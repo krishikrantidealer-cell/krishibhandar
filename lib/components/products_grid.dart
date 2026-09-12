@@ -176,23 +176,25 @@ class ProductsGridState extends State<ProductsGrid>
         itemBuilder: (context, index) => _buildShimmerCard(),
       );
     } else if (_products.isEmpty) {
-      content = Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey[300]),
-            const SizedBox(height: 16),
-            Text(
-              AppLocalizations.of(context)!.noProductsFound,
-              style: GoogleFonts.inter(
-                color: Colors.grey[500],
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+      content = widget.shrinkWrap
+          ? const SizedBox.shrink()
+          : Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    AppLocalizations.of(context)!.noProductsFound,
+                    style: GoogleFonts.inter(
+                      color: Colors.grey[500],
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
-      );
+            );
     } else {
       content = GridView.builder(
         shrinkWrap: widget.shrinkWrap,

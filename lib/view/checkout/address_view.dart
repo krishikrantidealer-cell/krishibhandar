@@ -3,10 +3,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import '../../controller/auth_controller.dart';
 import '../../controller/constants.dart';
+import '../../services/api_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 
@@ -107,25 +107,16 @@ class _AddressViewState extends State<AddressView> {
     if (pincode.length != 6) return;
     setState(() => _isPinLoading = true);
     try {
-      final res = await http.get(
-        Uri.parse('https://api.postalpincode.in/pincode/$pincode'),
-      );
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        if (data is List && data.isNotEmpty) {
-          final postOffice = data[0];
-          if (postOffice['Status'] == 'Success' &&
-              postOffice['PostOffice'] != null &&
-              (postOffice['PostOffice'] as List).isNotEmpty) {
-            final po = postOffice['PostOffice'][0];
-            if (mounted) {
-              setState(() {
-                _cityController.text = po['District'] ?? _cityController.text;
-                _stateController.text = po['State'] ?? _stateController.text;
-              });
-            }
+      final pinDetails = await ApiService.fetchPincodeDetails(pincode);
+      if (pinDetails != null && mounted) {
+        setState(() {
+          if (pinDetails.district.isNotEmpty) {
+            _cityController.text = pinDetails.district;
           }
-        }
+          if (pinDetails.state.isNotEmpty) {
+            _stateController.text = pinDetails.state;
+          }
+        });
       }
     } catch (e) {
       debugPrint('Pincode fetch error: $e');

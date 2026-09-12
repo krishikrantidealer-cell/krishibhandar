@@ -244,9 +244,6 @@ class AppLocalizationsTe extends AppLocalizations {
   String get statusUpdatedRecently => 'స్థితి ఇటీవల నవీకరించబడింది';
 
   @override
-  String get trackOnShopify => 'షాపిఫైలో ఆర్డర్ ట్రాక్ చేయండి';
-
-  @override
   String get orderInfo => 'ఆర్డర్ సమాచారం';
 
   @override

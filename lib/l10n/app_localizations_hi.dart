@@ -244,9 +244,6 @@ class AppLocalizationsHi extends AppLocalizations {
   String get statusUpdatedRecently => 'स्थिति हाल ही में अपडेट की गई';
 
   @override
-  String get trackOnShopify => 'Shopify पर ऑर्डर ट्रैक करें';
-
-  @override
   String get orderInfo => 'ऑर्डर जानकारी';
 
   @override

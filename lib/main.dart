@@ -25,12 +25,10 @@ import 'blocs/auth/auth_event.dart';
 import 'blocs/language/language_bloc.dart';
 import 'blocs/language/language_event.dart';
 import 'blocs/language/language_state.dart';
+import 'blocs/order/order_bloc.dart';
+import 'blocs/order/order_event.dart';
 import 'controller/routers.dart';
 import 'view/splash_screen.dart';
-import 'view/product_view.dart';
-import 'view/collection_view.dart';
-import 'view/cart_view.dart';
-import 'view/home_view.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -130,6 +128,9 @@ void main() async {
         ),
         BlocProvider<LanguageBloc>(
           create: (_) => LanguageBloc()..add(const LoadLanguageEvent()),
+        ),
+        BlocProvider<OrderBloc>(
+          create: (_) => OrderBloc()..add(const FetchOrdersEvent()),
         ),
       ],
       child: MyApp(languageController: Constants.languageController),
@@ -233,6 +234,8 @@ class MyApp extends StatelessWidget {
           supportedLocales: const [
             Locale('en'),
             Locale('hi'),
+            Locale('mr'),
+            Locale('ta'),
             Locale('te'),
           ],
           theme: ThemeData(

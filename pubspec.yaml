@@ -1,5 +1,5 @@
 name: kisan_sewa_kendra
-description: "Krishi Bhandar shopify website's App"
+description: "Krishi Bhandar App"
 
 publish_to: 'none'
 
@@ -19,7 +19,6 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   url_launcher: ^6.3.2
-  share_plus: ^13.3.0
   shared_preferences: ^2.5.5
   package_info_plus: ^10.2.1
 

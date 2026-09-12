@@ -536,12 +536,6 @@ abstract class AppLocalizations {
   /// **'Status updated recently'**
   String get statusUpdatedRecently;
 
-  /// No description provided for @trackOnShopify.
-  ///
-  /// In en, this message translates to:
-  /// **'Track order on Shopify'**
-  String get trackOnShopify;
-
   /// No description provided for @orderInfo.
   ///
   /// In en, this message translates to:

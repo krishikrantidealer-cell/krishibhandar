@@ -243,9 +243,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statusUpdatedRecently => 'Status updated recently';
 
   @override
-  String get trackOnShopify => 'Track order on Shopify';
-
-  @override
   String get orderInfo => 'ORDER INFO';
 
   @override

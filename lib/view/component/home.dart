@@ -14,6 +14,7 @@ import '../collection_view.dart';
 import '../product_view.dart';
 import '../../model/categories_model.dart';
 import '../../services/api_service.dart';
+import '../../components/products_grid.dart';
 
 class Home extends StatefulWidget {
   final ScrollController scrollController;
@@ -27,25 +28,33 @@ class Home extends StatefulWidget {
   State<Home> createState() => _HomeState();
 }
 
-class _HomeState extends State<Home> {
-  List<CategoriesModel> _categories = [];
-  List<CategoriesModel> _banners = [];
-  List<CategoriesModel> _categoryStripBanners = [];
-  bool _isLoadingCats = true;
-  bool _isLoadingBanners = true;
+class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  // Static in-memory cache for instant navigation without reloading
+  static List<CategoriesModel>? _cachedCategories;
+  static List<CategoriesModel>? _cachedBanners;
+  static List<CategoriesModel>? _cachedCategoryStripBanners;
+
+  List<CategoriesModel> _categories = _cachedCategories ?? [];
+  List<CategoriesModel> _banners = _cachedBanners ?? [];
+  List<CategoriesModel> _categoryStripBanners = _cachedCategoryStripBanners ?? [];
+  bool _isLoadingCats = _cachedCategories == null || _cachedCategoryStripBanners == null;
+  bool _isLoadingBanners = _cachedBanners == null;
 
   @override
   void initState() {
     super.initState();
-    _staggeredInit();
+    _initData();
     Constants.languageController.addListener(_onLanguageChanged);
   }
 
-  Future<void> _staggeredInit() async {
-    await _fetchBanners();
-    if (!mounted) return;
-    await Future.delayed(const Duration(milliseconds: 300));
-    await _initCategories();
+  Future<void> _initData() async {
+    await Future.wait([
+      _fetchBanners(),
+      _initCategories(),
+    ]);
   }
 
   @override
@@ -81,6 +90,7 @@ class _HomeState extends State<Home> {
     } else {
       bannerList = await ApiService.getBannerCollections();
     }
+    _cachedBanners = bannerList;
     if (mounted) {
       setState(() {
         _banners = bannerList;
@@ -164,9 +174,9 @@ class _HomeState extends State<Home> {
     List<CategoriesModel> stripBanners = [];
     if (rawCategoryBanners.isNotEmpty) {
       stripBanners = rawCategoryBanners.map((b) {
-        final id = (b['_id'] ?? b['id'] ?? b['linkValue'] ?? '').toString();
+        final handle = (b['linkValue'] ?? b['handle'] ?? b['_id'] ?? b['id'] ?? '').toString();
+        final id = handle;
         final title = (b['title'] ?? '').toString();
-        final handle = (b['linkValue'] ?? b['handle'] ?? id).toString();
         final img = (b['imageUrl'] ?? b['image'] ?? '').toString();
         return CategoriesModel(
           id: id,
@@ -189,20 +199,59 @@ class _HomeState extends State<Home> {
       }).toList();
     }
 
-    // Grid categories directly from database (Limit to 9 for 3x3 Home grid)
-    final localizedCategories = allCategories.map((c) {
-      return CategoriesModel(
-        id: c.id,
-        title: _getLocalizedCategoryTitle(context, c.title),
-        handle: c.handle,
-        description: c.description,
-        image: c.image,
-      );
-    }).take(9).toList();
+    // Exactly 9 distinct primary categories for the 3x3 Home grid
+    const targetCategories = [
+      'insecticides',
+      'fungicides',
+      'herbicides',
+      'fertilizers',
+      'pgrs',
+      'bio-products',
+      'micronutrients',
+      'organic-fertilizers',
+      'antibiotics',
+    ];
 
+    List<CategoriesModel> home9Categories = [];
+    for (final target in targetCategories) {
+      final match = allCategories.where((c) {
+        final h = c.handle.toLowerCase().trim();
+        final t = c.title.toLowerCase().trim();
+        if (target == 'pgrs') {
+          return h == 'pgrs' || h == 'pgr' || t == 'pgrs' || t == 'pgr';
+        }
+        if (target == 'bio-products') {
+          return h == 'bio-products' || t == 'bio products';
+        }
+        if (target == 'organic-fertilizers') {
+          return h == 'organic-fertilizers' ||
+              h == 'organic-fertilizer' ||
+              t == 'organic fertilizers';
+        }
+        return h == target || t == target;
+      }).firstOrNull;
+
+      if (match != null &&
+          !home9Categories.any((item) => item.id == match.id)) {
+        home9Categories.add(match);
+      }
+    }
+
+    // Fallback: backfill with any missing categories to ensure exactly 9
+    if (home9Categories.length < 9) {
+      for (final cat in allCategories) {
+        if (home9Categories.length >= 9) break;
+        if (!home9Categories.any((c) => c.id == cat.id)) {
+          home9Categories.add(cat);
+        }
+      }
+    }
+
+    _cachedCategories = home9Categories;
+    _cachedCategoryStripBanners = stripBanners;
     if (mounted) {
       setState(() {
-        _categories = localizedCategories;
+        _categories = home9Categories;
         _categoryStripBanners = stripBanners;
         _isLoadingCats = false;
       });
@@ -248,6 +297,7 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -386,21 +436,45 @@ class _HomeState extends State<Home> {
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 3,
-                          crossAxisSpacing: 0,
-                          mainAxisSpacing: 0,
-                          childAspectRatio: 1.0,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                          childAspectRatio: 0.88,
                         ),
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
                             final cat = _categories[index];
+                            final localizedTitle =
+                                _getLocalizedCategoryTitle(context, cat.title);
                             return WidgetButton(
                               onTap: () => Routers.goTO(context,
                                   toBody: CollectionView(
                                       collectionId: cat.id.toString(),
-                                      title: cat.title)),
-                              child: KskNetworkImage(
-                                cat.image,
-                                fit: BoxFit.contain,
+                                      title: localizedTitle)),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Constants.baseColor
+                                          .withValues(alpha: 0.06),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                  border: Border.all(
+                                    color: Constants.baseColor
+                                        .withValues(alpha: 0.05),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: KskNetworkImage(
+                                    cat.image,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
                               ),
                             );
                           },
@@ -411,51 +485,122 @@ class _HomeState extends State<Home> {
 
                   const SliverToBoxAdapter(child: SizedBox(height: 10)),
 
-                  // --- CATEGORY STRIP BANNERS ---
+                  // --- CATEGORY STRIP BANNERS & 4-PRODUCT GRIDS ---
                   if (_categoryStripBanners.isNotEmpty)
-                    SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final banner = _categoryStripBanners[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: WidgetButton(
-                                onTap: () => Routers.goTO(
-                                  context,
-                                  toBody: CollectionView(
-                                    collectionId: banner.id.toString(),
-                                    title: banner.title,
-                                  ),
-                                ),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(10),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.03),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final banner = _categoryStripBanners[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 1. Strip Banner
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  child: WidgetButton(
+                                    onTap: () => Routers.goTO(
+                                      context,
+                                      toBody: CollectionView(
+                                        collectionId: banner.id.toString(),
+                                        title: banner.title,
                                       ),
-                                    ],
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: AspectRatio(
-                                      aspectRatio: 4.8,
-                                      child: KskNetworkImage(
-                                        banner.image,
-                                        fit: BoxFit.cover,
+                                    ),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(10),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.04),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: AspectRatio(
+                                          aspectRatio: 4.8,
+                                          child: KskNetworkImage(
+                                            banner.image,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            );
-                          },
-                          childCount: _categoryStripBanners.length,
-                        ),
+
+                                const SizedBox(height: 8),
+
+                                // 2. 4 Products Grid for this category
+                                ProductsGrid(
+                                  key: ValueKey('category_grid_${banner.id}'),
+                                  id: banner.id.toString(),
+                                  limit: 4,
+                                  shrinkWrap: true,
+                                ),
+
+                                const SizedBox(height: 10),
+
+                                // 3. View All Button
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                                  child: InkWell(
+                                    onTap: () => Routers.goTO(
+                                      context,
+                                      toBody: CollectionView(
+                                        collectionId: banner.id.toString(),
+                                        title: banner.title,
+                                      ),
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(vertical: 11),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: Constants.baseColor.withValues(alpha: 0.35),
+                                          width: 1.2,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.02),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 1),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            "${AppLocalizations.of(context)?.viewAll ?? 'View All'} ${banner.title}",
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                              color: Constants.baseColor,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Icon(
+                                            Icons.arrow_forward_rounded,
+                                            size: 16,
+                                            color: Constants.baseColor,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                        childCount: _categoryStripBanners.length,
                       ),
                     ),
 

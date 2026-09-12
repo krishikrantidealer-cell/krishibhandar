@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../blocs/order/order_bloc.dart';
+import '../blocs/order/order_event.dart';
+import '../blocs/order/order_state.dart';
 import '../controller/constants.dart';
-import '../controller/auth_controller.dart';
-import '../services/api_service.dart';
 import '../model/order_model.dart';
 import 'order_detail_view.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -25,9 +27,6 @@ class _OrderViewState extends State<OrderView>
   List<OrderModel> _orders = [];
   bool _isLoadingOrders = false;
   Timer? _autoRefreshTimer;
-
-  /// Tracks the last successful fetch time to avoid redundant rapid calls.
-  DateTime? _lastFetchTime;
 
   /// Minimum interval between auto-refreshes (30 seconds).
   static const _refreshInterval = Duration(seconds: 30);
@@ -65,53 +64,17 @@ class _OrderViewState extends State<OrderView>
     });
   }
 
-  /// Silent fetch — no loading indicator, just update data in-place.
-  Future<void> _fetchOrdersSilently() async {
-    // Debounce: skip if last fetch was very recent
-    if (_lastFetchTime != null &&
-        DateTime.now().difference(_lastFetchTime!) <
-            const Duration(seconds: 10)) {
-      return;
+  /// Silent fetch via OrderBloc
+  void _fetchOrdersSilently() {
+    if (mounted) {
+      context.read<OrderBloc>().add(const FetchOrdersEvent(isSilent: true));
     }
-    final phone = await AuthController.getSavedPhone();
-    final customerId = await AuthController.getCustomerId();
-    final identifier = (phone != null && phone.isNotEmpty) ? phone : customerId;
-    if (identifier == null || identifier.isEmpty) return;
-    try {
-      final orderData = await ApiService.getOrdersByCustomer(identifier);
-      if (mounted) {
-        setState(() {
-          _orders = orderData.map((e) => OrderModel.fromJson(e)).toList();
-          _lastFetchTime = DateTime.now();
-        });
-      }
-    } catch (_) {}
   }
 
-  /// Fetch orders using the customer phone / ID saved after checkout or login.
+  /// Fetch orders via OrderBloc
   Future<void> _fetchOrders() async {
-    final phone = await AuthController.getSavedPhone();
-    final customerId = await AuthController.getCustomerId();
-    final identifier = (phone != null && phone.isNotEmpty) ? phone : customerId;
-
-    if (identifier == null || identifier.isEmpty || identifier == "null") {
-      if (mounted) setState(() => _isLoadingOrders = false);
-      return;
-    }
-
-    if (mounted) setState(() => _isLoadingOrders = true);
-    try {
-      final orderData = await ApiService.getOrdersByCustomer(identifier);
-      if (mounted) {
-        setState(() {
-          _orders = orderData.map((e) => OrderModel.fromJson(e)).toList();
-          _lastFetchTime = DateTime.now();
-        });
-      }
-    } catch (e) {
-      debugPrint("Fetch Orders Error: $e");
-    } finally {
-      if (mounted) setState(() => _isLoadingOrders = false);
+    if (mounted) {
+      context.read<OrderBloc>().add(const FetchOrdersEvent(isRefresh: true));
     }
   }
 
@@ -148,75 +111,103 @@ class _OrderViewState extends State<OrderView>
   Widget build(BuildContext context) {
     super.build(context);
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
-      ),
-      child: Scaffold(
-        backgroundColor: const Color(0xffF9FBF9),
-        body: Stack(
-          children: [
-            // Background Layer (Covers the whole screen, including status bar)
-            Positioned.fill(
-              child: Container(color: const Color(0xffF9FBF9)),
+    return BlocConsumer<OrderBloc, OrderState>(
+      listener: (context, state) {
+        if (state is OrderActionSuccessState) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: Colors.green[700],
             ),
+          );
+        }
+      },
+      builder: (context, state) {
+        if (state is OrderLoadedState) {
+          _orders = state.orders;
+          _isLoadingOrders = false;
+        } else if (state is OrderLoadingState) {
+          _orders = state.currentOrders;
+          _isLoadingOrders = true;
+        } else if (state is OrderActionSuccessState) {
+          _orders = state.orders;
+          _isLoadingOrders = false;
+        } else if (state is OrderErrorState) {
+          _orders = state.currentOrders;
+          _isLoadingOrders = false;
+        }
 
-            // Background Shapes (Allowed to bleed into status bar area for "transparent" effect)
-            Positioned(
-              top: -50,
-              right: -30,
-              child: Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                  color: Constants.baseColor.withOpacity(0.05),
-                  shape: BoxShape.circle,
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.light,
+          ),
+          child: Scaffold(
+            backgroundColor: const Color(0xffF9FBF9),
+            body: Stack(
+              children: [
+                // Background Layer (Covers the whole screen, including status bar)
+                Positioned.fill(
+                  child: Container(color: const Color(0xffF9FBF9)),
                 ),
-              ),
-            ),
-            Positioned(
-              top: 70, // Kept lower as previously requested
-              left: -20,
-              child: Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Constants.baseColor.withOpacity(0.05),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
 
-            // Main Content (Protected by SafeArea)
-            SafeArea(
-              child: DefaultTabController(
-                length: 4,
-                child: Builder(builder: (context) {
-                  final tabController = DefaultTabController.of(context);
-                  return Column(
-                    children: [
-                      _buildAdvancedHeader(),
-                      _buildFilterChips(tabController),
-                      Expanded(
-                        child: TabBarView(
-                          children: [
-                            _buildOrderList(0),
-                            _buildOrderList(1),
-                            _buildOrderList(2),
-                            _buildOrderList(3),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                }),
-              ),
+                // Background Shapes (Allowed to bleed into status bar area for "transparent" effect)
+                Positioned(
+                  top: -50,
+                  right: -30,
+                  child: Container(
+                    width: 200,
+                    height: 200,
+                    decoration: BoxDecoration(
+                      color: Constants.baseColor.withOpacity(0.05),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 70, // Kept lower as previously requested
+                  left: -20,
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: Constants.baseColor.withOpacity(0.05),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+
+                // Main Content (Protected by SafeArea)
+                SafeArea(
+                  child: DefaultTabController(
+                    length: 4,
+                    child: Builder(builder: (context) {
+                      final tabController = DefaultTabController.of(context);
+                      return Column(
+                        children: [
+                          _buildAdvancedHeader(),
+                          _buildFilterChips(tabController),
+                          Expanded(
+                            child: TabBarView(
+                              children: [
+                                _buildOrderList(0),
+                                _buildOrderList(1),
+                                _buildOrderList(2),
+                                _buildOrderList(3),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

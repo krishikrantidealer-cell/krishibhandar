@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 
@@ -259,38 +258,31 @@ class _CompleteProfileViewState extends State<CompleteProfileView> {
     if (pin.length != 6) return;
     setState(() => _isPinLoading = true);
     try {
-      final res = await http.get(Uri.parse('https://api.postalpincode.in/pincode/$pin'));
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        if (data is List && data.isNotEmpty && data[0]['Status'] == 'Success') {
-          final postOfficeList = data[0]['PostOffice'] as List?;
-          if (postOfficeList != null && postOfficeList.isNotEmpty) {
-            final po = postOfficeList[0];
-            final stateFromApi = po['State']?.toString();
-            final districtFromApi = po['District']?.toString();
+      final pinDetails = await ApiService.fetchPincodeDetails(pin);
+      if (pinDetails != null && mounted) {
+        final stateFromApi = pinDetails.state;
+        final districtFromApi = pinDetails.district;
 
-            if (stateFromApi != null && stateFromApi.isNotEmpty) {
-              String? matchedState = _findMatchingState(stateFromApi);
-              if (matchedState != null) {
-                setState(() {
-                  _selectedState = matchedState;
-                  final availableCities = _statesAndCities[matchedState] ?? ['Other'];
-                  if (districtFromApi != null) {
-                    final matchedCity = availableCities.firstWhere(
-                      (c) => c.toLowerCase() == districtFromApi.toLowerCase(),
-                      orElse: () => 'Other',
-                    );
-                    _selectedCity = matchedCity;
-                    if (matchedCity == 'Other') {
-                      _isCustomCity = true;
-                      _customCityController.text = districtFromApi;
-                    } else {
-                      _isCustomCity = false;
-                    }
-                  }
-                });
+        if (stateFromApi.isNotEmpty) {
+          String? matchedState = _findMatchingState(stateFromApi);
+          if (matchedState != null) {
+            setState(() {
+              _selectedState = matchedState;
+              final availableCities = _statesAndCities[matchedState] ?? ['Other'];
+              if (districtFromApi.isNotEmpty) {
+                final matchedCity = availableCities.firstWhere(
+                  (c) => c.toLowerCase() == districtFromApi.toLowerCase(),
+                  orElse: () => 'Other',
+                );
+                _selectedCity = matchedCity;
+                if (matchedCity == 'Other') {
+                  _isCustomCity = true;
+                  _customCityController.text = districtFromApi;
+                } else {
+                  _isCustomCity = false;
+                }
               }
-            }
+            });
           }
         }
       }
