@@ -350,7 +350,8 @@ class _CompleteProfileViewState extends State<CompleteProfileView> {
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
-      final placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+      final geocoding = Geocoding();
+      final placemarks = await geocoding.placemarkFromCoordinates(position.latitude, position.longitude);
 
       if (placemarks.isNotEmpty) {
         final place = placemarks.first;
@@ -359,7 +360,10 @@ class _CompleteProfileViewState extends State<CompleteProfileView> {
           await _fetchPincodeData(place.postalCode!);
         }
 
-        final line1Parts = [place.street, place.subLocality].where((p) => p != null && p.isNotEmpty).join(', ');
+        final line1Parts = [place.street, place.subLocality]
+            .whereType<String>()
+            .where((p) => p.isNotEmpty)
+            .join(', ');
         if (line1Parts.isNotEmpty && _address1Controller.text.isEmpty) {
           _address1Controller.text = line1Parts;
         }

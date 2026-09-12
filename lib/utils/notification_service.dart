@@ -29,7 +29,9 @@ class NotificationService {
       android: initializationSettingsAndroid,
     );
 
-    await _localNotificationsPlugin.initialize(initializationSettings);
+    await _localNotificationsPlugin.initialize(
+      settings: initializationSettings,
+    );
 
     // Create Android Notification Channel
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
@@ -61,10 +63,10 @@ class NotificationService {
 
       if (notification != null && android != null) {
         _localNotificationsPlugin.show(
-          notification.hashCode,
-          notification.title,
-          notification.body,
-          NotificationDetails(
+          id: notification.hashCode,
+          title: notification.title,
+          body: notification.body,
+          notificationDetails: NotificationDetails(
             android: AndroidNotificationDetails(
               channel.id,
               channel.name,
