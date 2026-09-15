@@ -14,6 +14,7 @@ class Constants {
   static final CartController cartController = CartController();
   static String cdnUrl =
       "https://storage.googleapis.com/bhandar-product-images/";
+
   static String inr = "₹", title = "Krishi Bhandar";
   static Color baseColor = const Color(0xff26842c);
   static String razorpayKey = dotenv.get('RAZORPAY_KEY', fallback: "");
@@ -68,11 +69,13 @@ class Constants {
       try {
         final catBanners = await ApiService.getBanners(type: 'category');
         if (catBanners.isNotEmpty) {
-          homeScreenCatBanners = catBanners.map((b) => {
-            "id": (b['_id'] ?? b['id'] ?? '').toString(),
-            "image": (b['imageUrl'] ?? b['image'] ?? '').toString(),
-            "color": (b['color'] ?? '#f0f4ff').toString(),
-          }).toList();
+          homeScreenCatBanners = catBanners
+              .map((b) => {
+                    "id": (b['_id'] ?? b['id'] ?? '').toString(),
+                    "image": (b['imageUrl'] ?? b['image'] ?? '').toString(),
+                    "color": (b['color'] ?? '#f0f4ff').toString(),
+                  })
+              .toList();
         }
       } catch (_) {}
 
@@ -80,7 +83,8 @@ class Constants {
       try {
         final disc = await ApiService.validateCoupon(payOnlineDiscountCode);
         if (disc != null) {
-          payOnlineDiscountAmount = (disc['value'] ?? disc['discountValue'] ?? 60.0).toDouble();
+          payOnlineDiscountAmount =
+              (disc['value'] ?? disc['discountValue'] ?? 60.0).toDouble();
         }
       } catch (_) {}
     } catch (e) {
