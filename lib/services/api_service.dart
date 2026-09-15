@@ -691,18 +691,47 @@ class ApiService {
       final coupons = await getCoupons();
       return coupons
           .map((c) => {
-                'code': c['code'] ?? '',
-                'summary': c['description'] ?? '${c['value'] ?? ''} OFF',
+                'code': c['code']?.toString() ?? c['title']?.toString() ?? '',
+                'title': c['title']?.toString() ?? c['code']?.toString() ?? '',
+                'summary': c['description']?.toString() ??
+                    c['summary']?.toString() ??
+                    c['title']?.toString() ??
+                    (c['value'] != null ? '${c['value']} OFF' : ''),
+                'description': c['description']?.toString() ??
+                    c['summary']?.toString() ??
+                    c['title']?.toString() ??
+                    (c['value'] != null ? '${c['value']} OFF' : ''),
                 'type': (c['valueType'] == 'percentage' ||
-                        c['discountType'] == 'percentage')
+                        c['discountType'] == 'percentage' ||
+                        c['type'] == 'percentage')
                     ? 'percentage'
-                    : 'fixed_amount',
-                'value': c['value'] ?? c['discountValue'] ?? 0,
-                'min_subtotal':
-                    c['minimumPurchase'] ?? c['minOrderAmount'] ?? 0,
-                'minAmount': c['minimumPurchase'] ?? c['minOrderAmount'] ?? 0,
-                'appliesOncePerCustomer': c['appliesOncePerCustomer'] ?? false,
-                'startsAt': c['startDate'] ?? c['startsAt'],
+                    : (c['type'] == 'special' ? 'special' : 'fixed_amount'),
+                'value': double.tryParse(
+                        c['value']?.toString() ??
+                        c['discountValue']?.toString() ??
+                        c['amount']?.toString() ??
+                        '0') ?? 0.0,
+                'min_subtotal': double.tryParse(
+                        c['minimumPurchase']?.toString() ??
+                        c['minOrderAmount']?.toString() ??
+                        c['minAmount']?.toString() ??
+                        c['minimum_subtotal']?.toString() ??
+                        '0') ?? 0.0,
+                'minAmount': double.tryParse(
+                        c['minimumPurchase']?.toString() ??
+                        c['minOrderAmount']?.toString() ??
+                        c['minAmount']?.toString() ??
+                        c['minimum_subtotal']?.toString() ??
+                        '0') ?? 0.0,
+                'minQty': int.tryParse(
+                        c['minQty']?.toString() ??
+                        c['minimumQuantity']?.toString() ??
+                        c['min_qty']?.toString() ??
+                        '0') ?? 0,
+                'entitledProducts': c['entitledProducts'] ?? c['entitled_products'] ?? c['freeProducts'],
+                'appliesOncePerCustomer': c['appliesOncePerCustomer'] ?? c['applies_once_per_customer'] ?? false,
+                'startsAt': c['startDate'] ?? c['startsAt'] ?? c['starts_at'],
+                'customerSelection': c['customerSelection'] ?? c['customer_selection'],
               })
           .toList();
     } catch (e) {
@@ -725,19 +754,47 @@ class ApiService {
             : (data is Map && data['coupon'] != null ? data['coupon'] : data);
         if (coupon is Map<String, dynamic>) {
           return {
-            'code': coupon['code'] ?? code,
+            'code': coupon['code']?.toString() ?? coupon['title']?.toString() ?? code.trim().toUpperCase(),
+            'title': coupon['title']?.toString() ?? coupon['code']?.toString() ?? code.trim().toUpperCase(),
+            'summary': coupon['description']?.toString() ??
+                coupon['summary']?.toString() ??
+                coupon['title']?.toString() ??
+                (coupon['value'] != null ? '${coupon['value']} OFF' : ''),
+            'description': coupon['description']?.toString() ??
+                coupon['summary']?.toString() ??
+                coupon['title']?.toString() ??
+                (coupon['value'] != null ? '${coupon['value']} OFF' : ''),
             'type': (coupon['valueType'] == 'percentage' ||
-                    coupon['discountType'] == 'percentage')
+                    coupon['discountType'] == 'percentage' ||
+                    coupon['type'] == 'percentage')
                 ? 'percentage'
-                : 'fixed_amount',
-            'value':
-                (coupon['value'] ?? coupon['discountValue'] ?? 0).toDouble(),
-            'min_subtotal':
-                (coupon['minimumPurchase'] ?? coupon['minOrderAmount'] ?? 0)
-                    .toDouble(),
-            'minAmount':
-                (coupon['minimumPurchase'] ?? coupon['minOrderAmount'] ?? 0)
-                    .toDouble(),
+                : (coupon['type'] == 'special' ? 'special' : 'fixed_amount'),
+            'value': double.tryParse(
+                    coupon['value']?.toString() ??
+                    coupon['discountValue']?.toString() ??
+                    coupon['amount']?.toString() ??
+                    '0') ?? 0.0,
+            'min_subtotal': double.tryParse(
+                    coupon['minimumPurchase']?.toString() ??
+                    coupon['minOrderAmount']?.toString() ??
+                    coupon['minAmount']?.toString() ??
+                    coupon['minimum_subtotal']?.toString() ??
+                    '0') ?? 0.0,
+            'minAmount': double.tryParse(
+                    coupon['minimumPurchase']?.toString() ??
+                    coupon['minOrderAmount']?.toString() ??
+                    coupon['minAmount']?.toString() ??
+                    coupon['minimum_subtotal']?.toString() ??
+                    '0') ?? 0.0,
+            'minQty': int.tryParse(
+                    coupon['minQty']?.toString() ??
+                    coupon['minimumQuantity']?.toString() ??
+                    coupon['min_qty']?.toString() ??
+                    '0') ?? 0,
+            'entitledProducts': coupon['entitledProducts'] ?? coupon['entitled_products'] ?? coupon['freeProducts'],
+            'appliesOncePerCustomer': coupon['appliesOncePerCustomer'] ?? coupon['applies_once_per_customer'] ?? false,
+            'startsAt': coupon['startDate'] ?? coupon['startsAt'] ?? coupon['starts_at'],
+            'customerSelection': coupon['customerSelection'] ?? coupon['customer_selection'],
           };
         }
       }

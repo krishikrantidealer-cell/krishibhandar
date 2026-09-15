@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kisan_sewa_kendra/components/widget_button.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
-import 'package:kisan_sewa_kendra/view/cart_view.dart';
 
 import '../controller/constants.dart';
 import '../controller/routers.dart';
@@ -17,7 +16,6 @@ import 'network_image.dart';
 import '../services/attribution_service.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
 import '../controller/pref.dart';
 import 'cart_summary_bar.dart';
 
@@ -148,13 +146,12 @@ class ProductsGridState extends State<ProductsGrid>
 
     // Industry Standard: Dynamic Aspect Ratio
     // Industry Standard: Dynamic Aspect Ratio for feature-rich cards
-    // We use a taller ratio (0.56) to fit ratings, titles, and steppers comfortably
-    double aspectRatio =
-        0.63; // Slightly more height to fix 0.2px Hindi overflow
+    // We use a taller ratio (0.58 - 0.62) to fit ratings, titles, prices, and steppers comfortably
+    double aspectRatio = 0.60;
     if (width < 360) {
-      aspectRatio = 0.60;
+      aspectRatio = 0.58;
     } else if (width > 420) {
-      aspectRatio = 0.68;
+      aspectRatio = 0.62;
     }
 
     // Main Grid/List content
@@ -349,7 +346,7 @@ class ProductsGridState extends State<ProductsGrid>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            flex: 6,
+            flex: 54,
             child: Container(
               padding: const EdgeInsets.all(10),
               width: double.infinity,
@@ -357,14 +354,14 @@ class ProductsGridState extends State<ProductsGrid>
             ),
           ),
           Expanded(
-            flex: 4,
+            flex: 46,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(10, 4, 10, 6),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Constants.shimmer(height: 12, width: 40), // For rating pill
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   Constants.shimmer(
                       height: 14, width: double.infinity), // Title line 1
                   const SizedBox(height: 4),
@@ -535,7 +532,7 @@ class _ProductCardState extends State<ProductCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            flex: 65,
+            flex: 54,
             child: WidgetButton(
               onTap: () => Routers.goTO(context,
                   toBody: ProductView(product: widget.product)),
@@ -559,14 +556,14 @@ class _ProductCardState extends State<ProductCard> {
             ),
           ),
           Expanded(
-            flex: 35,
+            flex: 46,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 2, 10, 2),
+              padding: const EdgeInsets.fromLTRB(10, 2, 10, 4),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildRatingPill(fakeRating),
-                  const SizedBox(height: 1),
+                  const SizedBox(height: 2),
                   GestureDetector(
                     onTap: () => Routers.goTO(context,
                         toBody: ProductView(product: widget.product)),
@@ -593,23 +590,34 @@ class _ProductCardState extends State<ProductCard> {
                               toBody: ProductView(product: widget.product)),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               if (variant.compareAtPrice != null &&
                                   variant.compareAtPrice!.isNotEmpty)
-                                Text(
-                                  "${Constants.inr}${variant.compareAtPrice}",
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey,
-                                    decoration: TextDecoration.lineThrough,
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    "${Constants.inr}${variant.compareAtPrice}",
+                                    maxLines: 1,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey,
+                                      decoration: TextDecoration.lineThrough,
+                                    ),
                                   ),
                                 ),
-                              Text(
-                                "${Constants.inr}${variant.price}",
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: Constants.baseColor,
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  "${Constants.inr}${variant.price}",
+                                  maxLines: 1,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: Constants.baseColor,
+                                  ),
                                 ),
                               ),
                             ],

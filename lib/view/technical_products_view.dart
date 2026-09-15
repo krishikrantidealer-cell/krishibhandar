@@ -70,7 +70,7 @@ class TechnicalProductsView extends StatelessWidget {
                 crossAxisCount: 2,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 0.65, // Match existing aspect ratio
+                childAspectRatio: 0.60, // Match products grid aspect ratio
               ),
               itemCount: products.length,
               itemBuilder: (context, index) {

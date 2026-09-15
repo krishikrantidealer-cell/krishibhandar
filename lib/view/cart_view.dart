@@ -919,14 +919,13 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                     _appliedDiscount == null
                         ? AppLocalizations.of(context)!.saveMoreMsg
                         : AppLocalizations.of(context)!
-                            .couponAppliedMsg(_appliedDiscount!['code']),
+                            .couponAppliedMsg(_appliedDiscount!['code']?.toString() ?? ''),
                     style: GoogleFonts.inter(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 10,
-                      color: _appliedDiscount != null
-                          ? Constants.baseColor
-                          : Colors.grey[400],
-                    ),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 10,
+                        color: _appliedDiscount != null
+                            ? Constants.baseColor
+                            : Colors.grey[400]),
                   ),
                 ],
               ),

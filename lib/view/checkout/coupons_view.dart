@@ -3,10 +3,7 @@ import 'package:kisan_sewa_kendra/controller/auth_controller.dart';
 import '../../controller/constants.dart';
 import '../../services/api_service.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
-import '../product_view.dart';
-import '../../model/product_model.dart';
 import '../../controller/cart_controller.dart';
-import '../../components/network_image.dart';
 
 class CouponsView extends StatefulWidget {
   final double subtotal;
@@ -141,7 +138,17 @@ class _CouponsViewState extends State<CouponsView> {
     if (code.isEmpty) return;
     setState(() => _isLoading = true);
 
-    final result = await ApiService.validateDiscountCode(code);
+    var result = await ApiService.validateDiscountCode(code);
+
+    if (result == null) {
+      final matching = _availableCoupons
+          .where((c) =>
+              (c['code']?.toString().toUpperCase() ?? '') == code.toUpperCase())
+          .toList();
+      if (matching.isNotEmpty) {
+        result = matching.first;
+      }
+    }
 
     if (mounted) {
       if (result != null) {
@@ -154,15 +161,15 @@ class _CouponsViewState extends State<CouponsView> {
         if (result['type'] == 'special' && result['entitledProducts'] != null) {
           final entitled = result['entitledProducts'] as List;
           for (var p in entitled) {
-            if (p['variantId'] != null && p['variantId'].isNotEmpty) {
+            if (p != null && p['variantId'] != null && p['variantId'].toString().isNotEmpty) {
               await CartController.addToCart(
-                variantId: p['variantId'],
-                productId: p['id'],
+                variantId: p['variantId'].toString(),
+                productId: p['id']?.toString() ?? '',
                 qty: 1,
-                title: p['title'],
-                price: p['price'],
-                image: p['image'],
-                variantTitle: p['variantTitle'],
+                title: p['title']?.toString() ?? '',
+                price: p['price']?.toString() ?? '0',
+                image: p['image']?.toString(),
+                variantTitle: p['variantTitle']?.toString() ?? '',
               );
             }
           }
@@ -295,19 +302,22 @@ class _CouponsViewState extends State<CouponsView> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    coupon['code'],
+                                    coupon['code']?.toString() ?? '',
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w900,
                                         fontSize: 16,
                                         letterSpacing: 0.5),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    coupon['description'],
-                                    style: TextStyle(
-                                        color: Colors.grey.shade500,
-                                        fontSize: 12),
-                                  ),
+                                  if ((coupon['description'] ?? coupon['summary']) != null &&
+                                      (coupon['description'] ?? coupon['summary']).toString().isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      (coupon['description'] ?? coupon['summary']).toString(),
+                                      style: TextStyle(
+                                          color: Colors.grey.shade500,
+                                          fontSize: 12),
+                                    ),
+                                  ],
                                   if ((coupon['minAmount'] ?? 0) > 0 ||
                                       (coupon['minQty'] ?? 0) > 0) ...[
                                     const SizedBox(height: 4),
@@ -328,7 +338,7 @@ class _CouponsViewState extends State<CouponsView> {
                               opacity: _isCouponApplicable(coupon) ? 1.0 : 0.5,
                               child: TextButton(
                                 onPressed: _isCouponApplicable(coupon)
-                                    ? () => _applyCode(coupon['code'])
+                                    ? () => _applyCode(coupon['code']?.toString() ?? '')
                                     : () => _isCouponApplicable(coupon,
                                         showMsg: true),
                                 child: Text(AppLocalizations.of(context)!.apply,
