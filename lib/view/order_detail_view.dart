@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../model/order_model.dart';
 import '../controller/constants.dart';
-import '../shopify/shopify.dart';
+import '../services/bhandar_api_service.dart';
 import '../components/network_image.dart';
 import '../controller/cart_controller.dart';
 import '../controller/routers.dart';
@@ -37,7 +37,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
   Future<void> _refreshOrder() async {
     setState(() => _isLoading = true);
     try {
-      final data = await ShopifyAPI.getOrderFullDetails(widget.order.id);
+      final data = await BhandarApiService.getOrderFullDetails(widget.order.id);
       if (data.isNotEmpty && mounted) {
         OrderModel freshOrder = OrderModel.fromJson(data);
 
@@ -179,7 +179,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -214,7 +214,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: isActive
-                                ? activeColor.withOpacity(0.1)
+                                ? activeColor.withValues(alpha: 0.1)
                                 : Colors.grey[50],
                           ),
                           child: Icon(
@@ -230,7 +230,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                               margin: const EdgeInsets.symmetric(vertical: 4),
                               decoration: BoxDecoration(
                                 color: isActive
-                                    ? activeColor.withOpacity(0.2)
+                                    ? activeColor.withValues(alpha: 0.2)
                                     : Colors.grey[100],
                                 borderRadius: BorderRadius.circular(2),
                               ),
@@ -292,7 +292,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                 icon: const Icon(Icons.open_in_new_rounded, size: 16),
                 label: Text(AppLocalizations.of(context)!.trackOnShopify),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Constants.baseColor.withOpacity(0.05),
+                  backgroundColor: Constants.baseColor.withValues(alpha: 0.05),
                   foregroundColor: Constants.baseColor,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -320,7 +320,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -341,7 +341,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Constants.baseColor.withOpacity(0.08),
+                  color: Constants.baseColor.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text("#${_currentOrder.orderNumber}",
@@ -376,7 +376,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -469,7 +469,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -526,7 +526,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -643,7 +643,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                               : const Color(0xFFF0F0F0),
                         ),
                         color: selectedReason == reason
-                            ? Colors.red.withOpacity(0.05)
+                            ? Colors.red.withValues(alpha: 0.05)
                             : Colors.transparent,
                       ),
                       child: Row(
@@ -724,7 +724,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
     ).then((confirmed) async {
       if (confirmed == true && mounted) {
         setState(() => _isLoading = true);
-        final success = await ShopifyAPI.cancelOrder(widget.order.id);
+        final success = await BhandarApiService.cancelOrder(widget.order.id);
         if (success) {
           if (mounted) {
             // Immediately update local state so the Cancel button hides at once,
@@ -770,7 +770,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 15,
               offset: const Offset(0, -5))
         ],
@@ -785,8 +785,8 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.red,
                     side: BorderSide(
-                        color: Colors.red.withOpacity(0.2), width: 1.5),
-                    backgroundColor: Colors.red.withOpacity(0.02),
+                        color: Colors.red.withValues(alpha: 0.2), width: 1.5),
+                    backgroundColor: Colors.red.withValues(alpha: 0.02),
                     minimumSize: const Size(double.infinity, 52),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
@@ -832,6 +832,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                       );
                     }
                   }
+                  if (!mounted) return;
                   messenger.showSnackBar(const SnackBar(
                       content: Text("Order items added to bag")));
                   Routers.goTO(context, toBody: const CartView());
@@ -853,7 +854,7 @@ class _OrderDetailViewState extends State<OrderDetailView> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF2E7D32).withOpacity(0.15),
+                          color: const Color(0xFF2E7D32).withValues(alpha: 0.15),
                           blurRadius: 16,
                           offset: const Offset(0, 6),
                         ),

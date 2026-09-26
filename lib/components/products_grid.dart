@@ -6,7 +6,7 @@ import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import '../controller/constants.dart';
 import '../controller/routers.dart';
 import '../model/product_model.dart';
-import '../shopify/shopify.dart';
+import '../services/bhandar_api_service.dart';
 import '../view/product_view.dart';
 import '../controller/cart_controller.dart';
 import '../utils/firebase_events.dart';
@@ -97,7 +97,7 @@ class ProductsGridState extends State<ProductsGrid>
       List<ProductModel> list = [];
 
       if (widget.id != null && widget.id!.isNotEmpty && widget.id != "0") {
-        final result = await Shopify.getProductsFromCollections(
+        final result = await BhandarApiService.getProductsFromCollections(
           context,
           id: widget.id!,
           limit: widget.limit != null
@@ -107,7 +107,7 @@ class ProductsGridState extends State<ProductsGrid>
         list = (result['product'] as List<dynamic>?)?.cast<ProductModel>() ??
             <ProductModel>[];
       } else if (widget.query != null && widget.query!.isNotEmpty) {
-        list = await Shopify.fetchSearchResults(
+        list = await BhandarApiService.fetchSearchResults(
           context,
           query: widget.query!,
         );
@@ -182,7 +182,7 @@ class ProductsGridState extends State<ProductsGrid>
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 20,
                   )
                 ],
@@ -354,7 +354,7 @@ class ProductsGridState extends State<ProductsGrid>
         border: Border.all(color: Colors.grey[100]!),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 15,
             offset: const Offset(0, 6),
           ),
@@ -433,13 +433,12 @@ class _ProductCardState extends State<ProductCard> {
     super.initState();
     _activeVariant = _minPriceVariant();
     _updateQty();
-    _timer = Timer.periodic(const Duration(seconds: 2), (timer) {
-      _updateQty();
-    });
+    Constants.cartController.addListener(_updateQty);
   }
 
   @override
   void dispose() {
+    Constants.cartController.removeListener(_updateQty);
     _timer?.cancel();
     super.dispose();
   }
@@ -512,7 +511,7 @@ class _ProductCardState extends State<ProductCard> {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -560,12 +559,12 @@ class _ProductCardState extends State<ProductCard> {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -724,7 +723,7 @@ class _ProductCardState extends State<ProductCard> {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.10),
+              color: Colors.black.withValues(alpha: 0.10),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -835,7 +834,7 @@ class _ProductCardState extends State<ProductCard> {
                                   vertical: 12, horizontal: 4),
                               decoration: BoxDecoration(
                                 color: vQty > 0
-                                    ? Constants.baseColor.withOpacity(0.05)
+                                    ? Constants.baseColor.withValues(alpha: 0.05)
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -939,7 +938,7 @@ class _ProductCardState extends State<ProductCard> {
                                               boxShadow: [
                                                 BoxShadow(
                                                   color: Colors.black
-                                                      .withOpacity(0.10),
+                                                      .withValues(alpha: 0.10),
                                                   blurRadius: 12,
                                                   offset: const Offset(0, 4),
                                                 ),
@@ -1030,7 +1029,7 @@ class _ProductCardState extends State<ProductCard> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.10),
+            color: Colors.black.withValues(alpha: 0.10),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -1084,7 +1083,7 @@ class _ProductCardState extends State<ProductCard> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.10),
+            color: Colors.black.withValues(alpha: 0.10),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -1138,7 +1137,7 @@ class _ProductCardState extends State<ProductCard> {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
+          color: Colors.white.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(icon, size: 16, color: Colors.white),
@@ -1147,8 +1146,9 @@ class _ProductCardState extends State<ProductCard> {
   }
 
   Widget _buildDiscountBadge(VariantModel variant) {
-    if (variant.compareAtPrice == null || variant.compareAtPrice!.isEmpty)
+    if (variant.compareAtPrice == null || variant.compareAtPrice!.isEmpty) {
       return const SizedBox.shrink();
+    }
     try {
       double mrp = double.parse(variant.compareAtPrice!
           .replaceAll(Constants.inr, '')
@@ -1171,7 +1171,7 @@ class _ProductCardState extends State<ProductCard> {
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
+                  color: Colors.black.withValues(alpha: 0.15),
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),

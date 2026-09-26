@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:kisan_sewa_kendra/controller/auth_controller.dart';
 import '../../controller/constants.dart';
-import '../../shopify/shopify.dart';
+import '../../services/bhandar_api_service.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
-import '../product_view.dart';
-import '../../model/product_model.dart';
 import '../../controller/cart_controller.dart';
-import '../../components/network_image.dart';
 
 class CouponsView extends StatefulWidget {
   final double subtotal;
@@ -32,8 +29,9 @@ class _CouponsViewState extends State<CouponsView> {
     int minQty = int.tryParse(coupon['minQty']?.toString() ?? '0') ?? 0;
 
     if (minAmount > 0 && widget.subtotal < minAmount) {
-      if (showMsg)
+      if (showMsg) {
         _showError("Minimum order of ${Constants.inr}$minAmount required");
+      }
       return false;
     }
     if (minQty > 0 && widget.totalItems < minQty) {
@@ -106,15 +104,15 @@ class _CouponsViewState extends State<CouponsView> {
 
     // Fetch customer orders to check "new customer" or "one use" status
     try {
-      final customerId = await AuthController.getShopifyCustomerId();
+      final customerId = await AuthController.getCustomerId();
       if (customerId != null) {
-        _customerOrders = await ShopifyAPI.getCustomerOrders(customerId);
+        _customerOrders = await BhandarApiService.getCustomerOrders(customerId);
       }
     } catch (e) {
       debugPrint("Error fetching customer orders for coupon validation: $e");
     }
 
-    final results = await ShopifyAdmin.getAvailableDiscounts();
+    final results = await BhandarApiService.getAvailableDiscounts();
 
     // Filter out coupons that have already been used by this customer
     final filteredResults = results.where((coupon) {
@@ -122,8 +120,15 @@ class _CouponsViewState extends State<CouponsView> {
           _customerOrders.isNotEmpty) {
         String code = coupon['code'].toString().toUpperCase();
         for (var order in _customerOrders) {
-          final usedCodes = order['discount_codes'] as List? ?? [];
-          if (usedCodes.contains(code)) return false;
+          List<dynamic> usedCodes = [];
+          if (order is Map) {
+            if (order['discount_codes'] is List) {
+              usedCodes = order['discount_codes'];
+            } else if (order['discount_code'] != null) {
+              usedCodes = [order['discount_code'].toString()];
+            }
+          }
+          if (usedCodes.map((c) => c.toString().toUpperCase()).contains(code)) return false;
         }
       }
       return true;
@@ -141,7 +146,7 @@ class _CouponsViewState extends State<CouponsView> {
     if (code.isEmpty) return;
     setState(() => _isLoading = true);
 
-    final result = await ShopifyAdmin.validateDiscountCode(code: code);
+    final result = await BhandarApiService.validateDiscountCode(code: code);
 
     if (mounted) {
       if (result != null) {
@@ -167,6 +172,7 @@ class _CouponsViewState extends State<CouponsView> {
             }
           }
         }
+        if (!mounted) return;
         setState(() => _isLoading = false);
         Navigator.pop(context, result);
       } else {
@@ -283,7 +289,7 @@ class _CouponsViewState extends State<CouponsView> {
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: Constants.baseColor.withOpacity(0.1),
+                                color: Constants.baseColor.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(Icons.confirmation_number_outlined,

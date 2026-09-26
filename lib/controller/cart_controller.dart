@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'pref.dart';
 
 class CartItem {
@@ -41,7 +42,11 @@ class CartItem {
       );
 }
 
-class CartController {
+class CartController extends ChangeNotifier {
+  static final CartController _instance = CartController._internal();
+  factory CartController() => _instance;
+  CartController._internal();
+
   static Future<void> addToCart({
     required String variantId,
     String? productId,
@@ -74,6 +79,7 @@ class CartController {
     }
 
     await Pref.setPref(key: PrefKey.cart, value: jsonEncode(cartList));
+    _instance.notifyListeners();
   }
 
   static Future<List<CartItem>> getCart() async {
@@ -100,6 +106,7 @@ class CartController {
         cartList.removeAt(index);
       }
       await Pref.setPref(key: PrefKey.cart, value: jsonEncode(cartList));
+      _instance.notifyListeners();
     }
   }
 
@@ -110,10 +117,16 @@ class CartController {
     cartList
         .removeWhere((item) => item['id'].toString() == variantId.toString());
     await Pref.setPref(key: PrefKey.cart, value: jsonEncode(cartList));
+    _instance.notifyListeners();
   }
 
   // ─── Clear entire cart (called after successful payment) ─────────────────
   static Future<void> clearCart() async {
     await Pref.removePrefKey(PrefKey.cart);
+    _instance.notifyListeners();
+  }
+
+  void notifyCartChanged() {
+    notifyListeners();
   }
 }

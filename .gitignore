@@ -1,5 +1,8 @@
-# Environment
+# Environment & Keystores
 .env
+*.jks
+*.keystore
+**/key.properties
 
 # Miscellaneous
 *.class

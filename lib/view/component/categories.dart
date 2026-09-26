@@ -7,7 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../components/network_image.dart';
 import '../../controller/constants.dart';
 import '../../model/categories_model.dart';
-import '../../shopify/shopify.dart';
+import '../../services/bhandar_api_service.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import '../collection_view.dart';
 
@@ -48,21 +48,17 @@ class _CategoriesState extends State<Categories>
       setState(() => _isLoading = true);
     }
 
-    final all = await Shopify.getCategories(context);
+    final all = await BhandarApiService.getCategories(context);
 
     final filtered = all.where((cat) {
       final title = cat.title.toLowerCase().trim();
-      final hasImage = cat.image.isNotEmpty;
-
       final isNotHomePage = title != "home page";
       final isNotHydroponics = !title.contains('hydroponics');
       final isNotSale =
           !title.contains('sale') && !title.contains('republic day');
-      final isNotBanner =
-          !title.contains('banner') && !title.contains('best seller');
+      final isNotBanner = !title.contains('banner');
 
-      return hasImage &&
-          isNotHomePage &&
+      return isNotHomePage &&
           isNotHydroponics &&
           isNotSale &&
           isNotBanner;
@@ -70,7 +66,7 @@ class _CategoriesState extends State<Categories>
 
     if (mounted) {
       setState(() {
-        _categories = filtered;
+        _categories = filtered.isNotEmpty ? filtered : all;
         _isLoading = false;
       });
     }
@@ -95,7 +91,7 @@ class _CategoriesState extends State<Categories>
         children: [
           // --- MODERN REFINED HEADER ---
           Container(
-            constraints: const BoxConstraints(minHeight: 100),
+            constraints: const BoxConstraints(minHeight: 70),
             width: double.infinity,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
@@ -108,42 +104,44 @@ class _CategoriesState extends State<Categories>
                 ],
               ),
               borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(28),
-                bottomRight: Radius.circular(28),
+                bottomLeft: Radius.circular(20),
+                bottomRight: Radius.circular(20),
               ),
               boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 20,
-                spreadRadius: 0,
-                offset: const Offset(0, 6),
-              ),
-            ],
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: SafeArea(
               bottom: false,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    AppLocalizations.of(context)!.categories,
-                    style: GoogleFonts.outfit(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -0.5,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      AppLocalizations.of(context)!.categories,
+                      style: GoogleFonts.outfit(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
                     ),
-                  ),
-                  Text(
-                    "Explore Agricultural Products",
-                    style: GoogleFonts.outfit(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white.withOpacity(0.85),
-                      letterSpacing: 0.2,
+                    Text(
+                      "Explore Agricultural Products",
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withValues(alpha: 0.85),
+                        letterSpacing: 0.2,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -160,14 +158,14 @@ class _CategoriesState extends State<Categories>
                 ),
                 slivers: [
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 40),
+                    padding: const EdgeInsets.fromLTRB(10, 12, 10, 20),
                     sliver: SliverGrid(
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 3,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 16,
-                        childAspectRatio: 0.82,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 0.88,
                       ),
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
@@ -226,17 +224,17 @@ class _CategoriesState extends State<Categories>
           Positioned(
             top: 150,
             right: -100,
-            child: _blurCircle(300, const Color(0xFF1E88E5).withOpacity(0.02)),
+            child: _blurCircle(300, const Color(0xFF1E88E5).withValues(alpha: 0.02)),
           ),
           Positioned(
             bottom: 100,
             left: -80,
-            child: _blurCircle(250, const Color(0xFF2E7D32).withOpacity(0.02)),
+            child: _blurCircle(250, const Color(0xFF2E7D32).withValues(alpha: 0.02)),
           ),
           Positioned(
             top: 450,
             left: -50,
-            child: _blurCircle(200, const Color(0xFF0F9D8A).withOpacity(0.02)),
+            child: _blurCircle(200, const Color(0xFF0F9D8A).withValues(alpha: 0.02)),
           ),
         ],
       ),
@@ -268,7 +266,7 @@ class _CategoriesState extends State<Categories>
             transitionDuration: const Duration(milliseconds: 250),
             pageBuilder: (context, animation, secondaryAnimation) =>
                 CollectionView(
-              collectionId: category.id.toString(),
+              collectionId: category.handle.isNotEmpty ? category.handle : (category.id > 0 ? category.id.toString() : category.title),
               title: category.title,
             ),
             transitionsBuilder:
@@ -324,47 +322,47 @@ class _CategoriesState extends State<Categories>
             ),
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 12),
         Expanded(
           child: GridView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.fromLTRB(10, 12, 10, 20),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 16,
-              childAspectRatio: 0.82,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 10,
+              childAspectRatio: 0.88,
             ),
             itemCount: 12,
             itemBuilder: (context, index) {
               return Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(12),
                   color: Colors.white,
                   boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Column(
                   children: [
                     Expanded(
-                      flex: 82,
+                      flex: 80,
                       child: Container(
                         decoration: const BoxDecoration(
                           color: Color(0xFFF9FAFB),
                           borderRadius:
-                              BorderRadius.vertical(top: Radius.circular(20)),
+                              BorderRadius.vertical(top: Radius.circular(12)),
                         ),
                         child: Constants.shimmer(),
                       ),
                     ),
                     Expanded(
-                      flex: 18,
+                      flex: 20,
                       child: Center(
-                        child: Constants.shimmer(height: 10, width: 60),
+                        child: Constants.shimmer(height: 8, width: 50),
                       ),
                     ),
                   ],
@@ -409,33 +407,33 @@ class _PremiumCategoryCardState extends State<_PremiumCategoryCard> {
         curve: Curves.easeOutCubic,
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(12),
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // IMAGE SECTION (82%)
+              // IMAGE SECTION (80%)
               Expanded(
-                flex: 82,
+                flex: 80,
                 child: Container(
                   decoration: const BoxDecoration(
                     color: Color(0xFFF9FAFB),
                     borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(20)),
+                        BorderRadius.vertical(top: Radius.circular(12)),
                   ),
                   child: ClipRRect(
                     borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(20)),
+                        const BorderRadius.vertical(top: Radius.circular(12)),
                     child: Padding(
-                      padding: const EdgeInsets.all(0.0), // Micro-adjustment for 2-3% larger visual image
+                      padding: const EdgeInsets.all(2.0),
                       child: KskNetworkImage(
                         widget.image,
                         fit: BoxFit.contain,
@@ -444,13 +442,13 @@ class _PremiumCategoryCardState extends State<_PremiumCategoryCard> {
                   ),
                 ),
               ),
-              // EXPLORE SECTION (18%)
+              // EXPLORE SECTION (20%)
               Expanded(
-                flex: 18,
+                flex: 20,
                 child: Container(
                   decoration: const BoxDecoration(
                     borderRadius:
-                        BorderRadius.vertical(bottom: Radius.circular(20)),
+                        BorderRadius.vertical(bottom: Radius.circular(12)),
                   ),
                   child: Center(
                     child: Row(
@@ -459,15 +457,15 @@ class _PremiumCategoryCardState extends State<_PremiumCategoryCard> {
                         Text(
                           "Explore",
                           style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                             color: const Color(0xFF2E7D32),
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 3),
                         const Icon(
                           Icons.arrow_forward_rounded,
-                          size: 13,
+                          size: 11,
                           color: Color(0xFF2E7D32),
                         ),
                       ],

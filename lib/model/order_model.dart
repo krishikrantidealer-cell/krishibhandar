@@ -47,7 +47,9 @@ class OrderModel {
 
   String get customerName {
     if ((firstName == null || firstName!.isEmpty) &&
-        (lastName == null || lastName!.isEmpty)) return "Customer";
+        (lastName == null || lastName!.isEmpty)) {
+      return "Customer";
+    }
     return '${firstName ?? ''} ${lastName ?? ''}'.trim();
   }
 
@@ -75,8 +77,9 @@ class OrderModel {
     // Fallback: If fulfillment status is fulfilled, it's at least shipped.
     // In many cases for this business, fulfilled == completed/delivered if no tracking is used.
     if (fulfillmentStatus.toLowerCase() == 'fulfilled') return 'Delivered';
-    if (fulfillmentStatus.toLowerCase() == 'partial')
+    if (fulfillmentStatus.toLowerCase() == 'partial') {
       return 'Partially Shipped';
+    }
     if (closedAt != null) return 'Completed';
     if (confirmed) return 'Processing';
     return 'Order Placed';
@@ -101,8 +104,7 @@ class OrderModel {
   }
 
   bool get isCancellable {
-    // Also check financialStatus: Shopify sets it to 'voided' or 'refunded'
-    // immediately on cancel, sometimes before cancelled_at propagates in the API.
+    // Check financialStatus and cancelled status
     final fs = financialStatus.toLowerCase();
     if (fs == 'voided' || fs == 'refunded') return false;
     return cancelledAt == null &&

@@ -112,7 +112,7 @@ class _SplashScreenState extends State<SplashScreen>
     });
   }
 
-  _initApp() async {
+  Future<void> _initApp() async {
     debugPrint("Splash: Starting _initApp...");
     bool navigated = false;
 
@@ -143,7 +143,7 @@ class _SplashScreenState extends State<SplashScreen>
       // Step 2: Deferred and Parallelized Initialization with timeout
       await Future.wait([
         UpdateService.init(),
-        Constants.fetchRemoteConfig(context),
+        Constants.fetchRemoteConfig(),
         _initNonCriticalServices(),
       ]).timeout(const Duration(seconds: 15), onTimeout: () {
         debugPrint("Splash: Service initialization timed out");
@@ -153,14 +153,14 @@ class _SplashScreenState extends State<SplashScreen>
       debugPrint("Splash: Checking Auth State...");
       final phone = await AuthController.getSavedPhone()
           .timeout(const Duration(seconds: 2), onTimeout: () => null);
-      final shopifyId = await AuthController.getShopifyCustomerId()
+      final customerId = await AuthController.getCustomerId()
           .timeout(const Duration(seconds: 2), onTimeout: () => null);
 
       if (phone != null &&
           phone.isNotEmpty &&
-          (shopifyId == null || shopifyId.isEmpty || shopifyId == "null")) {
-        debugPrint("Splash: Syncing with Shopify...");
-        AuthController.syncWithShopify(phone)
+          (customerId == null || customerId.isEmpty || customerId == "null")) {
+        debugPrint("Splash: Syncing customer profile with backend...");
+        AuthController.syncCustomer(phone)
             .timeout(const Duration(seconds: 5))
             .catchError((e) {
           debugPrint("Splash: Auto-heal error: $e");
@@ -292,7 +292,7 @@ class _SplashScreenState extends State<SplashScreen>
                   height: size.width * 0.8,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.06),
+                    color: Colors.white.withValues(alpha: 0.06),
                   ),
                 ),
               ),
@@ -304,7 +304,7 @@ class _SplashScreenState extends State<SplashScreen>
                   height: size.width * 0.9,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.04),
+                    color: Colors.white.withValues(alpha: 0.04),
                   ),
                 ),
               ),
@@ -318,7 +318,7 @@ class _SplashScreenState extends State<SplashScreen>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
-                        colors: [Colors.white, Colors.white.withOpacity(0)],
+                        colors: [Colors.white, Colors.white.withValues(alpha: 0)],
                       ),
                     ),
                   ),
@@ -394,7 +394,7 @@ class _SplashScreenState extends State<SplashScreen>
                               "हर किसान की पहचान !",
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.85),
+                                color: Colors.white.withValues(alpha: 0.85),
                                 fontSize: 18, // Increased size
                                 fontWeight: FontWeight.w500,
                                 letterSpacing: 1.0,
@@ -433,7 +433,7 @@ class _SplashScreenState extends State<SplashScreen>
                             height: 8,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Colors.white.withOpacity(opacity * 0.75),
+                              color: Colors.white.withValues(alpha: opacity * 0.75),
                             ),
                           );
                         }),

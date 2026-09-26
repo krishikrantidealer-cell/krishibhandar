@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:pinput/pinput.dart';
 import '../../controller/auth_controller.dart';
 import '../../controller/constants.dart';
@@ -87,8 +86,8 @@ class _OtpViewState extends State<OtpView> with SingleTickerProviderStateMixin {
     );
 
     if (success && mounted) {
-      // Sync with Shopify in background (Don't block the UI)
-      AuthController.syncWithShopify(widget.phone);
+      // Sync customer profile with Bhandar backend in background
+      AuthController.syncCustomer(widget.phone);
 
       // Navigate to home immediately
       Navigator.pushAndRemoveUntil(
@@ -197,7 +196,7 @@ class _OtpViewState extends State<OtpView> with SingleTickerProviderStateMixin {
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(
-                      color: Constants.baseColor.withOpacity(0.1),
+                      color: Constants.baseColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(Icons.sms_rounded,

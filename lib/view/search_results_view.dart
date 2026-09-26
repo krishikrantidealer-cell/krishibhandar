@@ -64,7 +64,7 @@ class SearchResultsView extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: Constants.baseColor.withOpacity(opacity),
+        color: Constants.baseColor.withValues(alpha: opacity),
         shape: BoxShape.circle,
       ),
     );
@@ -101,7 +101,7 @@ class SearchResultsView extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.arrow_back_rounded, size: 20, color: Colors.white),
@@ -129,7 +129,7 @@ class SearchResultsView extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                     letterSpacing: 0.5,
                   ),
                 ),

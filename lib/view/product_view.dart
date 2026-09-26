@@ -21,10 +21,9 @@ import '../components/widget_button.dart';
 import '../controller/constants.dart';
 import '../controller/routers.dart';
 import '../model/product_model.dart';
-import '../shopify/shopify.dart';
+import '../services/bhandar_api_service.dart';
 import '../controller/cart_controller.dart';
 import '../services/attribution_service.dart';
-import '../utils/meta_events.dart';
 import '../utils/firebase_events.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -45,7 +44,7 @@ class ProductView extends StatefulWidget {
 
 class MyWidgetFactory extends WidgetFactory {
   @override
-  void parse(BuildMetadata meta) {
+  void parse(BuildTree meta) {
     if (meta.element.localName == 'iframe') {
       debugPrint("DEBUG: [MyWidgetFactory] Found iframe tag in HTML");
       debugPrint("DEBUG: [MyWidgetFactory] iframe element: ${meta.element.outerHtml}");
@@ -55,63 +54,12 @@ class MyWidgetFactory extends WidgetFactory {
 
   @override
   Widget? buildWebView(
-    BuildMetadata meta,
+    BuildTree meta,
     String url, {
     double? height,
     Iterable<String>? sandbox,
     double? width,
   }) {
-    debugPrint("DEBUG: [MyWidgetFactory] buildWebView called for URL: $url");
-    // Returning null or SizedBox.shrink() here suppresses the internal iframe rendering
-    // so we can use our dedicated ShopifyIframeWidget without duplication.
-    return const SizedBox.shrink();
-  }
-
-  Widget _buildYouSavePill({
-    required String? comparePrice,
-    required String sellingPrice,
-  }) {
-    if (comparePrice == null || comparePrice.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    try {
-      double mrp = double.parse(
-              comparePrice.replaceAll(Constants.inr, '').replaceAll(',', '')),
-          sp = double.parse(
-              sellingPrice.replaceAll(Constants.inr, '').replaceAll(',', ''));
-
-      double savingAmount = mrp - sp;
-      double per = (100 * savingAmount) / mrp;
-
-      if (savingAmount > 0) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: const Color(0xFFE8F5E9),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.local_offer_rounded,
-                  color: Color(0xFF2E7D32), size: 14),
-              const SizedBox(width: 6),
-              Text(
-                "You Save ${Constants.inr}${savingAmount.toStringAsFixed(0)} (${per.toInt()}%)",
-                style: GoogleFonts.outfit(
-                  color: const Color(0xFF2E7D32),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        );
-      }
-    } catch (e) {
-      return const SizedBox.shrink();
-    }
     return const SizedBox.shrink();
   }
 }
@@ -128,7 +76,6 @@ class _ProductViewState extends State<ProductView>
   late TabController _tabController;
   ProductModel? _localizedProduct;
   bool _isExpanded = false;
-  int _cartCount = 0;
   List<dynamic> _cartItems = [];
   Timer? _timer;
 
@@ -215,15 +162,12 @@ class _ProductViewState extends State<ProductView>
 
   Future<void> _updateCartCount() async {
     String? cart = await Pref.getPref(PrefKey.cart);
-    int count = 0;
     List<dynamic> parsedList = [];
     if (cart != null) {
       parsedList = jsonDecode(cart);
-      count = parsedList.length;
     }
     if (mounted) {
       setState(() {
-        _cartCount = count;
         _cartItems = parsedList;
       });
     }
@@ -245,12 +189,12 @@ class _ProductViewState extends State<ProductView>
     final productId = widget.product?.id.toString() ?? widget.id;
     if (productId == null) return;
 
-    final localized = await Shopify.getProductDetails(
+    final localized = await BhandarApiService.getProductDetails(
       context,
       productId: productId,
     );
     if (!mounted) return;
-    _recommend = await Shopify.getProductsRecommend(
+    _recommend = await BhandarApiService.getProductsRecommend(
       context,
       id: productId,
     );
@@ -300,7 +244,7 @@ class _ProductViewState extends State<ProductView>
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Constants.baseColor.withOpacity(0.08),
+        color: Constants.baseColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -347,7 +291,7 @@ class _ProductViewState extends State<ProductView>
           borderRadius: BorderRadius.circular(10),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -414,7 +358,7 @@ class _ProductViewState extends State<ProductView>
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 4,
                 offset: const Offset(1, 1),
               ),
@@ -689,8 +633,8 @@ class _ProductViewState extends State<ProductView>
                                   const EdgeInsets.symmetric(horizontal: 3.0),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(10),
-                                color: Constants.baseColor.withOpacity(
-                                    _carouselIndex == entry.key ? 1.0 : 0.2),
+                                color: Constants.baseColor.withValues(
+                                    alpha: _carouselIndex == entry.key ? 1.0 : 0.2),
                               ),
                             );
                           }).toList(),
@@ -888,7 +832,7 @@ class _ProductViewState extends State<ProductView>
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(isSelected ? 0.12 : 0.05),
+                                    color: Colors.black.withValues(alpha: isSelected ? 0.12 : 0.05),
                                     blurRadius: isSelected ? 10 : 4,
                                     offset: const Offset(0, 4),
                                   ),
@@ -1058,10 +1002,7 @@ class _ProductViewState extends State<ProductView>
                   ),
                 ],
 
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(20, 10, 20, 0),
-                  child: _PromoBanners(),
-                ),
+
 
                 const SizedBox(height: 180), // Increased bottom spacing
               ],
@@ -1083,7 +1024,7 @@ class _ProductViewState extends State<ProductView>
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 20,
                 offset: const Offset(0, -5))
           ],
@@ -1166,7 +1107,7 @@ class _ProductViewState extends State<ProductView>
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.15),
+                                  color: Colors.black.withValues(alpha: 0.15),
                                   blurRadius: 12,
                                   offset: const Offset(0, 4),
                                 ),
@@ -1244,7 +1185,7 @@ class _ProductViewState extends State<ProductView>
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF2E7D32).withOpacity(0.15),
+                            color: const Color(0xFF2E7D32).withValues(alpha: 0.15),
                             blurRadius: 16,
                             offset: const Offset(0, 6),
                           ),
@@ -1408,8 +1349,8 @@ class _ProductViewState extends State<ProductView>
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
                               colors: [
-                                Colors.white.withOpacity(0),
-                                Colors.white.withOpacity(0.9),
+                                Colors.white.withValues(alpha: 0),
+                                Colors.white.withValues(alpha: 0.9),
                                 Colors.white,
                               ],
                             ),
@@ -1463,101 +1404,6 @@ class _ProductViewState extends State<ProductView>
     );
   }
 
-  Widget _buildHowToUseSection() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      color: Colors.white,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                    color: Constants.baseColor.withOpacity(0.1),
-                    shape: BoxShape.circle),
-                child: Icon(Icons.help_outline_rounded,
-                    color: Constants.baseColor, size: 18),
-              ),
-              const SizedBox(width: 10),
-              Text(AppLocalizations.of(context)!.howToUse,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 17,
-                      color: Colors.black)),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF9F9F9),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFF0F0F0)),
-            ),
-            child: Column(
-              children: [
-                _usageItem(
-                    Icons.water_drop_outlined,
-                    AppLocalizations.of(context)!.dosage,
-                    AppLocalizations.of(context)!.dosageDesc),
-                const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Divider(height: 1, color: Color(0xFFEBEBEB))),
-                _usageItem(
-                    Icons.schedule_rounded,
-                    AppLocalizations.of(context)!.applyTime,
-                    AppLocalizations.of(context)!.applyTimeDesc),
-                const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Divider(height: 1, color: Color(0xFFEBEBEB))),
-                _usageItem(
-                    Icons.auto_awesome_outlined,
-                    AppLocalizations.of(context)!.method,
-                    AppLocalizations.of(context)!.methodDesc),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _usageItem(IconData icon, String title, String desc) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 5)
-              ]),
-          child: Icon(icon, color: Constants.baseColor, size: 24),
-        ),
-        const SizedBox(width: 15),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 14,
-                      color: Colors.black87)),
-              const SizedBox(height: 4),
-              Text(desc,
-                  style: TextStyle(
-                      fontSize: 13, color: Colors.grey[600], height: 1.3)),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildWriteReviewSection() {
     return Padding(
@@ -1619,7 +1465,7 @@ class _ProductViewState extends State<ProductView>
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide:
-                    BorderSide(color: Constants.baseColor.withOpacity(0.5)),
+                    BorderSide(color: Constants.baseColor.withValues(alpha: 0.5)),
               ),
             ),
           ),
@@ -1825,7 +1671,7 @@ class _ProductVideoCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.12),
+                    color: Colors.black.withValues(alpha: 0.12),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -1839,7 +1685,7 @@ class _ProductVideoCard extends StatelessWidget {
                     fit: StackFit.expand,
                     children: [
                       KskNetworkImage(thumbnailUrl, fit: BoxFit.cover),
-                      Container(color: Colors.black.withOpacity(0.25)),
+                      Container(color: Colors.black.withValues(alpha: 0.25)),
                       const Center(
                         child: Icon(
                           Icons.play_circle_fill_rounded,
@@ -1943,120 +1789,3 @@ class _ProductVideoWebViewScreenState extends State<ProductVideoWebViewScreen> {
   }
 }
 
-class _PromoBanners extends StatefulWidget {
-  const _PromoBanners();
-
-  @override
-  State<_PromoBanners> createState() => _PromoBannersState();
-}
-
-class _PromoBannersState extends State<_PromoBanners> {
-  bool _visible = false;
-
-  @override
-  void initState() {
-    super.initState();
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) setState(() => _visible = true);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      opacity: _visible ? 1.0 : 0.0,
-      duration: const Duration(milliseconds: 450),
-      child: AnimatedPadding(
-        duration: const Duration(milliseconds: 450),
-        padding: EdgeInsets.only(top: _visible ? 0 : 20),
-        child: Column(
-          children: const [
-            _PromoBannerCard(
-              imageUrl:
-                  "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Dizoxy_Top_6af007fe-8df9-446e-bf10-7c37add2e8ed.png?v=1778659719",
-              productId: "8270562328729",
-            ),
-            SizedBox(height: 16),
-            _PromoBannerCard(
-              imageUrl:
-                  "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Cargar_76360ba7-5801-464e-a78a-b9c81a5a8d63.png?v=1778660266",
-              productId: "7926676848793",
-            ),
-            SizedBox(height: 16),
-            _PromoBannerCard(
-              imageUrl:
-                  "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/ChatGPT_Image_May_13_2026_12_55_33_PM.png?v=1778657162",
-              productId: "8074173350041",
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PromoBannerCard extends StatefulWidget {
-  final String imageUrl;
-  final String productId;
-
-  const _PromoBannerCard({required this.imageUrl, required this.productId});
-
-  @override
-  State<_PromoBannerCard> createState() => _PromoBannerCardState();
-}
-
-class _PromoBannerCardState extends State<_PromoBannerCard> {
-  double _scale = 1.0;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _scale = 0.94),
-      onTapUp: (_) => setState(() => _scale = 1.0),
-      onTapCancel: () => setState(() => _scale = 1.0),
-      onTap: () async {
-        try {
-          if (!mounted) return;
-          final product = await Shopify.getProductDetails(context,
-              productId: widget.productId);
-          if (product != null && mounted) {
-            Routers.goTO(context, toBody: ProductView(product: product));
-          } else if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Product not found.")),
-            );
-          }
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Something went wrong.")),
-            );
-          }
-        }
-      },
-      child: AnimatedScale(
-        scale: _scale,
-        duration: const Duration(milliseconds: 180),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: _scale < 1.0 ? 12 : 6,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: KskNetworkImage(
-              widget.imageUrl,
-              fit: BoxFit.fill,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

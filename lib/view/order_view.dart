@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../controller/constants.dart';
 import '../controller/auth_controller.dart';
-import '../shopify/shopify.dart';
+import '../services/bhandar_api_service.dart';
 import '../model/order_model.dart';
 import 'order_detail_view.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -91,8 +91,9 @@ class _OrderViewState extends State<OrderView>
       }
     }
 
-    if (customerId == null || customerId.isEmpty || customerId == "null")
+    if (customerId == null || customerId.isEmpty || customerId == "null") {
       return;
+    }
 
     try {
       final orderData = await ShopifyAPI.getCustomerOrders(customerId);
@@ -116,7 +117,7 @@ class _OrderViewState extends State<OrderView>
     final phone = await AuthController.getSavedPhone();
     final name = await AuthController.getSavedName();
     debugPrint(
-        'OrderView: [Trace] customerId: $customerId | phone: $phone | _orders.length BEFORE: ${_orders.length}');
+        'OrderView: [Trace] customerId: $customerId | phone: $phone | name: $name | _orders.length BEFORE: ${_orders.length}');
 
     // Auto-heal missing customer ID if phone is saved when loading the screen
     if (customerId == null || customerId.isEmpty || customerId == "null") {
@@ -143,18 +144,19 @@ class _OrderViewState extends State<OrderView>
     if (mounted) setState(() => _isLoadingOrders = true);
     try {
       debugPrint(
-          "OrderView: [Forensic] Fetching orders from Shopify for ID: $customerId");
-      final orderData = await ShopifyAPI.getCustomerOrders(customerId);
+          "OrderView: Fetching orders from Bhandar API for ID: $customerId");
+      final orderData = await BhandarApiService.getCustomerOrders(customerId);
       debugPrint(
-          'OrderView: [Trace] Shopify returned ${orderData.length} raw orders.');
-      final List orderIds = orderData.map((e) => e['id']).toList();
-      debugPrint('OrderView: [Trace] Order IDs: $orderIds');
+          'OrderView: API returned ${orderData.length} orders.');
 
       if (mounted) {
         setState(() {
-          _orders = orderData.map((e) => OrderModel.fromJson(e)).toList();
+          _orders = orderData.map((e) {
+            if (e is OrderModel) return e;
+            return OrderModel.fromJson(Map<String, dynamic>.from(e as Map));
+          }).toList();
           debugPrint(
-              'OrderView: [Trace] After setState | _orders.length: ${_orders.length} | Hash: ${identityHashCode(this)}');
+              'OrderView: After setState | _orders.length: ${_orders.length}');
           _lastFetchTime = DateTime.now();
         });
       }
@@ -252,12 +254,12 @@ class _OrderViewState extends State<OrderView>
           Positioned(
             top: 150,
             right: -100,
-            child: _blurCircle(300, const Color(0xFF1E88E5).withOpacity(0.02)),
+            child: _blurCircle(300, const Color(0xFF1E88E5).withValues(alpha: 0.02)),
           ),
           Positioned(
             bottom: 100,
             left: -80,
-            child: _blurCircle(250, const Color(0xFF0F9D8A).withOpacity(0.02)),
+            child: _blurCircle(250, const Color(0xFF0F9D8A).withValues(alpha: 0.02)),
           ),
         ],
       ),
@@ -299,7 +301,7 @@ class _OrderViewState extends State<OrderView>
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 20,
             spreadRadius: 0,
             offset: const Offset(0, 6),
@@ -325,7 +327,7 @@ class _OrderViewState extends State<OrderView>
               style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: Colors.white.withOpacity(0.85),
+                color: Colors.white.withValues(alpha: 0.85),
                 letterSpacing: 0.2,
               ),
             ),
@@ -468,7 +470,7 @@ class _OrderViewState extends State<OrderView>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -539,7 +541,7 @@ class _OrderViewState extends State<OrderView>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -609,7 +611,7 @@ class _OrderViewState extends State<OrderView>
                         child: _buildActionButton(
                           label: AppLocalizations.of(context)!.details,
                           icon: Icons.info_outline,
-                          color: Colors.grey.withOpacity(0.1),
+                          color: Colors.grey.withValues(alpha: 0.1),
                           textColor: Colors.grey[500]!,
                           onPressed: () => _navigateToDetail(order),
                         ),
@@ -635,14 +637,13 @@ class _OrderViewState extends State<OrderView>
                                 );
                               }
                             }
+                            if (!mounted) return;
                             scaffoldMessenger.showSnackBar(
                               SnackBar(
                                   content: Text(AppLocalizations.of(context)!
                                       .itemsAddedToBag)),
                             );
-                            if (mounted) {
-                              Routers.goTO(context, toBody: const CartView());
-                            }
+                            Routers.goTO(context, toBody: const CartView());
                           },
                         ),
                       ),
@@ -682,7 +683,7 @@ class _OrderViewState extends State<OrderView>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -743,7 +744,7 @@ class _OrderViewState extends State<OrderView>
                 border: Border.all(color: Colors.white, width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -835,7 +836,7 @@ class _OrderViewState extends State<OrderView>
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF2E7D32).withOpacity(0.15),
+                  color: const Color(0xFF2E7D32).withValues(alpha: 0.15),
                   blurRadius: 16,
                   offset: const Offset(0, 6),
                 ),
@@ -861,12 +862,14 @@ class _OrderViewState extends State<OrderView>
 
   Color _getStatusColor(String status) {
     status = status.toLowerCase();
-    if (status.contains('delivered') || status.contains('completed'))
+    if (status.contains('delivered') || status.contains('completed')) {
       return const Color(0xFF43A047);
+    }
     if (status.contains('cancelled')) return const Color(0xFFE53935);
     if (status.contains('shipped')) return const Color(0xFF1E88E5);
-    if (status.contains('pending') || status.contains('processing'))
+    if (status.contains('pending') || status.contains('processing')) {
       return const Color(0xFFFB8C00);
+    }
     return Constants.baseColor;
   }
 
@@ -900,7 +903,7 @@ class _OrderViewState extends State<OrderView>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -908,7 +911,7 @@ class _OrderViewState extends State<OrderView>
                 ),
                 child: Center(
                   child: Icon(Icons.shopping_bag_outlined,
-                      size: 60, color: Constants.baseColor.withOpacity(0.2)),
+                      size: 60, color: Constants.baseColor.withValues(alpha: 0.2)),
                 ),
               ),
               const SizedBox(height: 32),
@@ -958,7 +961,7 @@ class _OrderViewState extends State<OrderView>
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF2E7D32).withOpacity(0.15),
+                          color: const Color(0xFF2E7D32).withValues(alpha: 0.15),
                           blurRadius: 16,
                           offset: const Offset(0, 6),
                         ),

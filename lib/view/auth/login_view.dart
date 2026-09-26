@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'otp_view.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import '../home_view.dart';
 import '../../controller/auth_controller.dart';
@@ -21,8 +20,6 @@ class _LoginViewState extends State<LoginView>
   final TextEditingController _phoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
-  int _cooldown = 0;
-  Timer? _cooldownTimer;
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
@@ -43,21 +40,9 @@ class _LoginViewState extends State<LoginView>
 
   @override
   void dispose() {
-    _cooldownTimer?.cancel();
     _animController.dispose();
     _phoneController.dispose();
     super.dispose();
-  }
-
-  void _startCooldown() {
-    setState(() => _cooldown = 30);
-    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_cooldown == 0) {
-        timer.cancel();
-      } else {
-        if (mounted) setState(() => _cooldown--);
-      }
-    });
   }
 
   Future<void> _sendOtp() async {
@@ -74,8 +59,8 @@ class _LoginViewState extends State<LoginView>
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_phone', phone);
 
-      // Sync with Shopify
-      await AuthController.syncWithShopify(phone);
+      // Sync customer profile with Bhandar backend
+      await AuthController.syncCustomer(phone);
 
       if (mounted) {
         setState(() => _isLoading = false);
@@ -191,7 +176,7 @@ class _LoginViewState extends State<LoginView>
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Constants.baseColor.withOpacity(0.1),
+                            color: Constants.baseColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -232,10 +217,12 @@ class _LoginViewState extends State<LoginView>
                         ),
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty)
+                        if (value == null || value.isEmpty) {
                           return AppLocalizations.of(context)!.enterMobileValid;
-                        if (value.length != 10)
+                        }
+                        if (value.length != 10) {
                           return AppLocalizations.of(context)!.enterMobile10;
+                        }
                         return null;
                       },
                     ),
@@ -278,7 +265,7 @@ class _LoginViewState extends State<LoginView>
 
                     const Center(
                       child: Text(
-                        "We will securely verify your details with Shopify",
+                        "We will securely verify your account details",
                         textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 13, color: Colors.grey),

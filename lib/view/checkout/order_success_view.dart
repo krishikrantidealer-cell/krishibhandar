@@ -101,7 +101,7 @@ class _OrderSuccessViewState extends State<OrderSuccessView>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Constants.baseColor.withOpacity(0.3),
+                          color: Constants.baseColor.withValues(alpha: 0.3),
                           blurRadius: 30,
                           offset: const Offset(0, 12),
                         ),
@@ -142,10 +142,10 @@ class _OrderSuccessViewState extends State<OrderSuccessView>
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Constants.baseColor.withOpacity(0.06),
+                    color: Constants.baseColor.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(
-                        color: Constants.baseColor.withOpacity(0.15)),
+                        color: Constants.baseColor.withValues(alpha: 0.15)),
                   ),
                   child: Column(
                     children: [
@@ -231,7 +231,7 @@ class _OrderSuccessViewState extends State<OrderSuccessView>
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF2E7D32).withOpacity(0.15),
+                              color: const Color(0xFF2E7D32).withValues(alpha: 0.15),
                               blurRadius: 16,
                               offset: const Offset(0, 6),
                             ),

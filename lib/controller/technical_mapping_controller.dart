@@ -16,7 +16,6 @@ class TechnicalMappingController {
   
   // Precomputed for fast search and navigation
   Map<String, List<ProductModel>> _technicalToProducts = {};
-  List<ProductModel> _allProducts = [];
 
   bool get isLoaded => _isLoaded;
 

@@ -1,15 +1,13 @@
 import 'dart:convert';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kisan_sewa_kendra/components/cart_icon.dart';
 import 'package:kisan_sewa_kendra/components/products_grid.dart';
 import 'package:kisan_sewa_kendra/controller/constants.dart';
-import 'package:kisan_sewa_kendra/shopify/shopify.dart';
+import '../services/bhandar_api_service.dart';
 
 import '../controller/pref.dart';
-import '../controller/routers.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import 'dart:async';
 
@@ -39,7 +37,8 @@ class _CollectionViewState extends State<CollectionView>
   void initState() {
     super.initState();
     _title = widget.title ?? '';
-    _startCartTimer();
+    _updateCartSummary();
+    Constants.cartController.addListener(_updateCartSummary);
     Future.delayed(Duration.zero, _init);
     Constants.languageController.addListener(_onLanguageChanged);
   }
@@ -50,16 +49,10 @@ class _CollectionViewState extends State<CollectionView>
     }
   }
 
-  void _startCartTimer() {
-    _updateCartSummary();
-    _cartTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
-      _updateCartSummary();
-    });
-  }
-
   @override
   void dispose() {
     Constants.languageController.removeListener(_onLanguageChanged);
+    Constants.cartController.removeListener(_updateCartSummary);
     _cartTimer?.cancel();
     super.dispose();
   }
@@ -94,13 +87,13 @@ class _CollectionViewState extends State<CollectionView>
     }
   }
 
-  _init() async {
+  Future<void> _init() async {
     if (!mounted) return;
     var col =
-        await Shopify.getCollectionDetails(context, id: widget.collectionId);
+        await BhandarApiService.getCollectionDetails(context, id: widget.collectionId);
     if (mounted && widget.title == null) {
       setState(() {
-        _title = "${col['title'] ?? ''}";
+        _title = col['title'] ?? '';
       });
     }
   }
@@ -167,7 +160,7 @@ class _CollectionViewState extends State<CollectionView>
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: Constants.baseColor.withOpacity(opacity),
+        color: Constants.baseColor.withValues(alpha: opacity),
         shape: BoxShape.circle,
       ),
     );
@@ -194,7 +187,7 @@ class _CollectionViewState extends State<CollectionView>
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
+            color: Colors.black.withValues(alpha: 0.12),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -230,7 +223,7 @@ class _CollectionViewState extends State<CollectionView>
                   style: GoogleFonts.inter(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -303,7 +296,7 @@ class _CollectionViewState extends State<CollectionView>
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -325,7 +318,7 @@ class _CollectionViewState extends State<CollectionView>
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),

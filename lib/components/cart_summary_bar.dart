@@ -27,20 +27,15 @@ class _CartSummaryBarState extends State<CartSummaryBar> {
   @override
   void initState() {
     super.initState();
-    _startCartTimer();
+    _updateCartSummary();
+    Constants.cartController.addListener(_updateCartSummary);
   }
 
   @override
   void dispose() {
+    Constants.cartController.removeListener(_updateCartSummary);
     _cartTimer?.cancel();
     super.dispose();
-  }
-
-  void _startCartTimer() {
-    _updateCartSummary();
-    _cartTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
-      _updateCartSummary();
-    });
   }
 
   Future<void> _updateCartSummary() async {
@@ -126,13 +121,13 @@ class _CartSummaryBarState extends State<CartSummaryBar> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Constants.baseColor.withOpacity(1.0),
+                  Constants.baseColor.withValues(alpha: 1.0),
                   Constants.baseColor,
                 ],
               ),
               borderRadius: BorderRadius.circular(30),
               border: Border.all(
-                color: Colors.white.withOpacity(0.3),
+                color: Colors.white.withValues(alpha: 0.3),
                 width: 1.2,
               ),
               boxShadow: const [],
@@ -160,7 +155,7 @@ class _CartSummaryBarState extends State<CartSummaryBar> {
                                   color: Constants.baseColor, width: 2.0),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.12),
+                                  color: Colors.black.withValues(alpha: 0.12),
                                   blurRadius: 6,
                                   offset: const Offset(1, 1),
                                 )
@@ -214,7 +209,7 @@ class _CartSummaryBarState extends State<CartSummaryBar> {
                             .itemsAdded(_cartItemCount),
                         key: ValueKey<int>(_cartItemCount),
                         style: GoogleFonts.inter(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                         ),
@@ -227,7 +222,7 @@ class _CartSummaryBarState extends State<CartSummaryBar> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color:
-                        const Color.fromARGB(255, 82, 81, 81).withOpacity(0.2),
+                        const Color.fromARGB(255, 82, 81, 81).withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(

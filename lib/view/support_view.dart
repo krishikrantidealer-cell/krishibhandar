@@ -159,7 +159,7 @@ class _SupportViewState extends State<SupportView>
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF2E7D32).withOpacity(0.15),
+                color: const Color(0xFF2E7D32).withValues(alpha: 0.15),
                 blurRadius: 15,
                 offset: const Offset(0, 8),
               ),
@@ -175,7 +175,7 @@ class _SupportViewState extends State<SupportView>
                 child: Icon(
                   Icons.support_agent_rounded,
                   size: 200,
-                  color: Colors.white.withOpacity(0.06),
+                  color: Colors.white.withValues(alpha: 0.06),
                 ),
               ),
 
@@ -198,7 +198,7 @@ class _SupportViewState extends State<SupportView>
                         child: Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
+                            color: Colors.white.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
@@ -214,7 +214,7 @@ class _SupportViewState extends State<SupportView>
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.18),
+                            color: Colors.white.withValues(alpha: 0.18),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
@@ -252,7 +252,7 @@ class _SupportViewState extends State<SupportView>
                     AppLocalizations.of(context)!.supportSubtitle,
                     style: TextStyle(
                       fontSize: 13.5,
-                      color: Colors.white.withOpacity(0.85),
+                      color: Colors.white.withValues(alpha: 0.85),
                       height: 1.5,
                     ),
                   ),
@@ -275,13 +275,13 @@ class _SupportViewState extends State<SupportView>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Constants.baseColor.withOpacity(0.08),
+            color: Constants.baseColor.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
         border: Border.all(
-          color: Constants.baseColor.withOpacity(0.05),
+          color: Constants.baseColor.withValues(alpha: 0.05),
           width: 1,
         ),
       ),
@@ -345,8 +345,9 @@ class _SupportViewState extends State<SupportView>
               controller: _phoneController,
               keyboardType: TextInputType.phone,
               validator: (v) {
-                if (v == null || v.isEmpty)
+                if (v == null || v.isEmpty) {
                   return AppLocalizations.of(context)!.enterMobile;
+                }
                 if (!RegExp(r'^[0-9]{10}$').hasMatch(v)) {
                   return AppLocalizations.of(context)!.enterMobile;
                 }
@@ -359,8 +360,9 @@ class _SupportViewState extends State<SupportView>
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               validator: (v) {
-                if (v == null || v.isEmpty)
+                if (v == null || v.isEmpty) {
                   return AppLocalizations.of(context)!.enterEmail;
+                }
                 if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v)) {
                   return AppLocalizations.of(context)!.enterEmail;
                 }
@@ -404,7 +406,7 @@ class _SupportViewState extends State<SupportView>
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF2E7D32).withOpacity(0.15),
+                        color: const Color(0xFF2E7D32).withValues(alpha: 0.15),
                         blurRadius: 16,
                         offset: const Offset(0, 6),
                       ),
@@ -504,13 +506,13 @@ class _SupportViewState extends State<SupportView>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Constants.baseColor.withOpacity(0.08),
+            color: Constants.baseColor.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
         border: Border.all(
-          color: Constants.baseColor.withOpacity(0.05),
+          color: Constants.baseColor.withValues(alpha: 0.05),
           width: 1,
         ),
       ),

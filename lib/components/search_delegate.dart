@@ -5,7 +5,7 @@ import '../controller/routers.dart';
 import '../controller/technical_mapping_controller.dart';
 import '../model/product_model.dart';
 import '../model/technical_mapping_model.dart';
-import '../shopify/shopify.dart';
+import '../services/bhandar_api_service.dart';
 import '../view/product_view.dart';
 import 'network_image.dart';
 import '../services/attribution_service.dart';
@@ -144,7 +144,7 @@ class CustomSearchDelegate extends SearchDelegate<String> {
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   color: isSelected
-                      ? Colors.white.withOpacity(0.9)
+                      ? Colors.white.withValues(alpha: 0.9)
                       : const Color(0xFF616161),
                 ),
               ),
@@ -174,7 +174,7 @@ class CustomSearchDelegate extends SearchDelegate<String> {
     }
 
     return FutureBuilder<List<ProductModel>>(
-      future: Shopify.fetchSearchResults(context, query: query),
+      future: BhandarApiService.fetchSearchResults(context, query: query),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -203,7 +203,7 @@ class CustomSearchDelegate extends SearchDelegate<String> {
     }
 
     return FutureBuilder<List<ProductModel>>(
-      future: Shopify.fetchSearchResults(context, query: query),
+      future: BhandarApiService.fetchSearchResults(context, query: query),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());

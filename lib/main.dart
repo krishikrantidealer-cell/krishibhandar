@@ -50,10 +50,12 @@ void main() {
 
     // 0. Pre-Flight Configuration (Must be before ANY widget builds)
     try {
-      await Future.wait([
-        dotenv.load(fileName: ".env"),
-        Pref.ensureInitialized(),
-      ]).timeout(const Duration(seconds: 5));
+      await Pref.ensureInitialized().timeout(const Duration(seconds: 5));
+      try {
+        await dotenv.load(fileName: ".env").timeout(const Duration(seconds: 2));
+      } catch (_) {
+        // .env file not bundled or optional in production
+      }
     } catch (e) {
       debugPrint("CRITICAL: Pre-flight initialization failed: $e");
     }

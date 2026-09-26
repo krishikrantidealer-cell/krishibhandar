@@ -133,7 +133,7 @@ class _NotificationFormViewState extends State<NotificationFormView> {
             const SizedBox(height: 16),
             TextField(
               controller: _imageController,
-              decoration: const InputDecoration(labelText: "Shopify Image URL (HTTPS)", border: OutlineInputBorder(), helperText: "Optional. Must start with https://"),
+              decoration: const InputDecoration(labelText: "Image URL (HTTPS)", border: OutlineInputBorder(), helperText: "Optional. Must start with https://"),
             ),
             if (_previewUrl != null) ...[
               const SizedBox(height: 12),

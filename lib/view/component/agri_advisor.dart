@@ -3,8 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
-import '../../components/network_image.dart';
-import '../../controller/constants.dart';
+
 
 class AgriAdvisor extends StatefulWidget {
   const AgriAdvisor({super.key});
@@ -30,8 +29,15 @@ class _AgriAdvisorState extends State<AgriAdvisor> {
               ),
             ),
           ),
-          KskNetworkImage(
-            "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/NEW_PRODUCT_480x480.png?v=1723707591",
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12.0),
+            child: Center(
+              child: Image.asset(
+                'assets/logo.png',
+                height: 90,
+                fit: BoxFit.contain,
+              ),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -265,7 +271,7 @@ class _AgriAdvisorState extends State<AgriAdvisor> {
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF2E7D32).withOpacity(0.3),
+                color: const Color(0xFF2E7D32).withValues(alpha: 0.3),
                 blurRadius: 15,
                 offset: const Offset(0, 8),
               ),

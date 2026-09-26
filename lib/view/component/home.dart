@@ -1,11 +1,8 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
 import 'package:google_fonts/google_fonts.dart';
@@ -17,9 +14,10 @@ import '../../controller/routers.dart';
 import '../collection_view.dart';
 import '../product_view.dart';
 import '../search_results_view.dart';
+import 'categories.dart';
 import '../../model/categories_model.dart';
 import '../../model/product_model.dart';
-import '../../shopify/shopify.dart';
+import '../../services/bhandar_api_service.dart';
 
 class Home extends StatefulWidget {
   final ScrollController scrollController;
@@ -36,37 +34,12 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   List<CategoriesModel> _categories = [];
   List<CategoriesModel> _banners = [];
+  List<Map<String, String>> _dynamicSections = [];
   bool _isLoadingCats = true;
   bool _isLoadingBanners = true;
   List<String> _bestSellerIds = [];
 
-  final List<Map<String, String>> _cropData = [
-    {
-      "name": "Rice",
-      "count": "95+ Products",
-      "image": "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/paddy.png?v=1783163292"
-    },
-    {
-      "name": "Maize",
-      "count": "70+ Products",
-      "image": "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/maze.png?v=1783163292"
-    },
-    {
-      "name": "Wheat",
-      "count": "120+ Products",
-      "image": "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/weat.png?v=1783163292"
-    },
-    {
-      "name": "Sugarcane",
-      "count": "80+ Products",
-      "image": "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/sugercane.png?v=1783163292"
-    },
-    {
-      "name": "Cotton",
-      "count": "85+ Products",
-      "image": "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/cotton.png?v=1783163291"
-    },
-  ];
+  List<Map<String, String>> _cropData = [];
 
   // Press state for Phase 2 Button Polish
   bool _isWhatsAppPressed = false;
@@ -81,10 +54,16 @@ class _HomeState extends State<Home> {
   Future<void> _staggeredInit() async {
     await _fetchBanners();
     if (!mounted) return;
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 200));
     await _initCategories();
     if (!mounted) return;
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 200));
+    await _fetchDynamicSections();
+    if (!mounted) return;
+    await Future.delayed(const Duration(milliseconds: 200));
+    await _fetchCrops();
+    if (!mounted) return;
+    await Future.delayed(const Duration(milliseconds: 200));
     await _fetchBestSellerIds();
   }
 
@@ -105,12 +84,36 @@ class _HomeState extends State<Home> {
     await Future.wait([
       _fetchBanners(),
       _initCategories(),
+      _fetchDynamicSections(),
+      _fetchCrops(),
       _fetchBestSellerIds(),
     ]);
   }
 
+  Future<void> _fetchDynamicSections() async {
+    try {
+      final sections = await BhandarApiService.getHomeScreenSections();
+      if (mounted && sections.isNotEmpty) {
+        setState(() {
+          _dynamicSections = sections;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _fetchCrops() async {
+    try {
+      final crops = await BhandarApiService.getCrops(context);
+      if (crops.isNotEmpty && mounted) {
+        setState(() {
+          _cropData = crops;
+        });
+      }
+    } catch (_) {}
+  }
+
   Future<void> _fetchBanners() async {
-    final banners = await Shopify.getBannerCollections(context);
+    final banners = await BhandarApiService.getBannerCollections(context);
     if (mounted) {
       setState(() {
         _banners = banners;
@@ -126,17 +129,20 @@ class _HomeState extends State<Home> {
   }
 
   Future<void> _fetchBestSellerIds() async {
-    final allCats = Constants.homeScreenCatBanners;
+    final allCats = _dynamicSections.isNotEmpty ? _dynamicSections : Constants.homeScreenCatBanners;
     String? bestSellerId;
     for (var cat in allCats) {
-      if (cat['image']?.toLowerCase().contains('best') ?? false) {
+      final img = (cat['image'] ?? '').toLowerCase();
+      final name = (cat['name'] ?? '').toLowerCase();
+      final slug = (cat['slug'] ?? '').toLowerCase();
+      if (img.contains('best') || name.contains('best') || slug.contains('best')) {
         bestSellerId = cat['id'];
         break;
       }
     }
 
     if (bestSellerId != null) {
-      final result = await Shopify.getProductsFromCollections(
+      final result = await BhandarApiService.getProductsFromCollections(
         context,
         id: bestSellerId,
         limit: 10,
@@ -189,58 +195,10 @@ class _HomeState extends State<Home> {
       );
     }
   }
-  Future<void> _openProduct(String handle,
-      {String? fallbackCollectionId}) async {
-    try {
-      // debugPrint("🔍 Fetching product handle: $handle");
-
-      final results = await Shopify.fetchSearchResults(context, query: handle);
-
-      // debugPrint("🔍 Search results count: ${results.length}");
-      // debugPrint("   → handle: ${r.handle}  title: ${r.title}");
-
-      if (results.isNotEmpty) {
-        // Try exact handle match first, fallback to first result
-        final product = results.any((p) => p.handle == handle)
-            ? results.firstWhere((p) => p.handle == handle)
-            : results.first;
-
-        if (mounted) {
-          Routers.goTO(context, toBody: ProductView(product: product));
-        }
-      } else {
-        // debugPrint("⚠️ Product not found: $handle");
-        if (mounted) {
-          // Fallback → go to a collection if provided
-          if (fallbackCollectionId != null) {
-            Routers.goTO(context,
-                toBody: CollectionView(collectionId: fallbackCollectionId));
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Product not available right now."),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
-        }
-      }
-    } catch (e) {
-      // debugPrint("❌ Product open error: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Something went wrong. Please try again."),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    }
-  }
 
   Future<void> _openProductById(String id) async {
     try {
-      final product = await Shopify.getProductDetails(context, productId: id);
+      final product = await BhandarApiService.getProductDetails(context, productId: id);
       if (product != null && mounted) {
         Routers.goTO(context, toBody: ProductView(product: product));
       } else if (mounted) {
@@ -264,6 +222,7 @@ class _HomeState extends State<Home> {
   }
 
   Widget _buildShopByCropSection() {
+    if (_cropData.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -322,7 +281,8 @@ class _HomeState extends State<Home> {
 
   Future<void> _initCategories() async {
     final allCategories =
-        await Shopify.getCategories(context, forcedLang: 'EN');
+        await BhandarApiService.getCategories(context, forcedLang: 'EN');
+    if (!mounted) return;
 
     final List<String> orderedTitles = [
       'PGRs',
@@ -381,12 +341,15 @@ class _HomeState extends State<Home> {
     };
 
     List<CategoriesModel> filtered = [];
+    final Set<dynamic> addedIds = {};
+
     for (var title in orderedTitles) {
       CategoriesModel? found;
 
       List<String> aliases = titleAliases[title] ?? [title];
       for (var alias in aliases) {
         for (var cat in allCategories) {
+          if (addedIds.contains(cat.id)) continue;
           final catTitle = cat.title.toLowerCase().trim();
           final aliasLower = alias.toLowerCase().trim();
 
@@ -399,6 +362,7 @@ class _HomeState extends State<Home> {
       }
 
       if (found != null) {
+        addedIds.add(found.id);
         filtered.add(CategoriesModel(
           id: found.id,
           title: _getLocalizedCategoryTitle(context, title),
@@ -409,17 +373,26 @@ class _HomeState extends State<Home> {
       }
     }
 
+    // Append any other active categories with valid images if not in ordered list
+    for (var cat in allCategories) {
+      if (!addedIds.contains(cat.id) && cat.image.isNotEmpty) {
+        addedIds.add(cat.id);
+        filtered.add(cat);
+      }
+    }
+
+    if (filtered.isEmpty) {
+      filtered = allCategories;
+    }
+
+    // Strictly limit home screen to 9 categories (3x3 grid)
+    final finalCategories = filtered.take(9).toList();
+
     if (mounted) {
       setState(() {
-        _categories = filtered;
+        _categories = finalCategories;
         _isLoadingCats = false;
       });
-      // Pre-cache SVGs (DISABLED for 3GB RAM stability)
-      // for (var cat in _categories) {
-      //   if (cat.image.isNotEmpty) {
-      //     DefaultCacheManager().downloadFile(cat.image);
-      //   }
-      // }
     }
   }
 
@@ -452,11 +425,14 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
-    final allCats = Constants.homeScreenCatBanners;
+    final allCats = _dynamicSections.isNotEmpty ? _dynamicSections : Constants.homeScreenCatBanners;
 
     Map<String, String>? bestSeller;
     for (var cat in allCats) {
-      if (cat['image']?.toLowerCase().contains('best') ?? false) {
+      final img = (cat['image'] ?? '').toLowerCase();
+      final name = (cat['name'] ?? '').toLowerCase();
+      final slug = (cat['slug'] ?? '').toLowerCase();
+      if (img.contains('best') || name.contains('best') || slug.contains('best')) {
         bestSeller = cat;
         break;
       }
@@ -464,7 +440,10 @@ class _HomeState extends State<Home> {
 
     Map<String, String>? badiBachat;
     for (var cat in allCats) {
-      if (cat['image']?.toLowerCase().contains('bachat') ?? false) {
+      final img = (cat['image'] ?? '').toLowerCase();
+      final name = (cat['name'] ?? '').toLowerCase();
+      final slug = (cat['slug'] ?? '').toLowerCase();
+      if (img.contains('bachat') || name.contains('bachat') || slug.contains('bachat') || name.contains('saving') || slug.contains('saving')) {
         badiBachat = cat;
         break;
       }
@@ -488,7 +467,7 @@ class _HomeState extends State<Home> {
                 width: 200,
                 height: 200,
                 decoration: BoxDecoration(
-                  color: Constants.baseColor.withOpacity(0.05),
+                  color: Constants.baseColor.withValues(alpha: 0.05),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -500,7 +479,7 @@ class _HomeState extends State<Home> {
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  color: Constants.baseColor.withOpacity(0.05),
+                  color: Constants.baseColor.withValues(alpha: 0.05),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -552,22 +531,33 @@ class _HomeState extends State<Home> {
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                       child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Container(
-                            width: 4,
-                            height: 20,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF26842c),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
+                          Row(
+                            children: [
+                              Container(
+                                width: 4.5,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF26842c),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                AppLocalizations.of(context)!.categories,
+                                style: GoogleFonts.outfit(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.5),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 10),
-                          Text(
-                            AppLocalizations.of(context)!.categories,
-                            style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.5),
+                          _CategoryViewAllBadge(
+                            onTap: () => Routers.goTO(
+                              context,
+                              toBody: const Categories(),
+                            ),
                           ),
                         ],
                       ),
@@ -597,7 +587,7 @@ class _HomeState extends State<Home> {
                               ),
                             ),
                           ),
-                          childCount: 6,
+                          childCount: 9,
                         ),
                       ),
                     )
@@ -618,7 +608,7 @@ class _HomeState extends State<Home> {
                             return WidgetButton(
                               onTap: () => Routers.goTO(context,
                                   toBody: CollectionView(
-                                      collectionId: cat.id.toString(),
+                                      collectionId: cat.handle.isNotEmpty ? cat.handle : (cat.id > 0 ? cat.id.toString() : cat.title),
                                       title: cat.title)),
                               child: KskNetworkImage(
                                 cat.image,
@@ -639,21 +629,15 @@ class _HomeState extends State<Home> {
 
                   SliverToBoxAdapter(child: _buildShopByCropSection()),
 
-                  // --- NEW COLLECTIONS SECTION ---
-                  SliverToBoxAdapter(child: _buildCollectionsSection()),
-
                   if (badiBachat != null)
                     SliverToBoxAdapter(
                         child:
                             _buildDynamicSection(badiBachat, _bestSellerIds)),
 
                   for (var section in allCats)
-                    if (section != bestSeller && section != badiBachat) ...[
+                    if (section != bestSeller && section != badiBachat)
                       SliverToBoxAdapter(
                           child: _buildDynamicSection(section, [])),
-                      if (section['id'] == "329026240665")
-                        SliverToBoxAdapter(child: _buildExclusiveSection()),
-                    ],
 
                   // --- PREMIUM FOOTER ---
                   SliverToBoxAdapter(child: _buildPremiumFooter()),
@@ -673,51 +657,12 @@ class _HomeState extends State<Home> {
       return const SizedBox.shrink();
     }
 
-    // Mapping Titles and Subtitles from instructions
-    String title = "";
-    String subtitle = "";
-    String? headerImageUrl;
-
-    switch (id) {
-      case "329119367321":
-        title = "Best Seller";
-        subtitle = "Top performing farming products";
-        headerImageUrl = "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Best_Sellers_New_0141dc78-17a7-4681-a1a8-58ac8248a5c4.png?v=1784628915";
-        break;
-      case "329026371737":
-        title = "Insecticide";
-        subtitle = "Protect crops from insects";
-        headerImageUrl = "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Insecticides_New_726a2744-fc90-42a6-a48b-1013a5b26b55.png?v=1784628915";
-        break;
-      case "329026175129":
-        title = "Fungicide";
-        subtitle = "Advanced disease control";
-        headerImageUrl = "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Fungicides_New_459199bb-d20d-4983-b741-e031a58d5ae2.png?v=1784628916";
-        break;
-      case "329026142361":
-        title = "Fertilizer";
-        subtitle = "Better nutrition for crops";
-        headerImageUrl = "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Fertilizers_New_d711af01-a8a0-493a-b4e4-881b4c29cb52.png?v=1784628915";
-        break;
-      case "329026240665":
-        title = "Herbicide";
-        subtitle = "Effective weed management";
-        headerImageUrl = "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Herbicides_New_a310f3d5-9295-4715-8ac6-983ba9c3424c.png?v=1784628915";
-        break;
-      case "329026470041":
-        title = "Top Growth Promoters";
-        subtitle = "Faster and healthier growth";
-        headerImageUrl = "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/PGRs_New_fdd490af-ab2e-4f39-9d70-d918c907a7af.png?v=1784628915";
-        break;
-      case "333391134873":
-        title = "Buy 1 Get 1 Free";
-        subtitle = "Limited time special offers";
-        headerImageUrl = "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Buy_1_get_1_new.png?v=1784628915";
-        break;
-      default:
-        title = "Featured Selection";
-        subtitle = "Premium quality farming essentials";
+    final stripBanner = (data['stripBanner'] ?? '').trim();
+    if (stripBanner.isEmpty) {
+      return const SizedBox.shrink();
     }
+
+    String title = data['title'] ?? data['name'] ?? "Featured Selection";
 
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 250),
@@ -735,31 +680,26 @@ class _HomeState extends State<Home> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          headerImageUrl != null
-              ? GestureDetector(
-                  onTap: () => Routers.goTO(context,
-                      toBody: CollectionView(collectionId: id, title: title)),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
-                      child: KskNetworkImage(
-                        headerImageUrl,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                      ),
-                    ),
-                  ),
-                )
-              : SectionHeader(
-                  title: title,
-                  subtitle: subtitle,
+          GestureDetector(
+            onTap: () => Routers.goTO(context,
+                toBody: CollectionView(collectionId: id, title: title)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: KskNetworkImage(
+                  stripBanner,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
                 ),
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           Container(
             decoration: BoxDecoration(
               color: Constants.stringToColor(color: data['color'] ?? "#fff")
-                  .withOpacity(0.04),
+                  .withValues(alpha: 0.04),
             ),
             child: ProductsGrid(
               id: id,
@@ -772,7 +712,7 @@ class _HomeState extends State<Home> {
           Center(
             child: _PremiumExploreButton(
               onTap: () => Routers.goTO(context,
-                  toBody: CollectionView(collectionId: id!, title: title)),
+                  toBody: CollectionView(collectionId: id, title: title)),
             ),
           ),
           const SizedBox(height: 24),
@@ -781,171 +721,7 @@ class _HomeState extends State<Home> {
     );
   }
 
-  Widget _buildCollectionsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-          child: Row(
-            children: [
-              Container(
-                width: 4.5,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF26842c),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                "Collections",
-                style: GoogleFonts.outfit(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.8),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.2,
-            children: [
-              _CollectionCard(
-                title: "Bio Products",
-                imageUrl:
-                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Bio-Products.png?v=1778653230",
-                onTap: () => Routers.goTO(context,
-                    toBody: CollectionView(
-                        collectionId: "329337798809", title: "Bio Products")),
-              ),
-              _CollectionCard(
-                title: "Insecticides",
-                imageUrl:
-                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Insecticides_caa2d9e9-b52e-41e8-ab52-2d7ba95a8da0.png?v=1778653230",
-                onTap: () => Routers.goTO(context,
-                    toBody: CollectionView(
-                        collectionId: "329026371737", title: "Insecticides")),
-              ),
-              _CollectionCard(
-                title: "Fungicides",
-                imageUrl:
-                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Fungicides_b66a7ccd-99d4-40ee-a069-17413504bcf2.png?v=1778653230",
-                onTap: () => Routers.goTO(context,
-                    toBody: CollectionView(
-                        collectionId: "329026175129", title: "Fungicides")),
-              ),
-              _CollectionCard(
-                title: "PGRs",
-                imageUrl:
-                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/PGRs.png?v=1778653230",
-                onTap: () => Routers.goTO(context,
-                    toBody: CollectionView(
-                        collectionId: "329026470041", title: "PGRs")),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Center(
-          child: _PremiumExploreButton(
-            onTap: () => Routers.goTO(context,
-                toBody: CollectionView(
-                    collectionId: "329119367321", title: "Best Sellers")),
-          ),
-        ),
-        const SizedBox(height: 24),
-      ],
-    );
-  }
 
-  Widget _buildExclusiveSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-          child: Row(
-            children: [
-              Container(
-                width: 4.5,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF26842c),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                "Exclusive",
-                style: GoogleFonts.outfit(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.8),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.2,
-            children: [
-              _CollectionCard(
-                title: "NPK Fertilizers",
-                imageUrl:
-                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/NPK_Fertilizers.png?v=1778656835",
-                onTap: () => Routers.goTO(context,
-                    toBody: CollectionView(
-                        collectionId: "329027715225", title: "NPK Fertilizers")),
-              ),
-              _CollectionCard(
-                title: "Featured Growth",
-                imageUrl:
-                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/ChatGPT_Image_May_13_2026_12_14_51_PM.png?v=1778654730",
-                onTap: () => _openProductById("8507485225113"),
-              ),
-              _CollectionCard(
-                title: "Proper Care",
-                imageUrl:
-                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/Proper_404_ff6ed463-0058-4ab1-ae59-53942d0a8acc.png?v=1778654565",
-                onTap: () => _openProductById("7926581362841"),
-              ),
-              _CollectionCard(
-                title: "Exclusive Offer",
-                imageUrl:
-                    "https://cdn.shopify.com/s/files/1/0627/9204/0601/files/ChatGPT_Image_May_16_2026_11_58_03_AM.png?v=1778912897",
-                onTap: () => _openProductById("8568815157401"),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Center(
-          child: _PremiumExploreButton(
-            onTap: () => Routers.goTO(context,
-                toBody: CollectionView(
-                    collectionId: "329119367321", title: "Best Sellers")),
-          ),
-        ),
-        const SizedBox(height: 24),
-      ],
-    );
-  }
 
   Widget _buildPremiumFooter() {
     return Container(
@@ -996,7 +772,7 @@ class _HomeState extends State<Home> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
+                            color: Colors.black.withValues(alpha: 0.08),
                             blurRadius: 15,
                             offset: const Offset(0, 5),
                           ),
@@ -1090,7 +866,7 @@ class _ShopByCropCardState extends State<_ShopByCropCard> {
             border: Border.all(color: const Color(0xFFF3F3F3), width: 1),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -1105,10 +881,10 @@ class _ShopByCropCardState extends State<_ShopByCropCard> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white,
-                  border: Border.all(color: const Color(0xFF2E7D32).withOpacity(0.1), width: 1.5),
+                  border: Border.all(color: const Color(0xFF2E7D32).withValues(alpha: 0.1), width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -1164,100 +940,6 @@ class _ShopByCropCardState extends State<_ShopByCropCard> {
   }
 }
 
-class _CollectionCard extends StatefulWidget {
-  final String imageUrl;
-  final String title;
-  final VoidCallback onTap;
-
-  const _CollectionCard({
-    required this.imageUrl,
-    required this.title,
-    required this.onTap,
-  });
-
-  @override
-  State<_CollectionCard> createState() => _CollectionCardState();
-}
-
-class _CollectionCardState extends State<_CollectionCard> {
-  double _scale = 1.0;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _scale = 0.94),
-      onTapUp: (_) => setState(() => _scale = 1.0),
-      onTapCancel: () => setState(() => _scale = 1.0),
-      onTap: widget.onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedScale(
-        scale: _scale,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeInOut,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.12),
-                blurRadius: _scale < 1.0 ? 12 : 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                KskNetworkImage(
-                  widget.imageUrl,
-                  fit: BoxFit.cover,
-                ),
-                // Premium Overlay Gradient
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.1),
-                          Colors.black.withOpacity(0.7),
-                        ],
-                        stops: const [0.5, 0.7, 1.0],
-                      ),
-                    ),
-                  ),
-                ),
-                // Collection Title
-                Positioned(
-                  bottom: 12,
-                  left: 10,
-                  right: 10,
-                  child: Text(
-                    widget.title,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.outfit(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class SectionHeader extends StatelessWidget {
   final String title;
@@ -1290,7 +972,7 @@ class SectionHeader extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF2E7D32).withOpacity(0.1),
+            color: const Color(0xFF2E7D32).withValues(alpha: 0.1),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -1357,7 +1039,7 @@ class SectionHeader extends StatelessWidget {
                             style: GoogleFonts.outfit(
                               fontSize: 13,
                               fontWeight: FontWeight.w400,
-                              color: Colors.white.withOpacity(0.85),
+                              color: Colors.white.withValues(alpha: 0.85),
                             ),
                           ),
                       ],
@@ -1370,10 +1052,10 @@ class SectionHeader extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.18),
+                          color: Colors.white.withValues(alpha: 0.18),
                           borderRadius: BorderRadius.circular(16),
                           border:
-                              Border.all(color: Colors.white.withOpacity(0.25)),
+                              Border.all(color: Colors.white.withValues(alpha: 0.25)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1406,9 +1088,73 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
+class _CategoryViewAllBadge extends StatefulWidget {
+  final VoidCallback onTap;
+  const _CategoryViewAllBadge({required this.onTap});
+
+  @override
+  State<_CategoryViewAllBadge> createState() => _CategoryViewAllBadgeState();
+}
+
+class _CategoryViewAllBadgeState extends State<_CategoryViewAllBadge> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _isPressed ? 0.94 : 1.0,
+        duration: const Duration(milliseconds: 150),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6.5),
+          decoration: BoxDecoration(
+            color: const Color(0xFF26842c).withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFF26842c).withValues(alpha: 0.22),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF26842c).withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                AppLocalizations.of(context)!.viewAll,
+                style: GoogleFonts.outfit(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF26842c),
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const SizedBox(width: 5),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 11,
+                color: Color(0xFF26842c),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PremiumExploreButton extends StatefulWidget {
   final VoidCallback onTap;
-  const _PremiumExploreButton({super.key, required this.onTap});
+  const _PremiumExploreButton({required this.onTap});
 
   @override
   State<_PremiumExploreButton> createState() => _PremiumExploreButtonState();
@@ -1455,13 +1201,13 @@ class _PremiumExploreButtonState extends State<_PremiumExploreButton>
             color: Colors.white,
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: Colors.grey.withOpacity(0.2),
-              width: 1,
+              color: const Color(0xFF26842c).withValues(alpha: 0.25),
+              width: 1.2,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
+                color: const Color(0xFF26842c).withValues(alpha: 0.08),
+                blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -1472,9 +1218,10 @@ class _PremiumExploreButtonState extends State<_PremiumExploreButton>
               Text(
                 AppLocalizations.of(context)!.viewAll,
                 style: GoogleFonts.outfit(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Constants.baseColor,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF26842c),
+                  letterSpacing: -0.2,
                 ),
               ),
               const SizedBox(width: 8),
@@ -1486,10 +1233,10 @@ class _PremiumExploreButtonState extends State<_PremiumExploreButton>
                     child: child,
                   );
                 },
-                child: Icon(
+                child: const Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 13,
-                  color: Constants.baseColor,
+                  color: Color(0xFF26842c),
                 ),
               ),
             ],
@@ -1525,7 +1272,7 @@ class _HomeCarouselState extends State<HomeCarousel> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 15,
             offset: const Offset(0, 6),
           ),
@@ -1578,11 +1325,11 @@ class _HomeCarouselState extends State<HomeCarousel> {
                       borderRadius: BorderRadius.circular(2),
                       color: isActive
                           ? Colors.white
-                          : Colors.white.withOpacity(0.4),
+                          : Colors.white.withValues(alpha: 0.4),
                       boxShadow: isActive
                           ? [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
+                                color: Colors.black.withValues(alpha: 0.2),
                                 blurRadius: 4,
                               )
                             ]

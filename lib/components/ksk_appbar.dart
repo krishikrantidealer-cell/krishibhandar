@@ -1,22 +1,10 @@
-import 'dart:async';
-import 'dart:convert';
 
-import 'package:badges/badges.dart' as badges;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:kisan_sewa_kendra/generated/assets.dart';
 
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import '../controller/constants.dart';
-import '../controller/pref.dart';
-import '../controller/routers.dart';
-import '../model/product_model.dart';
-import '../shopify/shopify.dart';
-import '../view/cart_view.dart';
-import '../view/home_view.dart';
-import '../view/product_view.dart';
 import 'cart_icon.dart';
-import 'network_image.dart';
 import 'widget_button.dart';
 import 'search_delegate.dart';
 
@@ -58,7 +46,7 @@ class _KskAppbarState extends State<KskAppbar> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
+            color: Colors.black.withValues(alpha: 0.12),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -109,9 +97,9 @@ class _KskAppbarState extends State<KskAppbar> {
                       height: 40, // Micro-polished height
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withOpacity(0.2)),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -160,7 +148,7 @@ class _KskAppbarState extends State<KskAppbar> {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 24,
                       offset: const Offset(0, 8),
                     ),

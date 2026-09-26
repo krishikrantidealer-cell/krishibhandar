@@ -18,14 +18,14 @@ class Routers {
   static const String adminNotificationForm = '/admin/notification/form';
   static const String adminSchedules = '/admin/schedules';
 
-  static goTO(BuildContext context, {required Widget toBody}) => Navigator.push(
+  static Future<dynamic> goTO(BuildContext context, {required Widget toBody}) => Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => toBody,
         ),
       );
 
-  static goNoBack(BuildContext context, {required Widget toBody}) =>
+  static Future<dynamic> goNoBack(BuildContext context, {required Widget toBody}) =>
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -78,7 +78,7 @@ class Routers {
     }
   }
 
-  static goBack(BuildContext context) => Navigator.pop(
+  static void goBack(BuildContext context) => Navigator.pop(
         context,
       );
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:kisan_sewa_kendra/controller/auth_controller.dart';
 import 'package:kisan_sewa_kendra/components/cart_summary_bar.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import 'package:kisan_sewa_kendra/view/support_view.dart';
@@ -40,7 +39,7 @@ class _MyHomePageState extends State<MyHomePage>
     _init();
   }
 
-  _init() async {
+  Future<void> _init() async {
     await Constants.fetchRemoteConfig(context);
     if (mounted) {
       setState(() {
@@ -54,7 +53,7 @@ class _MyHomePageState extends State<MyHomePage>
     super.build(context);
     return PopScope(
       canPop: _currentIndex == 0,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         if (_currentIndex != 0) {
           setState(() {
@@ -108,7 +107,7 @@ class _MyHomePageState extends State<MyHomePage>
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
+                  color: Colors.black.withValues(alpha: 0.08),
                   blurRadius: 15,
                   offset: const Offset(0, -2))
             ],
@@ -146,7 +145,7 @@ class _MyHomePageState extends State<MyHomePage>
                             borderRadius: BorderRadius.circular(25),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF2E7D32).withOpacity(0.15),
+                                color: const Color(0xFF2E7D32).withValues(alpha: 0.15),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
@@ -250,7 +249,7 @@ class _MyHomePageState extends State<MyHomePage>
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF2E7D32).withOpacity(0.15),
+                  color: const Color(0xFF2E7D32).withValues(alpha: 0.15),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
@@ -266,7 +265,7 @@ class _MyHomePageState extends State<MyHomePage>
                     height: 140,
                     width: 140,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.06),
+                      color: Colors.white.withValues(alpha: 0.06),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -279,7 +278,7 @@ class _MyHomePageState extends State<MyHomePage>
                     height: 80,
                     width: 80,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.04),
+                      color: Colors.white.withValues(alpha: 0.04),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -308,7 +307,7 @@ class _MyHomePageState extends State<MyHomePage>
                         Text(
                           AppLocalizations.of(context)!.appTagline,
                           style: GoogleFonts.outfit(
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha: 0.9),
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                             letterSpacing: 0.2,
@@ -453,7 +452,7 @@ class _MyHomePageState extends State<MyHomePage>
                     const SizedBox(width: 8),
                     Icon(
                       Icons.eco_rounded,
-                      color: Constants.baseColor.withOpacity(0.15),
+                      color: Constants.baseColor.withValues(alpha: 0.15),
                       size: 14,
                     ),
                   ],
@@ -508,7 +507,7 @@ class _MyHomePageState extends State<MyHomePage>
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
             color: isSelected
-                ? Constants.baseColor.withOpacity(0.1)
+                ? Constants.baseColor.withValues(alpha: 0.1)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
             border: isSelected
@@ -519,7 +518,7 @@ class _MyHomePageState extends State<MyHomePage>
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: Constants.baseColor.withOpacity(0.04),
+                      color: Constants.baseColor.withValues(alpha: 0.04),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     )
@@ -594,12 +593,12 @@ class _AnimatedDrawerLogoState extends State<AnimatedDrawerLogo>
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.12),
+          color: Colors.white.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withOpacity(0.18)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 15,
               offset: const Offset(0, 5),
             )

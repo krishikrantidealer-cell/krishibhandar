@@ -118,6 +118,7 @@ class _ScheduleListViewState extends State<ScheduleListView> {
                   Switch(
                     value: isActive,
                     onChanged: (v) async {
+                      final messenger = ScaffoldMessenger.of(context);
                       try {
                         await AdminController.saveSchedule(
                           id: id,
@@ -130,7 +131,7 @@ class _ScheduleListViewState extends State<ScheduleListView> {
                         _fetchSchedules();
                       } catch (e) {
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Toggle Failed: $e")));
+                          messenger.showSnackBar(SnackBar(content: Text("Toggle Failed: $e")));
                         }
                       }
                     },

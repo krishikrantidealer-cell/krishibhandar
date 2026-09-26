@@ -29,20 +29,15 @@ class _KskCartIconState extends State<KskCartIcon> {
   @override
   void initState() {
     super.initState();
-    _fetchCartCount();
+    _updateCartCount();
+    Constants.cartController.addListener(_updateCartCount);
   }
 
   @override
   void dispose() {
+    Constants.cartController.removeListener(_updateCartCount);
     _timer?.cancel();
     super.dispose();
-  }
-
-  Future<void> _fetchCartCount() async {
-    _updateCartCount();
-    _timer = Timer.periodic(const Duration(seconds: 2), (timer) {
-      _updateCartCount();
-    });
   }
 
   Future<void> _updateCartCount() async {
@@ -97,7 +92,7 @@ class _KskCartIconState extends State<KskCartIcon> {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 2),
               ),

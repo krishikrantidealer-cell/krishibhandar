@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
@@ -7,12 +6,12 @@ import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import '../components/network_image.dart';
 import '../controller/constants.dart';
 import '../services/attribution_service.dart';
-import '../services/shopflo_service.dart';
+import '../services/bhandar_api_service.dart';
 import '../controller/cart_controller.dart';
 import '../controller/auth_controller.dart';
 import 'checkout/address_view.dart';
 import 'checkout/coupons_view.dart';
-import 'checkout/shopflo_checkout_view.dart';
+import 'checkout/order_success_view.dart';
 
 class CartView extends StatefulWidget {
   const CartView({super.key});
@@ -42,9 +41,6 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Reload cart when returning to foreground — catches the case where
-    // clearCart() was called in ShopfloCheckoutView (underneath in stack)
-    // and the in-memory _cartItems list still holds stale data.
     if (state == AppLifecycleState.resumed) {
       _init(skipValidation: true);
     }
@@ -294,7 +290,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                 width: 200,
                 height: 200,
                 decoration: BoxDecoration(
-                  color: Constants.baseColor.withOpacity(0.04),
+                  color: Constants.baseColor.withValues(alpha: 0.04),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -306,7 +302,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                 width: 120,
                 height: 120,
                 decoration: BoxDecoration(
-                  color: Constants.baseColor.withOpacity(0.03),
+                  color: Constants.baseColor.withValues(alpha: 0.03),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -333,7 +329,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                                   Icon(Icons.swipe_left_rounded,
                                       size: 16,
                                       color:
-                                          Constants.baseColor.withOpacity(0.4)),
+                                          Constants.baseColor.withValues(alpha: 0.4)),
                                   const SizedBox(width: 8),
                                   Text(
                                     AppLocalizations.of(context)!.slideToDelete,
@@ -421,7 +417,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
+            color: Colors.black.withValues(alpha: 0.12),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -455,7 +451,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                       style: GoogleFonts.inter(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white.withOpacity(0.85),
+                        color: Colors.white.withValues(alpha: 0.85),
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -469,7 +465,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    backgroundColor: Colors.white.withOpacity(0.15),
+                    backgroundColor: Colors.white.withValues(alpha: 0.15),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -498,7 +494,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
+          color: Colors.white.withValues(alpha: 0.15),
           shape: BoxShape.circle,
         ),
         child: Icon(icon, size: 20, color: Colors.white),
@@ -528,7 +524,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
         height: 2.5,
         margin: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
-          color: active ? Colors.white : Colors.white.withOpacity(0.2),
+          color: active ? Colors.white : Colors.white.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(2),
         ),
       ),
@@ -545,12 +541,12 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
             color: active ? Colors.white : Colors.transparent,
             shape: BoxShape.circle,
             border: Border.all(
-              color: active ? Colors.white : Colors.white.withOpacity(0.4),
+              color: active ? Colors.white : Colors.white.withValues(alpha: 0.4),
               width: 2,
             ),
             boxShadow: active ? [
               BoxShadow(
-                color: Colors.white.withOpacity(0.3),
+                color: Colors.white.withValues(alpha: 0.3),
                 blurRadius: 8,
               )
             ] : null,
@@ -562,7 +558,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
           style: GoogleFonts.inter(
             fontSize: 9,
             fontWeight: active ? FontWeight.w900 : FontWeight.w600,
-            color: active ? Colors.white : Colors.white.withOpacity(0.6),
+            color: active ? Colors.white : Colors.white.withValues(alpha: 0.6),
             letterSpacing: 0.2,
           ),
         ),
@@ -584,12 +580,12 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Constants.baseColor.withOpacity(0.1),
+                    color: Constants.baseColor.withValues(alpha: 0.1),
                     blurRadius: 30,
                     spreadRadius: 5,
                   ),
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 15,
                     offset: const Offset(0, 10),
                   ),
@@ -636,7 +632,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF2E7D32).withOpacity(0.15),
+                          color: const Color(0xFF2E7D32).withValues(alpha: 0.15),
                           blurRadius: 16,
                           offset: const Offset(0, 6),
                         ),
@@ -705,7 +701,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                   padding: const EdgeInsets.only(right: 20),
                   margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
-                    color: Colors.redAccent.withOpacity(0.8),
+                    color: Colors.redAccent.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Icon(Icons.delete_sweep_rounded,
@@ -726,8 +722,8 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
             color: isFreeRow
-                ? Constants.baseColor.withOpacity(0.2)
-                : Colors.grey.withOpacity(0.05)),
+                ? Constants.baseColor.withValues(alpha: 0.2)
+                : Colors.grey.withValues(alpha: 0.05)),
       ),
       child: Row(
         children: [
@@ -861,7 +857,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: Constants.baseColor.withOpacity(0.05),
+          color: Constants.baseColor.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
@@ -877,7 +873,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
       decoration: BoxDecoration(
-        color: Constants.baseColor.withOpacity(0.05),
+        color: Constants.baseColor.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -915,7 +911,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -956,8 +952,8 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
               color: _appliedDiscount != null
-                  ? Constants.baseColor.withOpacity(0.1)
-                  : Colors.grey.withOpacity(0.05)),
+                  ? Constants.baseColor.withValues(alpha: 0.1)
+                  : Colors.grey.withValues(alpha: 0.05)),
         ),
         child: Row(
           children: [
@@ -966,7 +962,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
               decoration: BoxDecoration(
                 color: _appliedDiscount != null
                     ? Constants.baseColor
-                    : Constants.baseColor.withOpacity(0.05),
+                    : Constants.baseColor.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
@@ -1035,12 +1031,12 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
         ],
-        border: Border.all(color: Colors.grey.withOpacity(0.05)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1082,7 +1078,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFF2E7D32).withOpacity(0.08),
+                color: const Color(0xFF2E7D32).withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -1143,12 +1139,12 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 15,
             offset: const Offset(0, 6),
           ),
         ],
-        border: Border.all(color: Colors.grey.withOpacity(0.05)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1158,7 +1154,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2E7D32).withOpacity(0.08),
+                  color: const Color(0xFF2E7D32).withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.location_on_rounded,
@@ -1189,7 +1185,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    backgroundColor: const Color(0xFF2E7D32).withOpacity(0.08),
+                    backgroundColor: const Color(0xFF2E7D32).withValues(alpha: 0.08),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   child: Text(AppLocalizations.of(context)!.change,
@@ -1206,7 +1202,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
               decoration: BoxDecoration(
                 color: const Color(0xFFF9FAFB),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.grey.withOpacity(0.08)),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.08)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1252,10 +1248,10 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
         padding: const EdgeInsets.all(24),
         width: double.infinity,
         decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.02),
+          color: Colors.red.withValues(alpha: 0.02),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-              color: Colors.red.withOpacity(0.1), style: BorderStyle.solid),
+              color: Colors.red.withValues(alpha: 0.1), style: BorderStyle.solid),
         ),
         child: Column(
           children: [
@@ -1278,10 +1274,9 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
         context, MaterialPageRoute(builder: (_) => const AddressView()));
     if (result != null) {
       setState(() => _selectedAddress = result);
-      // Automatically open checkout after address is saved on first time,
-      // so user doesn't have to tap the button again.
+      // Automatically place order after address is selected
       if (mounted) {
-        _openShopfloCheckout();
+        _handleDirectCheckout();
       }
     } else {
       _loadDefaultAddress();
@@ -1329,7 +1324,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 20,
                 offset: const Offset(0, -5))
           ],
@@ -1358,7 +1353,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                 ),
               )
             else
-              // Continue to Payment
+              // Continue to Checkout / Place Order
               Expanded(
                 child: GestureDetector(
                   onTapDown: (_) => setState(() => _isCheckoutPressed = true),
@@ -1366,7 +1361,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                   onTapCancel: () => setState(() => _isCheckoutPressed = false),
                   onTap: _isProcessingOrder ? null : () {
                     HapticFeedback.lightImpact();
-                    _openShopfloCheckout();
+                    _handleDirectCheckout();
                   },
                   child: AnimatedScale(
                     scale: _isCheckoutPressed ? 0.97 : 1.0,
@@ -1403,7 +1398,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-              color: const Color(0xFF2E7D32).withOpacity(0.15),
+              color: const Color(0xFF2E7D32).withValues(alpha: 0.15),
               blurRadius: 14,
               offset: const Offset(0, 6))
         ],
@@ -1439,10 +1434,11 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
     );
   }
 
-  /// Opens Shopflo checkout — user completes payment via Shopflo WebView.
-  void _openShopfloCheckout() async {
+  /// Places direct order with Bhandar API
+  void _handleDirectCheckout() async {
     final phone = await AuthController.getSavedPhone();
     final email = await AuthController.getSavedEmail();
+    final name = await AuthController.getSavedName();
 
     if (phone == null || phone.isEmpty) {
       if (mounted) {
@@ -1456,8 +1452,12 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
       return;
     }
 
+    if (_selectedAddress == null) {
+      _selectAddress();
+      return;
+    }
+
     final productIds = _cartItems.map((item) => item.productId ?? item.id).toList();
-    // Fixed: Added await for Meta event tracking
     await AttributionService.logInitiateCheckout(_getFinalTotal(), productIds);
 
     setState(() {
@@ -1465,51 +1465,73 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
     });
 
     try {
-      final customerId = await AuthController.getShopifyCustomerId();
+      final customerId = await AuthController.getCustomerId();
       final attribution = await AttributionService().getAttribution();
+      final totalAmount = _getFinalTotal();
+      final discountCode = _appliedDiscount?['code']?.toString();
 
-      final result = await ShopfloService.createCheckoutToken(
-        cartItems: _cartItems,
-        couponCode: _appliedDiscount?['code']?.toString(),
-        customerPhone: phone,
-        customerEmail: email,
-        customerToken: customerId,
-        shippingAddress: _selectedAddress,
-        attributionParams: attribution,
+      final items = _cartItems.map((item) {
+        final rawPriceStr = item.price.replaceAll(RegExp(r'[^\d.]'), '');
+        final unitPrice = double.tryParse(rawPriceStr) ?? 0.0;
+        return {
+          'title': item.title,
+          'quantity': item.qty,
+          'price': unitPrice.toStringAsFixed(2),
+          'variant_title': item.variantTitle,
+          'image': item.image,
+          'variant_id': item.id,
+          'product_id': item.productId,
+        };
+      }).toList();
+
+      final orderPayload = {
+        'customer_phone': phone,
+        'customer_email': email ?? '',
+        'customer_name': name ?? _selectedAddress?['name'] ?? 'Customer',
+        'customer_first_name': _selectedAddress?['first_name'] ?? name ?? 'Customer',
+        'customer_last_name': _selectedAddress?['last_name'] ?? '',
+        'shipping_address': '${_selectedAddress?['address1'] ?? ''} ${_selectedAddress?['address2'] ?? ''}, ${_selectedAddress?['city'] ?? ''}, ${_selectedAddress?['state'] ?? ''} - ${_selectedAddress?['pincode'] ?? ''}',
+        'line_items': items,
+        'total_price': totalAmount.toStringAsFixed(2),
+        'subtotal_price': _getTotalValue().toStringAsFixed(2),
+        'discount_code': discountCode,
+        'customer_id': customerId,
+        'note_attributes': attribution.entries.map((e) => {'name': e.key, 'value': e.value}).toList(),
+      };
+
+      final response = await BhandarApiService.createOrder(
+        body: orderPayload,
+        isCod: true,
+        discountCode: discountCode,
       );
 
       if (!mounted) return;
 
-      if (result.isSuccess && result.checkoutUrl != null) {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ShopfloCheckoutView(
-              cartItems: _cartItems,
-              totalAmount: _getFinalTotal(),
-              couponCode: _appliedDiscount?['code']?.toString(),
-              shippingAddress: _selectedAddress,
-              customerPhone: phone,
-              customerEmail: email,
-              initialCheckoutUrl: result.checkoutUrl,
-              discountAmount: _appliedDiscount != null
-                  ? (double.tryParse(
-                          _appliedDiscount!['value']?.toString() ?? '') ??
-                      0.0)
-                  : 0.0,
-            ),
-          ),
-        );
+      final isSuccess = response['error'] == null && (response['id'] != null || response['order'] != null || response['orderNumber'] != null || response['success'] != false);
 
-        // Reload cart from SharedPreferences when returning from checkout.
+      if (isSuccess) {
+        final orderObj = response['order'] ?? response;
+        final orderNumber = (orderObj['order_number'] ?? orderObj['orderNumber'] ?? orderObj['id'] ?? 'ORD-${DateTime.now().millisecondsSinceEpoch % 100000}').toString();
+
+        await CartController.clearCart();
+
         if (mounted) {
-          _init(skipValidation: true);
+          await Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OrderSuccessView(
+                orderNumber: orderNumber,
+                totalAmount: totalAmount,
+                paymentId: "Cash on Delivery",
+              ),
+            ),
+          );
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(result.errorMessage ?? "Failed to initiate checkout. Please try again."),
+              content: Text(response['error']?.toString() ?? "Failed to place order. Please try again."),
               backgroundColor: Colors.red,
             ),
           );
