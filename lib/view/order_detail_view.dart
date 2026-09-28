@@ -6,6 +6,8 @@ import '../model/order_model.dart';
 import '../controller/constants.dart';
 import '../services/bhandar_api_service.dart';
 import '../components/network_image.dart';
+import '../components/order/order_cancel_dialog.dart';
+import '../components/order/order_status_badge.dart';
 import '../controller/cart_controller.dart';
 import '../controller/routers.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
@@ -780,34 +782,33 @@ class _OrderDetailViewState extends State<OrderDetailView> {
           children: [
             if (_currentOrder.isCancellable) ...[
               Expanded(
-                child: OutlinedButton(
-                  onPressed: _isLoading ? null : _handleCancelOrder,
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading
+                      ? null
+                      : () {
+                          HapticFeedback.lightImpact();
+                          OrderCancelDialog.show(
+                            context,
+                            orderId: _currentOrder.id,
+                            orderNumber: _currentOrder.orderNumber,
+                            onCancelled: _refreshOrder,
+                          );
+                        },
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
+                    foregroundColor: const Color(0xFFE53935),
                     side: BorderSide(
-                        color: Colors.red.withValues(alpha: 0.2), width: 1.5),
-                    backgroundColor: Colors.red.withValues(alpha: 0.02),
+                        color: const Color(0xFFE53935).withValues(alpha: 0.3), width: 1.5),
+                    backgroundColor: const Color(0xFFE53935).withValues(alpha: 0.02),
                     minimumSize: const Size(double.infinity, 52),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.red),
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.cancel_outlined, size: 16),
-                            const SizedBox(width: 8),
-                            Text(AppLocalizations.of(context)!.cancelOrder,
-                                style: GoogleFonts.outfit(
-                                    fontWeight: FontWeight.w700, fontSize: 14)),
-                          ],
-                        ),
+                  icon: const Icon(Icons.cancel_outlined, size: 16),
+                  label: Text(
+                    AppLocalizations.of(context)!.cancelOrder,
+                    style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.w700, fontSize: 14),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),

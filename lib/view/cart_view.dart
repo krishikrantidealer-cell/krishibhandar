@@ -35,8 +35,18 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    Constants.cartController.addListener(_onCartChanged);
     _init();
     _loadDefaultAddress();
+  }
+
+  void _onCartChanged() {
+    if (mounted) {
+      setState(() {
+        _cartItems = CartController.currentItems;
+      });
+      _checkCouponValidity();
+    }
   }
 
   @override
@@ -62,6 +72,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    Constants.cartController.removeListener(_onCartChanged);
     super.dispose();
   }
 
@@ -135,15 +146,11 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
   }
 
   Future<void> _updateQty(String id, int delta) async {
-    int index = _cartItems.indexWhere((item) => item.id == id);
-    if (index >= 0) {
-      int newQty = _cartItems[index].qty + delta;
-      if (newQty <= 0) {
-        await CartController.updateQty(id, 0);
-      } else {
-        await CartController.updateQty(id, newQty);
-      }
-      await _init();
+    HapticFeedback.lightImpact();
+    if (delta > 0) {
+      await CartController.increment(id);
+    } else {
+      await CartController.decrement(id);
     }
   }
 

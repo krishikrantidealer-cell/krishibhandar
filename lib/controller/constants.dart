@@ -5,6 +5,7 @@ import 'package:shimmer/shimmer.dart';
 
 import '../controller/language_controller.dart';
 import '../controller/cart_controller.dart';
+import '../controller/auth_controller.dart';
 import '../model/localization_model.dart';
 import '../services/bhandar_api_service.dart';
 import 'pref.dart';
@@ -12,6 +13,7 @@ import 'pref.dart';
 class Constants {
   static final LanguageController languageController = LanguageController();
   static final CartController cartController = CartController();
+  static final AuthController authController = AuthController.instance;
   static String cdnUrl = "";
   static String inr = "₹", title = "Krishi Bhandar";
   static Color baseColor = const Color(0xff26842c);

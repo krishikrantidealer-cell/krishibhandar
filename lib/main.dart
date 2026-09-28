@@ -4,6 +4,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:kisan_sewa_kendra/services/attribution_service.dart';
+import 'package:kisan_sewa_kendra/controller/cart_controller.dart';
+import 'package:kisan_sewa_kendra/controller/auth_controller.dart';
 import 'package:kisan_sewa_kendra/controller/pref.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -51,6 +53,8 @@ void main() {
     // 0. Pre-Flight Configuration (Must be before ANY widget builds)
     try {
       await Pref.ensureInitialized().timeout(const Duration(seconds: 5));
+      await AuthController.ensureInitialized().timeout(const Duration(seconds: 5));
+      await CartController.ensureInitialized().timeout(const Duration(seconds: 5));
       try {
         await dotenv.load(fileName: ".env").timeout(const Duration(seconds: 2));
       } catch (_) {

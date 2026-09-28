@@ -1,10 +1,8 @@
-import 'dart:async';
-import 'dart:convert';
 import 'package:badges/badges.dart' as badges;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../controller/cart_controller.dart';
 import '../controller/constants.dart';
-import '../controller/pref.dart';
 import '../view/cart_view.dart';
 import '../controller/routers.dart';
 
@@ -24,7 +22,6 @@ class KskCartIcon extends StatefulWidget {
 
 class _KskCartIconState extends State<KskCartIcon> {
   int _cartCount = 0;
-  Timer? _timer;
 
   @override
   void initState() {
@@ -36,17 +33,11 @@ class _KskCartIconState extends State<KskCartIcon> {
   @override
   void dispose() {
     Constants.cartController.removeListener(_updateCartCount);
-    _timer?.cancel();
     super.dispose();
   }
 
-  Future<void> _updateCartCount() async {
-    String? cart = await Pref.getPref(PrefKey.cart);
-    int count = 0;
-    if (cart != null) {
-      List<dynamic> cartList = jsonDecode(cart);
-      count = cartList.length;
-    }
+  void _updateCartCount() {
+    final count = CartController.currentItems.length;
     if (mounted && _cartCount != count) {
       setState(() {
         _cartCount = count;

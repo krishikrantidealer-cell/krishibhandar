@@ -815,12 +815,8 @@ class BhandarApiService {
     } catch (e) {
       if (kDebugMode) debugPrint("BhandarApiService updateOrderAttribution Error: $e");
     }
-    return null;
   }
 }
 
-// Aliases to maintain full drop-in compatibility across views
+// Alias for convenient access
 typedef BhandarApi = BhandarApiService;
-typedef Shopify = BhandarApiService;
-typedef ShopifyAPI = BhandarApiService;
-typedef ShopifyAdmin = BhandarApiService;

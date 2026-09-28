@@ -11,8 +11,6 @@ import 'package:kisan_sewa_kendra/view/component/categories.dart';
 import 'package:kisan_sewa_kendra/view/search_results_view.dart';
 
 import 'dart:async';
-import 'dart:convert';
-import '../controller/pref.dart';
 
 import 'package:flutter/services.dart';
 import '../components/cart_icon.dart';
@@ -76,8 +74,6 @@ class _ProductViewState extends State<ProductView>
   late TabController _tabController;
   ProductModel? _localizedProduct;
   bool _isExpanded = false;
-  List<dynamic> _cartItems = [];
-  Timer? _timer;
 
   // Press state for Phase 2 Button Polish
   bool _isBuyNowPressed = false;
@@ -107,7 +103,6 @@ class _ProductViewState extends State<ProductView>
   @override
   void initState() {
     super.initState();
-    _fetchCartCount();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
       if (mounted) setState(() {});
@@ -136,12 +131,13 @@ class _ProductViewState extends State<ProductView>
     Future.delayed(Duration.zero, _init);
 
     Constants.languageController.addListener(_onLanguageChanged);
+    Constants.cartController.addListener(_onCartChanged);
   }
 
   @override
   void dispose() {
     Constants.languageController.removeListener(_onLanguageChanged);
-    _timer?.cancel();
+    Constants.cartController.removeListener(_onCartChanged);
     _tabController.dispose();
     _reviewController.dispose();
     super.dispose();
@@ -153,36 +149,19 @@ class _ProductViewState extends State<ProductView>
     }
   }
 
-  Future<void> _fetchCartCount() async {
-    _updateCartCount();
-    _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      _updateCartCount();
-    });
-  }
-
-  Future<void> _updateCartCount() async {
-    String? cart = await Pref.getPref(PrefKey.cart);
-    List<dynamic> parsedList = [];
-    if (cart != null) {
-      parsedList = jsonDecode(cart);
-    }
+  void _onCartChanged() {
     if (mounted) {
-      setState(() {
-        _cartItems = parsedList;
-      });
+      setState(() {});
     }
   }
 
   int _getCartQuantity() {
     final product = _localizedProduct ?? widget.product;
     if (product == null || product.variants.isEmpty) return 0;
-    final variant = product.variants[_varientIndex];
-    for (var item in _cartItems) {
-      if (item['id'].toString() == variant.id.toString()) {
-        return int.tryParse(item['qty'].toString()) ?? 0;
-      }
-    }
-    return 0;
+    final variant = product.variants.length > _varientIndex
+        ? product.variants[_varientIndex]
+        : product.variants.first;
+    return CartController.getItemQuantity(variant.id);
   }
 
   Future<void> _init() async {
@@ -240,7 +219,9 @@ class _ProductViewState extends State<ProductView>
     if (product == null || product.variants.isEmpty) {
       return const SizedBox.shrink();
     }
-    final variant = product.variants[_varientIndex];
+    final variant = product.variants.length > _varientIndex
+        ? product.variants[_varientIndex]
+        : product.variants.first;
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
@@ -256,8 +237,7 @@ class _ProductViewState extends State<ProductView>
                 : Icons.remove_rounded,
             () async {
               HapticFeedback.mediumImpact();
-              await CartController.updateQty(variant.id, currentQty - 1);
-              _updateCartCount();
+              await CartController.decrement(variant.id);
             },
           ),
           Text(
@@ -272,8 +252,7 @@ class _ProductViewState extends State<ProductView>
             Icons.add_rounded,
             () async {
               HapticFeedback.lightImpact();
-              await CartController.updateQty(variant.id, currentQty + 1);
-              _updateCartCount();
+              await CartController.increment(variant.id);
             },
           ),
         ],
@@ -1073,7 +1052,6 @@ class _ProductViewState extends State<ProductView>
                             variantTitle: v.title,
                           );
                           if (!context.mounted) return;
-                          _updateCartCount();
                           ScaffoldMessenger.of(context).clearSnackBars();
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(

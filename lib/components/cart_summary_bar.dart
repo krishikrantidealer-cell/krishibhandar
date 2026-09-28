@@ -1,12 +1,10 @@
-import 'dart:async';
-import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
+import '../controller/cart_controller.dart';
 import '../controller/constants.dart';
-import '../controller/pref.dart';
 import '../controller/routers.dart';
 import '../view/cart_view.dart';
 import 'network_image.dart';
@@ -22,7 +20,6 @@ class _CartSummaryBarState extends State<CartSummaryBar> {
   int _cartItemCount = 0;
   double _cartTotal = 0;
   List<String> _cartImages = [];
-  Timer? _cartTimer;
 
   @override
   void initState() {
@@ -34,56 +31,43 @@ class _CartSummaryBarState extends State<CartSummaryBar> {
   @override
   void dispose() {
     Constants.cartController.removeListener(_updateCartSummary);
-    _cartTimer?.cancel();
     super.dispose();
   }
 
-  Future<void> _updateCartSummary() async {
-    String? cart = await Pref.getPref(PrefKey.cart);
-    if (cart != null) {
-      List<dynamic> cartList = jsonDecode(cart);
-      double total = 0;
-      int count = 0;
-      List<String> images = [];
-      for (var item in cartList) {
-        double price = double.tryParse(
-                item['price'].toString().replaceAll(RegExp(r'[^\d.]'), '')) ??
-            0;
-        int qty = int.tryParse(item['qty'].toString()) ?? 0;
-        total += (price * qty);
-        count += qty;
-        if (item['image'] != null && item['image'].toString().isNotEmpty) {
-          String imageUrl = item['image'].toString();
-          if (imageUrl.startsWith("//")) {
-            imageUrl = "https:$imageUrl";
-          }
-          if (!images.contains(imageUrl)) {
-            images.add(imageUrl);
-          }
+  void _updateCartSummary() {
+    final items = CartController.currentItems;
+    double total = 0;
+    int count = 0;
+    List<String> images = [];
+    for (var item in items) {
+      double price = double.tryParse(
+              item.price.replaceAll(RegExp(r'[^\d.]'), '')) ??
+          0;
+      total += (price * item.qty);
+      count += item.qty;
+      if (item.image.isNotEmpty) {
+        String imageUrl = item.image;
+        if (imageUrl.startsWith("//")) {
+          imageUrl = "https:$imageUrl";
+        }
+        if (!images.contains(imageUrl)) {
+          images.add(imageUrl);
         }
       }
+    }
 
-      final limitedImages =
-          images.length > 3 ? images.sublist(images.length - 3) : images;
+    final limitedImages =
+        images.length > 3 ? images.sublist(images.length - 3) : images;
 
-      if (mounted &&
-          (_cartItemCount != count ||
-              _cartTotal != total ||
-              _cartImages.toString() != limitedImages.toString())) {
-        setState(() {
-          _cartItemCount = count;
-          _cartTotal = total;
-          _cartImages = limitedImages;
-        });
-      }
-    } else {
-      if (mounted && _cartItemCount != 0) {
-        setState(() {
-          _cartItemCount = 0;
-          _cartTotal = 0;
-          _cartImages = [];
-        });
-      }
+    if (mounted &&
+        (_cartItemCount != count ||
+            _cartTotal != total ||
+            _cartImages.toString() != limitedImages.toString())) {
+      setState(() {
+        _cartItemCount = count;
+        _cartTotal = total;
+        _cartImages = limitedImages;
+      });
     }
   }
 
