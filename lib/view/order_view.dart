@@ -58,7 +58,14 @@ class _OrderViewState extends State<OrderView>
 
   Future<void> _fetchOrders() async {
     var customerId = await AuthController.getCustomerId();
-    final phone = await AuthController.getSavedPhone();
+    var phone = await AuthController.getSavedPhone();
+
+    if (phone == null || phone.isEmpty) {
+      final addrs = await AuthController.getStoredAddresses();
+      if (addrs.isNotEmpty) {
+        phone = addrs.first['phone'];
+      }
+    }
 
     // Auto-heal missing customer ID if phone is saved
     if (customerId == null || customerId.isEmpty || customerId == "null") {
@@ -69,7 +76,9 @@ class _OrderViewState extends State<OrderView>
       }
     }
 
-    if (customerId == null || customerId.isEmpty || customerId == "null") {
+    final queryIdentifier = (phone != null && phone.isNotEmpty) ? phone : (customerId ?? '');
+
+    if (queryIdentifier.isEmpty) {
       if (mounted) {
         setState(() {
           _orders = [];
@@ -81,7 +90,7 @@ class _OrderViewState extends State<OrderView>
 
     if (mounted) setState(() => _isLoadingOrders = true);
     try {
-      final orderData = await BhandarApiService.getCustomerOrders(customerId);
+      final orderData = await BhandarApiService.getCustomerOrders(queryIdentifier);
       if (mounted) {
         setState(() {
           _orders = orderData.map((e) {

@@ -6,6 +6,8 @@ import '../view/admin/admin_login_view.dart';
 import '../view/admin/admin_dashboard_view.dart';
 import '../view/admin/notification_form_view.dart';
 import '../view/admin/schedule_list_view.dart';
+import '../view/auth/phone_login_view.dart';
+import '../view/auth/complete_profile_view.dart';
 import '../view/home_view.dart';
 import '../view/cart_view.dart';
 import '../view/order_view.dart';
@@ -14,6 +16,8 @@ import '../view/support_view.dart';
 class Routers {
   static const String root = '/';
   static const String home = '/home';
+  static const String phoneLogin = '/auth/login';
+  static const String completeProfile = '/auth/complete-profile';
   static const String cart = '/cart';
   static const String orders = '/orders';
   static const String support = '/support';
@@ -46,6 +50,17 @@ class Routers {
     switch (uri.path) {
       case root:
         return MaterialPageRoute(builder: (_) => const SplashScreen(), settings: settings);
+      case phoneLogin:
+        return MaterialPageRoute(builder: (_) => const PhoneLoginView(), settings: settings);
+      case completeProfile:
+        return MaterialPageRoute(
+          builder: (_) => CompleteProfileView(
+            phone: args is String ? args : null,
+            isEditing: args is Map && (args['isEditing'] == true),
+            canSkip: args is Map ? (args['canSkip'] ?? false) : false,
+          ),
+          settings: settings,
+        );
       case home:
         return MaterialPageRoute(builder: (_) => const MyHomePage(), settings: settings);
       case cart:

@@ -14,6 +14,8 @@ import '../controller/routers.dart';
 import '../generated/assets.dart';
 import 'component/home.dart';
 import 'component/categories.dart';
+import 'auth/phone_login_view.dart';
+import 'auth/complete_profile_view.dart';
 import 'order_view.dart';
 import 'cart_view.dart';
 
@@ -37,15 +39,40 @@ class _MyHomePageState extends State<MyHomePage>
   @override
   void initState() {
     super.initState();
+    Constants.authController.addListener(_onAuthChanged);
     _init();
   }
 
-  Future<void> _init() async {
-    await Constants.fetchRemoteConfig(context);
+  void _onAuthChanged() {
     if (mounted) {
-      setState(() {
-        _isDataLoaded = true;
-      });
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    Constants.authController.removeListener(_onAuthChanged);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _init() async {
+    try {
+      await AuthController.ensureInitialized().timeout(const Duration(seconds: 3));
+    } catch (e) {
+      debugPrint("HomeView: AuthController init error: $e");
+    }
+    if (mounted) {
+      try {
+        await Constants.fetchRemoteConfig(context).timeout(const Duration(seconds: 4));
+      } catch (e) {
+        debugPrint("HomeView: RemoteConfig init error: $e");
+      }
+      if (mounted) {
+        setState(() {
+          _isDataLoaded = true;
+        });
+      }
     }
   }
 
@@ -294,7 +321,7 @@ class _MyHomePageState extends State<MyHomePage>
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        AppLocalizations.of(context)!.appBrandName,
+                                        "Krishi Bhandar",
                                         style: GoogleFonts.outfit(
                                           color: Colors.white,
                                           fontSize: 20,
@@ -303,7 +330,7 @@ class _MyHomePageState extends State<MyHomePage>
                                         ),
                                       ),
                                       Text(
-                                        AppLocalizations.of(context)!.appTagline,
+                                        "हर किसान की पहचान !",
                                         style: GoogleFonts.outfit(
                                           color: Colors.white.withValues(alpha: 0.9),
                                           fontSize: 12,
@@ -316,56 +343,86 @@ class _MyHomePageState extends State<MyHomePage>
                               ],
                             ),
                             const SizedBox(height: 18),
-                            // User Info Card
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.14),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.2),
+                            // User Info Card (Interactive)
+                            InkWell(
+                              onTap: () {
+                                Navigator.pop(context);
+                                if (isLoggedIn) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const CompleteProfileView(
+                                        isEditing: true,
+                                      ),
+                                    ),
+                                  );
+                                } else {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const PhoneLoginView(
+                                        isFromDrawer: true,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.14),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                  ),
                                 ),
-                              ),
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 20,
-                                    backgroundColor: Colors.white,
-                                    child: Icon(
-                                      isLoggedIn ? Icons.person_rounded : Icons.person_outline_rounded,
-                                      color: const Color(0xFF2E7D32),
-                                      size: 22,
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 20,
+                                      backgroundColor: Colors.white,
+                                      child: Icon(
+                                        isLoggedIn ? Icons.person_rounded : Icons.person_outline_rounded,
+                                        color: const Color(0xFF2E7D32),
+                                        size: 22,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          isLoggedIn ? userName : "Welcome Farmer 🌱",
-                                          style: GoogleFonts.outfit(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 14,
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            isLoggedIn ? userName : "Welcome Farmer 🌱",
+                                            style: GoogleFonts.outfit(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 14,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        Text(
-                                          isLoggedIn && userPhone.isNotEmpty
-                                              ? "+91 $userPhone"
-                                              : "Krishi Seva Kendra",
-                                          style: GoogleFonts.outfit(
-                                            color: Colors.white.withValues(alpha: 0.85),
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
+                                          Text(
+                                            isLoggedIn
+                                                ? (userPhone.isNotEmpty ? "+91 $userPhone" : "Tap to complete profile")
+                                                : "Tap to Login / Register",
+                                            style: GoogleFonts.outfit(
+                                              color: Colors.white.withValues(alpha: 0.85),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                    Icon(
+                                      isLoggedIn ? Icons.edit_outlined : Icons.chevron_right_rounded,
+                                      color: Colors.white.withValues(alpha: 0.8),
+                                      size: 18,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
@@ -461,13 +518,31 @@ class _MyHomePageState extends State<MyHomePage>
                                   content: PolicyContent.termsConditions));
                         }),
 
-                    // Account Actions: Log Out / Log In
+                    // Account Actions: Profile / Log Out / Log In
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                       child: Divider(height: 1, color: Color(0xFFF0F0F0)),
                     ),
                     _buildSectionHeader("Account"),
-                    if (isLoggedIn)
+                    if (isLoggedIn) ...[
+                      _drawerItem(
+                        icon: Icons.badge_outlined,
+                        activeIcon: Icons.badge_rounded,
+                        title: "My Profile",
+                        textColor: const Color(0xFF1E293B),
+                        iconColor: const Color(0xFF2E7D32),
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CompleteProfileView(
+                                isEditing: true,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                       _drawerItem(
                         icon: Icons.logout_rounded,
                         title: "Log Out",
@@ -477,8 +552,8 @@ class _MyHomePageState extends State<MyHomePage>
                           Navigator.pop(context);
                           _showLogoutDialog(context);
                         },
-                      )
-                    else
+                      ),
+                    ] else
                       _drawerItem(
                         icon: Icons.login_rounded,
                         title: "Login / Register",
@@ -486,7 +561,14 @@ class _MyHomePageState extends State<MyHomePage>
                         iconColor: Constants.baseColor,
                         onTap: () {
                           Navigator.pop(context);
-                          _showLoginBottomSheet(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PhoneLoginView(
+                                isFromDrawer: true,
+                              ),
+                            ),
+                          );
                         },
                       ),
                   ],
@@ -539,11 +621,11 @@ class _MyHomePageState extends State<MyHomePage>
                       ],
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      AppLocalizations.of(context)!.madeWithHeartForFarmers,
+                    const Text(
+                      "Made with ❤️ for Farmers",
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.grey[400],
+                        color: Color(0xFF9E9E9E),
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -694,152 +776,6 @@ class _MyHomePageState extends State<MyHomePage>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showLoginBottomSheet(BuildContext context) {
-    final phoneController = TextEditingController();
-    final nameController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    bool isSubmitting = false;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (ctx, setModalState) => Container(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  "Login / Register",
-                  style: GoogleFonts.outfit(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: Constants.baseColor,
-                  ),
-                ),
-                Text(
-                  "Enter your mobile number to view and track your orders",
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: nameController,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: InputDecoration(
-                    labelText: "Full Name (Optional)",
-                    hintText: "Enter your name",
-                    prefixIcon: const Icon(Icons.person_outline_rounded),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: phoneController,
-                  keyboardType: TextInputType.phone,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(10),
-                  ],
-                  validator: (v) {
-                    if (v == null || v.trim().length != 10) {
-                      return "Please enter a valid 10-digit mobile number";
-                    }
-                    return null;
-                  },
-                  decoration: InputDecoration(
-                    labelText: "Mobile Number",
-                    hintText: "10-digit mobile number",
-                    prefixText: "+91 ",
-                    prefixIcon: const Icon(Icons.phone_iphone_rounded),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Constants.baseColor,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 0,
-                    ),
-                    onPressed: isSubmitting
-                        ? null
-                        : () async {
-                            if (formKey.currentState?.validate() ?? false) {
-                              setModalState(() => isSubmitting = true);
-                              final phone = phoneController.text.trim();
-                              final name = nameController.text.trim();
-                              await AuthController.syncCustomer(
-                                phone,
-                                name.isNotEmpty ? name : null,
-                              );
-                              if (sheetContext.mounted) {
-                                Navigator.pop(sheetContext);
-                              }
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text("Welcome, ${name.isNotEmpty ? name : phone}!"),
-                                    backgroundColor: Constants.baseColor,
-                                    duration: const Duration(seconds: 2),
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                    child: isSubmitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          )
-                        : Text(
-                            "Continue",
-                            style: GoogleFonts.outfit(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

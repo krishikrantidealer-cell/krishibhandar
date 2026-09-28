@@ -167,6 +167,50 @@ class CartController extends ChangeNotifier {
     _saveToStorage();
   }
 
+  static Future<void> buyNow({
+    required String variantId,
+    String? productId,
+    int qty = 1,
+    required String title,
+    required String price,
+    required String? image,
+    required String variantTitle,
+  }) async {
+    if (!_isLoaded) {
+      await _loadFromStorage();
+    }
+
+    final targetQty = qty > 0 ? qty : 1;
+    final index = _items.indexWhere(
+        (it) => it.id.toString().trim() == variantId.toString().trim());
+
+    if (index >= 0) {
+      final currentQty = _items[index].qty;
+      _items[index] = _items[index].copyWith(
+        qty: currentQty > 0 ? currentQty : targetQty,
+        title: title,
+        price: price,
+        image: (image != null && image.isNotEmpty)
+            ? image
+            : _items[index].image,
+        variantTitle: variantTitle,
+      );
+    } else {
+      _items.add(CartItem(
+        id: variantId,
+        productId: productId,
+        qty: targetQty,
+        title: title,
+        price: price,
+        image: image ?? '',
+        variantTitle: variantTitle,
+      ));
+    }
+
+    _instance.notifyListeners();
+    _saveToStorage();
+  }
+
   static Future<void> increment(String variantId) async {
     if (!_isLoaded) {
       await _loadFromStorage();

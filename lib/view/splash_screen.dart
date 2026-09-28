@@ -9,6 +9,8 @@ import 'package:kisan_sewa_kendra/firebase_options.dart';
 import 'package:kisan_sewa_kendra/services/attribution_service.dart';
 import 'package:kisan_sewa_kendra/utils/meta_events.dart';
 import 'package:kisan_sewa_kendra/utils/notification_service.dart';
+import 'package:kisan_sewa_kendra/view/auth/phone_login_view.dart';
+import 'package:kisan_sewa_kendra/view/auth/complete_profile_view.dart';
 import 'package:kisan_sewa_kendra/view/home_view.dart';
 import '../controller/constants.dart';
 import '../controller/update_service.dart';
@@ -202,11 +204,31 @@ class _SplashScreenState extends State<SplashScreen>
 
     Future.delayed(const Duration(milliseconds: 200), () {
       if (!mounted) return;
+
+      final phone = AuthController.currentPhone;
+      final bool isLoggedIn = AuthController.isLoggedIn;
+      final bool isProfileCompleted = AuthController.isProfileCompleted;
+
+      Widget destination;
+      if (!isLoggedIn) {
+        // App starts with Login Screen for new/unauthenticated users
+        destination = const PhoneLoginView();
+      } else if (!isProfileCompleted) {
+        // Logged in with phone but profile is not complete
+        destination = CompleteProfileView(
+          phone: phone,
+          isFromLogin: true,
+          canSkip: false,
+        );
+      } else {
+        // Logged in and profile complete -> Direct to Home Store
+        destination = const MyHomePage();
+      }
+
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const MyHomePage(),
+          pageBuilder: (context, animation, secondaryAnimation) => destination,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },

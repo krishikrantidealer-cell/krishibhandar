@@ -9,9 +9,11 @@ import '../services/attribution_service.dart';
 import '../services/bhandar_api_service.dart';
 import '../controller/cart_controller.dart';
 import '../controller/auth_controller.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'checkout/address_view.dart';
 import 'checkout/coupons_view.dart';
 import 'checkout/order_success_view.dart';
+import 'auth/phone_login_view.dart';
 
 class CartView extends StatefulWidget {
   const CartView({super.key});
@@ -26,6 +28,8 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
   bool _isProcessingOrder = false;
   List<CartItem> _cartItems = [];
   bool _isLoading = true;
+  bool _isOnlinePayment = true; // Default to online payment with Razorpay
+  late Razorpay _razorpay;
 
   // Press states for Phase 2 Button Polish
   bool _isStartShoppingPressed = false;
@@ -36,8 +40,43 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     Constants.cartController.addListener(_onCartChanged);
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
     _init();
     _loadDefaultAddress();
+  }
+
+  void _handlePaymentSuccess(PaymentSuccessResponse response) {
+    _finalizeOrder(
+      paymentId: response.paymentId ?? "RZP_PAID",
+      isCod: false,
+    );
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    if (mounted) {
+      setState(() {
+        _isProcessingOrder = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Payment failed: ${response.message ?? 'Cancelled by user'}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("External wallet selected: ${response.walletName}"),
+        ),
+      );
+    }
   }
 
   void _onCartChanged() {
@@ -73,6 +112,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     Constants.cartController.removeListener(_onCartChanged);
+    _razorpay.clear();
     super.dispose();
   }
 
@@ -354,6 +394,8 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                             _buildCouponSection(),
                             const SizedBox(height: 10),
                             _buildAddressSection(),
+                            const SizedBox(height: 10),
+                            _buildPaymentMethodSection(),
                             const SizedBox(height: 10),
                             _buildBillSummary(),
                             _buildSafetyBadge(),
@@ -1290,6 +1332,210 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
     }
   }
 
+  Widget _buildPaymentMethodSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2E7D32).withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.account_balance_wallet_rounded,
+                    color: Color(0xFF2E7D32), size: 18),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                "Payment Method",
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Option 1: Online Payment (Razorpay)
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() {
+                _isOnlinePayment = true;
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: _isOnlinePayment
+                    ? const Color(0xFF2E7D32).withValues(alpha: 0.06)
+                    : const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _isOnlinePayment
+                      ? const Color(0xFF2E7D32)
+                      : Colors.grey.withValues(alpha: 0.12),
+                  width: _isOnlinePayment ? 1.5 : 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _isOnlinePayment
+                        ? Icons.radio_button_checked_rounded
+                        : Icons.radio_button_off_rounded,
+                    color: _isOnlinePayment
+                        ? const Color(0xFF2E7D32)
+                        : Colors.grey[400],
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              "Online Payment",
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                                color: const Color(0xFF1E1E1E),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2E7D32)
+                                    .withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                "Fast & Secure",
+                                style: GoogleFonts.inter(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF2E7D32),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "UPI (GPay / PhonePe / Paytm), Cards, NetBanking",
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.lock_rounded,
+                    color: Colors.grey[400],
+                    size: 16,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          // Option 2: Cash on Delivery (COD)
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() {
+                _isOnlinePayment = false;
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: !_isOnlinePayment
+                    ? const Color(0xFF2E7D32).withValues(alpha: 0.06)
+                    : const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: !_isOnlinePayment
+                      ? const Color(0xFF2E7D32)
+                      : Colors.grey.withValues(alpha: 0.12),
+                  width: !_isOnlinePayment ? 1.5 : 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    !_isOnlinePayment
+                        ? Icons.radio_button_checked_rounded
+                        : Icons.radio_button_off_rounded,
+                    color: !_isOnlinePayment
+                        ? const Color(0xFF2E7D32)
+                        : Colors.grey[400],
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Cash on Delivery (COD)",
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                            color: const Color(0xFF1E1E1E),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "Pay with cash upon delivery of products",
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.local_shipping_outlined,
+                    color: Colors.grey[400],
+                    size: 18,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSafetyBadge() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 40),
@@ -1374,9 +1620,13 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                     scale: _isCheckoutPressed ? 0.97 : 1.0,
                     duration: const Duration(milliseconds: 120),
                     child: _checkoutButton(
-                      label: AppLocalizations.of(context)!.continueToPayment,
+                      label: _isOnlinePayment
+                          ? "PAY ONLINE • ${Constants.inr}${_getFinalTotal().toStringAsFixed(2)}"
+                          : "PLACE ORDER (COD)",
                       color: Constants.baseColor,
-                      icon: Icons.payment_rounded,
+                      icon: _isOnlinePayment
+                          ? Icons.payment_rounded
+                          : Icons.local_shipping_rounded,
                     ),
                   ),
                 ),
@@ -1387,7 +1637,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
 
   Widget _checkoutButton({
     required String label,
-    required Color color, // Kept for logic if needed, but using gradient now
+    required Color color,
     required IconData icon,
   }) {
     return Container(
@@ -1431,7 +1681,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                       style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w900,
                           color: Colors.white,
-                          fontSize: 12,
+                          fontSize: 13,
                           letterSpacing: 0.5),
                     ),
                   ),
@@ -1441,20 +1691,30 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
     );
   }
 
-  /// Places direct order with Bhandar API
+  /// Starts checkout - launches Razorpay for Online Payment, or places direct order for COD
   void _handleDirectCheckout() async {
-    final phone = await AuthController.getSavedPhone();
+    String? phone = await AuthController.getSavedPhone();
     final email = await AuthController.getSavedEmail();
     final name = await AuthController.getSavedName();
 
-    if (phone == null || phone.isEmpty) {
+    // Fallback: If phone is not in AuthController memory, check selected address
+    if ((phone == null || phone.trim().isEmpty) &&
+        _selectedAddress != null &&
+        _selectedAddress!['phone'] != null &&
+        _selectedAddress!['phone']!.trim().isNotEmpty) {
+      phone = _selectedAddress!['phone']!.trim();
+      await AuthController.syncCustomer(phone!);
+    }
+
+    if (phone == null || phone.trim().isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Please login with your mobile number to proceed."),
-            backgroundColor: Colors.red,
-          ),
+        final loggedIn = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(builder: (_) => const PhoneLoginView()),
         );
+        if (loggedIn == true && mounted) {
+          _handleDirectCheckout();
+        }
       }
       return;
     }
@@ -1464,14 +1724,87 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
       return;
     }
 
-    final productIds = _cartItems.map((item) => item.productId ?? item.id).toList();
+    final productIds =
+        _cartItems.map((item) => item.productId ?? item.id).toList();
     await AttributionService.logInitiateCheckout(_getFinalTotal(), productIds);
 
+    if (_isOnlinePayment) {
+      _startRazorpayPayment(phone: phone, email: email, name: name);
+    } else {
+      _finalizeOrder(paymentId: "Cash on Delivery", isCod: true);
+    }
+  }
+
+  void _startRazorpayPayment({
+    required String phone,
+    String? email,
+    String? name,
+  }) {
+    setState(() {
+      _isProcessingOrder = true;
+    });
+
+    final totalAmount = _getFinalTotal();
+    final amountInPaise = (totalAmount * 100).round();
+
+    final key = Constants.razorpayKey;
+    if (key.isEmpty) {
+      setState(() {
+        _isProcessingOrder = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Payment gateway key is not configured."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final options = {
+      'key': key,
+      'amount': amountInPaise,
+      'name': 'Krishi Bhandar',
+      'description': 'Order Payment',
+      'prefill': {
+        'contact': phone,
+        'email': email ?? '',
+        'name': name ?? _selectedAddress?['name'] ?? 'Customer',
+      },
+      'external': {
+        'wallets': ['paytm']
+      }
+    };
+
+    try {
+      _razorpay.open(options);
+    } catch (e) {
+      setState(() {
+        _isProcessingOrder = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error opening payment gateway: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _finalizeOrder({
+    required String paymentId,
+    required bool isCod,
+  }) async {
     setState(() {
       _isProcessingOrder = true;
     });
 
     try {
+      final phone = await AuthController.getSavedPhone() ??
+          _selectedAddress?['phone'] ??
+          '';
+      final email = await AuthController.getSavedEmail();
+      final name = await AuthController.getSavedName();
       final customerId = await AuthController.getCustomerId();
       final attribution = await AttributionService().getAttribution();
       final totalAmount = _getFinalTotal();
@@ -1482,43 +1815,97 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
         final unitPrice = double.tryParse(rawPriceStr) ?? 0.0;
         return {
           'title': item.title,
+          'name': item.title,
           'quantity': item.qty,
-          'price': unitPrice.toStringAsFixed(2),
+          'price': unitPrice,
+          'unitPrice': unitPrice,
           'variant_title': item.variantTitle,
+          'variantTitle': item.variantTitle,
           'image': item.image,
+          'imageUrl': item.image,
           'variant_id': item.id,
-          'product_id': item.productId,
+          'variantId': item.id,
+          'product_id': item.productId ?? item.id,
+          'productId': item.productId ?? item.id,
         };
       }).toList();
 
+      final fullAddress =
+          '${_selectedAddress?['address1'] ?? ''} ${_selectedAddress?['address2'] ?? ''}, ${_selectedAddress?['city'] ?? ''}, ${_selectedAddress?['state'] ?? ''} - ${_selectedAddress?['pincode'] ?? ''}'
+              .trim();
+
       final orderPayload = {
         'customer_phone': phone,
+        'phone': phone,
+        'customerPhone': phone,
         'customer_email': email ?? '',
+        'email': email ?? '',
+        'customerEmail': email ?? '',
         'customer_name': name ?? _selectedAddress?['name'] ?? 'Customer',
-        'customer_first_name': _selectedAddress?['first_name'] ?? name ?? 'Customer',
+        'customerName': name ?? _selectedAddress?['name'] ?? 'Customer',
+        'customer_first_name':
+            _selectedAddress?['first_name'] ?? name ?? 'Customer',
         'customer_last_name': _selectedAddress?['last_name'] ?? '',
-        'shipping_address': '${_selectedAddress?['address1'] ?? ''} ${_selectedAddress?['address2'] ?? ''}, ${_selectedAddress?['city'] ?? ''}, ${_selectedAddress?['state'] ?? ''} - ${_selectedAddress?['pincode'] ?? ''}',
+        'shipping_address': fullAddress,
+        'shippingAddress': {
+          'address1': _selectedAddress?['address1'] ?? '',
+          'address2': _selectedAddress?['address2'] ?? '',
+          'city': _selectedAddress?['city'] ?? '',
+          'state': _selectedAddress?['state'] ?? '',
+          'pincode': _selectedAddress?['pincode'] ?? '',
+          'zip': _selectedAddress?['pincode'] ?? '',
+          'phone': phone,
+          'name': name ?? _selectedAddress?['name'] ?? 'Customer',
+        },
         'line_items': items,
-        'total_price': totalAmount.toStringAsFixed(2),
-        'subtotal_price': _getTotalValue().toStringAsFixed(2),
+        'lineItems': items,
+        'items': items,
+        'total_price': totalAmount,
+        'totalAmount': totalAmount,
+        'totalPrice': totalAmount,
+        'subtotal_price': _getTotalValue(),
+        'subtotal': _getTotalValue(),
+        'subtotalPrice': _getTotalValue(),
         'discount_code': discountCode,
+        'discountCode': discountCode,
         'customer_id': customerId,
-        'note_attributes': attribution.entries.map((e) => {'name': e.key, 'value': e.value}).toList(),
+        'customerId': customerId,
+        'payment_id': paymentId,
+        'paymentId': paymentId,
+        'gateway': isCod ? 'cod' : 'razorpay',
+        'paymentMethod': isCod ? 'COD' : 'ONLINE',
+        'paymentStatus': isCod ? 'Pending' : 'Paid',
+        'financial_status': isCod ? 'pending' : 'paid',
+        'isCod': isCod,
+        'note_attributes': attribution.entries
+            .map((e) => {'name': e.key, 'value': e.value})
+            .toList(),
       };
 
       final response = await BhandarApiService.createOrder(
         body: orderPayload,
-        isCod: true,
+        isCod: isCod,
         discountCode: discountCode,
       );
 
       if (!mounted) return;
 
-      final isSuccess = response['error'] == null && (response['id'] != null || response['order'] != null || response['orderNumber'] != null || response['success'] != false);
+      final isSuccess = response['success'] == true ||
+          response['order'] != null ||
+          response['data'] != null ||
+          (response['error'] == null && response['message'] == null && response.isNotEmpty);
 
       if (isSuccess) {
-        final orderObj = response['order'] ?? response;
-        final orderNumber = (orderObj['order_number'] ?? orderObj['orderNumber'] ?? orderObj['id'] ?? 'ORD-${DateTime.now().millisecondsSinceEpoch % 100000}').toString();
+        final orderObj = (response['order'] is Map)
+            ? response['order']
+            : (response['data'] is Map ? response['data'] : response);
+        final orderNumber = (orderObj['order_number'] ??
+                orderObj['orderNumber'] ??
+                orderObj['id'] ??
+                orderObj['_id'] ??
+                response['orderNumber'] ??
+                'ORD-${DateTime.now().millisecondsSinceEpoch % 100000}')
+            .toString();
 
         await CartController.clearCart();
 
@@ -1529,7 +1916,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
               builder: (_) => OrderSuccessView(
                 orderNumber: orderNumber,
                 totalAmount: totalAmount,
-                paymentId: "Cash on Delivery",
+                paymentId: paymentId,
               ),
             ),
           );
@@ -1538,7 +1925,8 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(response['error']?.toString() ?? "Failed to place order. Please try again."),
+              content: Text(response['error']?.toString() ??
+                  "Failed to place order. Please try again."),
               backgroundColor: Colors.red,
             ),
           );
