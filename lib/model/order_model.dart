@@ -311,18 +311,23 @@ class LineItem {
   factory LineItem.fromJson(Map<String, dynamic> json) {
     // Advanced image detection for multiple API formats (REST, GraphQL mapped, etc.)
     String? img;
-    var rawImage = json['image'] ?? json['imageUrl'];
+    var rawImage = json['image'] ?? json['imageUrl'] ?? json['img'] ?? json['featuredImage'] ?? json['productImage'];
 
     if (rawImage != null) {
       if (rawImage is String) {
         img = rawImage;
       } else if (rawImage is Map) {
-        img = rawImage['src'] ?? rawImage['url'];
+        img = (rawImage['src'] ?? rawImage['url'] ?? rawImage['original'] ?? rawImage['medium'] ?? rawImage['low'])?.toString();
       }
     }
 
     if (img == null && json['images'] is List && (json['images'] as List).isNotEmpty) {
-      img = json['images'][0]?.toString();
+      final first = json['images'][0];
+      if (first is Map) {
+        img = (first['src'] ?? first['url'] ?? first['original'] ?? first['medium'] ?? first['low'])?.toString();
+      } else {
+        img = first?.toString();
+      }
     }
 
     // Fallback search in nested structures
@@ -331,10 +336,14 @@ class LineItem {
         json['variant']?['image']?['url'] ??
         json['variant']?['product']?['featuredImage']?['url'];
 
-    // Clean the URL
+    // Clean and normalize the URL
     if (img != null) {
       img = img.trim();
-      if (img.isEmpty || !img.startsWith('http')) img = null;
+      if (img.startsWith('/uploads/')) {
+        img = 'https://backend-bhandar-205278744741.asia-south1.run.app$img';
+      } else if (img.isEmpty || (!img.startsWith('http') && !img.startsWith('data:'))) {
+        img = null;
+      }
     }
 
     int qty = 1;

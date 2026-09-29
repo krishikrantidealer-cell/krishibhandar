@@ -859,15 +859,33 @@ class BhandarApiService {
           result = Map<String, dynamic>.from(decoded);
         }
 
-        final serverOrder = (result['order'] is Map ? result['order'] : result['data']) ?? orderPayload;
+        final serverOrder = Map<String, dynamic>.from((result['order'] is Map ? result['order'] : result['data']) ?? orderPayload);
         final actualOrderNum = (result['orderNumber'] ?? serverOrder['name'] ?? serverOrder['orderNumber'] ?? generatedOrderNum).toString();
+
+        // Preserve and ensure line item images in dual-write payload
+        if (orderPayload['line_items'] is List && (serverOrder['lineItems'] is List || serverOrder['line_items'] is List)) {
+          final payloadItems = orderPayload['line_items'] as List;
+          final targetList = (serverOrder['lineItems'] ?? serverOrder['line_items']) as List;
+          for (int i = 0; i < targetList.length && i < payloadItems.length; i++) {
+            if (targetList[i] is Map && payloadItems[i] is Map) {
+              final tItem = Map<String, dynamic>.from(targetList[i] as Map);
+              final pItem = payloadItems[i] as Map;
+              if ((tItem['image'] == null || tItem['image'].toString().isEmpty) && pItem['image'] != null) {
+                tItem['image'] = pItem['image'];
+                targetList[i] = tItem;
+              }
+            }
+          }
+          serverOrder['lineItems'] = targetList;
+          serverOrder['line_items'] = targetList;
+        }
 
         // Dual-Write: Save the confirmed order to Firestore
         try {
           await _firestore
               .collection('orders')
               .doc(actualOrderNum)
-              .set(Map<String, dynamic>.from(serverOrder), SetOptions(merge: true))
+              .set(serverOrder, SetOptions(merge: true))
               .timeout(const Duration(seconds: 4));
         } catch (_) {}
 
