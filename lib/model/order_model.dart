@@ -180,15 +180,19 @@ class OrderModel {
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
     try {
-      List<LineItem> items = (json['line_items'] as List? ?? [])
-          .map((item) => LineItem.fromJson(item))
-          .toList();
+      final rawItems = json['line_items'] ?? json['lineItems'] ?? json['items'];
+      List<LineItem> items = [];
+      if (rawItems is List) {
+        items = rawItems.map((item) {
+          if (item is Map) {
+            return LineItem.fromJson(Map<String, dynamic>.from(item));
+          }
+          return LineItem(title: 'Product Item', quantity: 1, price: '0.00');
+        }).toList();
+      }
 
-      String? subtotal = json['subtotal_price']?.toString();
-      if (subtotal == null ||
-          subtotal == '0' ||
-          subtotal == '0.0' ||
-          subtotal == '0.00') {
+      String subtotal = (json['subtotal_price'] ?? json['subtotalPrice'] ?? json['subtotal'] ?? '').toString();
+      if (subtotal.isEmpty || subtotal == '0' || subtotal == '0.0' || subtotal == '0.00') {
         double calculated = 0;
         for (var item in items) {
           calculated += (double.tryParse(item.price) ?? 0) * item.quantity;
@@ -196,28 +200,57 @@ class OrderModel {
         subtotal = calculated.toStringAsFixed(2);
       }
 
+      final ordId = (json['id'] ?? json['_id'] ?? json['order_number'] ?? json['orderNumber'] ?? json['name'] ?? '').toString();
+      final ordNumber = (json['order_number'] ?? json['orderNumber'] ?? json['name'] ?? ordId).toString();
+      final totPrice = (json['total_price'] ?? json['totalPrice'] ?? json['total'] ?? json['totalAmount'] ?? subtotal).toString();
+      final fStatus = (json['fulfillment_status'] ?? json['fulfillmentStatus'] ?? json['status'] ?? 'pending').toString();
+      final finStatus = (json['financial_status'] ?? json['financialStatus'] ?? 'pending').toString();
+
+      String? fName = json['customer_first_name']?.toString() ?? json['firstName']?.toString();
+      String? lName = json['customer_last_name']?.toString() ?? json['lastName']?.toString();
+      String? shipAddr = json['shipping_address']?.toString() ?? json['shippingAddress']?.toString();
+
+      if (json['shippingAddress'] is Map) {
+        final sa = json['shippingAddress'] as Map;
+        fName ??= sa['name']?.toString();
+        final parts = [
+          sa['address1'] ?? sa['street'],
+          sa['address2'],
+          sa['city'],
+          sa['province'],
+          sa['zip'],
+          sa['country'] ?? 'India'
+        ].where((p) => p != null && p.toString().trim().isNotEmpty).toList();
+        if (parts.isNotEmpty) shipAddr = parts.join(', ');
+      }
+
+      String? custPhone = json['customer_phone']?.toString() ?? json['customerPhone']?.toString() ?? json['phone']?.toString();
+      if (custPhone == null && json['shippingAddress'] is Map) {
+        custPhone = json['shippingAddress']['phone']?.toString();
+      }
+
       return OrderModel(
-        id: json['id'].toString(),
-        orderNumber: json['order_number'].toString(),
-        createdAt: json['created_at'] ?? '',
-        totalPrice: json['total_price'] ?? '0.00',
+        id: ordId,
+        orderNumber: ordNumber,
+        createdAt: (json['created_at'] ?? json['createdAt'] ?? DateTime.now().toIso8601String()).toString(),
+        totalPrice: totPrice,
         currency: json['currency'] ?? 'INR',
-        fulfillmentStatus: json['fulfillment_status'] ?? 'pending',
-        financialStatus: json['financial_status'] ?? 'pending',
-        cancelledAt: json['cancelled_at'],
-        closedAt: json['closed_at'],
-        confirmed: json['confirmed'] ?? false,
+        fulfillmentStatus: fStatus,
+        financialStatus: finStatus,
+        cancelledAt: json['cancelled_at']?.toString() ?? json['cancelledAt']?.toString(),
+        closedAt: json['closed_at']?.toString() ?? json['closedAt']?.toString(),
+        confirmed: json['confirmed'] == true || fStatus.contains('confirm') || fStatus.contains('process') || fStatus.contains('ship') || fStatus.contains('deliver'),
         lineItems: items,
         fulfillments: (json['fulfillments'] as List? ?? [])
-            .map((f) => Fulfillment.fromJson(f))
+            .map((f) => Fulfillment.fromJson(Map<String, dynamic>.from(f as Map)))
             .toList(),
         subtotalPrice: subtotal,
-        totalTax: json['total_tax']?.toString(),
-        totalShipping: json['total_shipping']?.toString(),
-        shippingAddress: json['shipping_address']?.toString(),
-        firstName: json['customer_first_name']?.toString(),
-        lastName: json['customer_last_name']?.toString(),
-        customerPhone: json['customer_phone']?.toString(),
+        totalTax: json['total_tax']?.toString() ?? json['taxes']?.toString(),
+        totalShipping: json['total_shipping']?.toString() ?? json['shipping']?.toString(),
+        shippingAddress: shipAddr,
+        firstName: fName,
+        lastName: lName,
+        customerPhone: custPhone,
         orderStatusUrl: json['order_status_url']?.toString(),
       );
     } catch (e, stack) {
@@ -245,11 +278,11 @@ class Fulfillment {
 
   factory Fulfillment.fromJson(Map<String, dynamic> json) {
     return Fulfillment(
-      id: json['id'].toString(),
-      shipmentStatus: json['shipment_status'],
-      trackingNumber: json['tracking_number'],
-      trackingUrl: json['tracking_url'],
-      trackingCompany: json['tracking_company'],
+      id: (json['id'] ?? '').toString(),
+      shipmentStatus: json['shipment_status']?.toString() ?? json['shipmentStatus']?.toString(),
+      trackingNumber: json['tracking_number']?.toString() ?? json['trackingNumber']?.toString(),
+      trackingUrl: json['tracking_url']?.toString() ?? json['trackingUrl']?.toString(),
+      trackingCompany: json['tracking_company']?.toString() ?? json['trackingCompany']?.toString(),
     );
   }
 }
@@ -278,7 +311,7 @@ class LineItem {
   factory LineItem.fromJson(Map<String, dynamic> json) {
     // Advanced image detection for multiple API formats (REST, GraphQL mapped, etc.)
     String? img;
-    var rawImage = json['image'];
+    var rawImage = json['image'] ?? json['imageUrl'];
 
     if (rawImage != null) {
       if (rawImage is String) {
@@ -286,6 +319,10 @@ class LineItem {
       } else if (rawImage is Map) {
         img = rawImage['src'] ?? rawImage['url'];
       }
+    }
+
+    if (img == null && json['images'] is List && (json['images'] as List).isNotEmpty) {
+      img = json['images'][0]?.toString();
     }
 
     // Fallback search in nested structures
@@ -300,17 +337,20 @@ class LineItem {
       if (img.isEmpty || !img.startsWith('http')) img = null;
     }
 
-    debugPrint("[Model Parse] Item: ${json['title']} | Image: $img");
+    int qty = 1;
+    if (json['quantity'] != null) {
+      qty = json['quantity'] is int ? json['quantity'] : (int.tryParse(json['quantity'].toString()) ?? 1);
+    }
 
     return LineItem(
-      title: json['title'] ?? '',
-      quantity: json['quantity'] ?? 0,
-      price: json['price']?.toString() ?? '0.00',
-      variantTitle: json['variant_title'],
+      title: (json['name'] ?? json['title'] ?? 'Product Item').toString(),
+      quantity: qty,
+      price: (json['price'] ?? json['unitPrice'] ?? '0.00').toString(),
+      variantTitle: json['variant_title']?.toString() ?? json['variantTitle']?.toString() ?? json['sku']?.toString(),
       image: img,
-      variantId: json['variant_id']?.toString(),
-      productId: json['product_id']?.toString(),
-      totalDiscount: json['total_discount']?.toString(),
+      variantId: json['variant_id']?.toString() ?? json['variantId']?.toString(),
+      productId: json['product_id']?.toString() ?? json['productId']?.toString(),
+      totalDiscount: json['total_discount']?.toString() ?? json['discount']?.toString(),
     );
   }
 }

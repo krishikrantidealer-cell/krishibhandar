@@ -838,19 +838,7 @@ class BhandarApiService {
       }
     } catch (_) {}
 
-    // 1. Dual-Write: Save to Firestore immediately
-    try {
-      await _firestore
-          .collection('orders')
-          .doc(generatedOrderNum)
-          .set(orderPayload, SetOptions(merge: true))
-          .timeout(const Duration(seconds: 4));
-      if (kDebugMode) debugPrint("✅ Order saved to Firestore: $generatedOrderNum");
-    } catch (fsErr) {
-      if (kDebugMode) debugPrint("Firestore order save notice: $fsErr");
-    }
-
-    // 2. Post to Backend REST API
+    // 1. Post to Backend REST API first
     try {
       final res = await http.post(
         Uri.parse('$_baseUrl/api/orders'),
@@ -864,25 +852,61 @@ class BhandarApiService {
 
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final decoded = jsonDecode(res.body);
+        Map<String, dynamic> result = {};
         if (decoded is Map<String, dynamic>) {
-          return decoded;
+          result = decoded;
         } else if (decoded is Map) {
-          return Map<String, dynamic>.from(decoded);
+          result = Map<String, dynamic>.from(decoded);
         }
-        return {"success": true, "orderNumber": generatedOrderNum, "order": orderPayload};
+
+        final serverOrder = (result['order'] is Map ? result['order'] : result['data']) ?? orderPayload;
+        final actualOrderNum = (result['orderNumber'] ?? serverOrder['name'] ?? serverOrder['orderNumber'] ?? generatedOrderNum).toString();
+
+        // Dual-Write: Save the confirmed order to Firestore
+        try {
+          await _firestore
+              .collection('orders')
+              .doc(actualOrderNum)
+              .set(Map<String, dynamic>.from(serverOrder), SetOptions(merge: true))
+              .timeout(const Duration(seconds: 4));
+        } catch (_) {}
+
+        return {
+          "success": true,
+          "orderNumber": actualOrderNum,
+          "order_number": actualOrderNum,
+          "order": serverOrder,
+          "data": serverOrder,
+        };
+      } else {
+        final decoded = jsonDecode(res.body);
+        final errMsg = (decoded is Map ? (decoded['message'] ?? decoded['error']) : null) ?? 'Server error ${res.statusCode}';
+        return {
+          "success": false,
+          "error": errMsg,
+          "message": errMsg,
+        };
       }
     } catch (e) {
       if (kDebugMode) debugPrint("BhandarApiService createOrder REST Error: $e");
-    }
+      
+      // Fallback: Save to Firestore if network timeout / offline
+      try {
+        await _firestore
+            .collection('orders')
+            .doc(generatedOrderNum)
+            .set(orderPayload, SetOptions(merge: true))
+            .timeout(const Duration(seconds: 4));
+      } catch (_) {}
 
-    // Return success order payload
-    return {
-      "success": true,
-      "orderNumber": generatedOrderNum,
-      "order_number": generatedOrderNum,
-      "id": generatedOrderNum,
-      "order": orderPayload,
-    };
+      return {
+        "success": true,
+        "orderNumber": generatedOrderNum,
+        "order_number": generatedOrderNum,
+        "id": generatedOrderNum,
+        "order": orderPayload,
+      };
+    }
   }
 
   static Future<bool> cancelOrder(String orderId) async {
