@@ -55,6 +55,51 @@ class OrderModel {
 
   String get trackingStatus {
     if (cancelledAt != null) return 'Cancelled';
+
+    final s = fulfillmentStatus.toLowerCase().trim().replaceAll('-', '_').replaceAll(' ', '_');
+    switch (s) {
+      case 'not_confirmed':
+        return 'Not Confirmed';
+      case 'confirmed':
+        return 'Confirmed';
+      case 'shipped':
+        return 'Shipped';
+      case 'rack_up':
+      case 'rackup':
+        return 'Rack Up';
+      case 'in_transit':
+      case 'intransit':
+        return 'In-Transit';
+      case 'out_for_delivery':
+      case 'outfordelivery':
+        return 'Out for Delivery';
+      case 'delivered':
+        return 'Delivered';
+      case 'rto_in_transit':
+      case 'rtointransit':
+        return 'RTO In-Transit';
+      case 'rto_delivered':
+      case 'rtodelivered':
+        return 'RTO Delivered';
+      case 'hold':
+      case 'on_hold':
+        return 'Hold';
+      case 'delayed':
+        return 'Delayed';
+      case 'lost':
+        return 'Lost';
+      case 'cancelled':
+      case 'canceled':
+      case 'refunded':
+        return 'Cancelled';
+      case 'pending':
+        return 'Not Confirmed';
+      case 'processing':
+        return 'Confirmed';
+      case 'completed':
+        return 'Delivered';
+    }
+
     if (fulfillments.isNotEmpty) {
       final lastFulfillment = fulfillments.last;
       switch (lastFulfillment.shipmentStatus?.toLowerCase()) {
@@ -63,7 +108,7 @@ class OrderModel {
         case 'out_for_delivery':
           return 'Out for Delivery';
         case 'in_transit':
-          return 'In Transit';
+          return 'In-Transit';
         case 'failure':
           return 'Delivery Failed';
         case 'attempted_delivery':
@@ -74,15 +119,10 @@ class OrderModel {
           return 'Shipped';
       }
     }
-    // Fallback: If fulfillment status is fulfilled, it's at least shipped.
-    // In many cases for this business, fulfilled == completed/delivered if no tracking is used.
-    if (fulfillmentStatus.toLowerCase() == 'fulfilled') return 'Delivered';
-    if (fulfillmentStatus.toLowerCase() == 'partial') {
-      return 'Partially Shipped';
-    }
-    if (closedAt != null) return 'Completed';
-    if (confirmed) return 'Processing';
-    return 'Order Placed';
+
+    if (closedAt != null) return 'Delivered';
+    if (confirmed) return 'Confirmed';
+    return 'Not Confirmed';
   }
 
   bool get hasTrackingNumber {

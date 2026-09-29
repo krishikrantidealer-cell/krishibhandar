@@ -170,7 +170,9 @@ class OrderCard extends StatelessWidget {
                                   backgroundColor: Constants.baseColor,
                                 ),
                               );
-                              Routers.goTO(context, toBody: const CartView());
+                              if (context.mounted) {
+                                Routers.goTO(context, toBody: const CartView());
+                              }
                             },
                           ),
                         ),
@@ -187,7 +189,23 @@ class OrderCard extends StatelessWidget {
   }
 
   Widget _buildThumbnailsList() {
-    final items = order.lineItems;
+    final rawItems = order.lineItems;
+    // Deduplicate by image URL or product ID so multiple variants of the same product show the image just once
+    final seen = <String>{};
+    final uniqueItems = <LineItem>[];
+    for (final item in rawItems) {
+      final key = (item.image != null && item.image!.trim().isNotEmpty)
+          ? item.image!.trim()
+          : (item.productId != null && item.productId!.trim().isNotEmpty
+              ? item.productId!.trim()
+              : item.title.trim());
+      if (seen.add(key)) {
+        uniqueItems.add(item);
+      }
+    }
+
+    final items = uniqueItems.isNotEmpty ? uniqueItems : rawItems;
+
     return SizedBox(
       height: 48,
       child: ListView.builder(
