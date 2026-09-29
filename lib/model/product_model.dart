@@ -23,6 +23,8 @@ class ProductModel {
     this.collectionId,
   });
 
+  String get category => productType;
+
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     // Extract image URLs safely from list of Maps or Strings
     final rawImages = json['images'] as List? ?? [];

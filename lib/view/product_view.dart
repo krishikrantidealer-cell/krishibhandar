@@ -1,6 +1,6 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart' hide ImageSource;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kisan_sewa_kendra/components/cart_summary_bar.dart';
 import 'package:kisan_sewa_kendra/components/products_grid.dart';
@@ -177,6 +177,8 @@ class _ProductViewState extends State<ProductView>
     _recommend = await BhandarApiService.getProductsRecommend(
       context,
       id: productId,
+      category: localized?.category ?? widget.product?.category,
+      productType: localized?.productType ?? widget.product?.productType,
     );
 
     if (widget.product == null && localized != null) {
@@ -1468,6 +1470,185 @@ class _ProductViewState extends State<ProductView>
   }
 
   Future<void> _pickReviewImages() async {
+    if (_selectedReviewImages.length >= 5) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      elevation: 12,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFCBD5E1),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Add Photos / फोटो जोड़ें",
+                  style: GoogleFonts.outfit(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Take a photo with camera or choose from gallery (${_selectedReviewImages.length}/5)",
+                  style: GoogleFonts.inter(
+                    fontSize: 12.5,
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    // Camera Option
+                    Expanded(
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _pickImageFromSource(ImageSource.camera);
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Constants.baseColor.withValues(alpha: 0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(Icons.camera_alt_rounded,
+                                    color: Constants.baseColor, size: 26),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                "Camera",
+                                style: GoogleFonts.outfit(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
+                                  color: const Color(0xFF0F172A),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                "कैमरा से फोटो खींचें",
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    // Gallery Option
+                    Expanded(
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _pickImagesFromGallery();
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.photo_library_rounded,
+                                    color: Color(0xFF3B82F6), size: 26),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                "Gallery",
+                                style: GoogleFonts.outfit(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
+                                  color: const Color(0xFF0F172A),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                "गैलरी से चुनें",
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickImageFromSource(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(
+        source: source,
+        imageQuality: 70,
+        maxWidth: 1024,
+      );
+      if (pickedFile != null && _selectedReviewImages.length < 5) {
+        final bytes = await pickedFile.readAsBytes();
+        final base64String =
+            "data:image/jpeg;base64,${base64Encode(bytes)}";
+        if (mounted) {
+          setState(() {
+            _selectedReviewImages.add(base64String);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error picking review image from $source: $e");
+    }
+  }
+
+  Future<void> _pickImagesFromGallery() async {
     try {
       final picker = ImagePicker();
       final pickedFiles = await picker.pickMultiImage(
@@ -1476,10 +1657,11 @@ class _ProductViewState extends State<ProductView>
       );
       if (pickedFiles.isNotEmpty) {
         for (var file in pickedFiles) {
+          if (_selectedReviewImages.length >= 5) break;
           final bytes = await file.readAsBytes();
           final base64String =
               "data:image/jpeg;base64,${base64Encode(bytes)}";
-          if (_selectedReviewImages.length < 5) {
+          if (mounted) {
             setState(() {
               _selectedReviewImages.add(base64String);
             });
@@ -1487,7 +1669,7 @@ class _ProductViewState extends State<ProductView>
         }
       }
     } catch (e) {
-      debugPrint("Error picking review image: $e");
+      debugPrint("Error picking review gallery images: $e");
     }
   }
 

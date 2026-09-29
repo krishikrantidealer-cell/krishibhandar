@@ -558,12 +558,23 @@ class BhandarApiService {
     BuildContext? context, {
     String? id,
     String? productId,
+    String? category,
+    String? productType,
     String? forcedLang,
   }) async {
     try {
       final targetId = id ?? productId ?? '';
+      String endpoint = '$_baseUrl/api/products?limit=12';
+      final filterParam = (category != null && category.isNotEmpty && category != 'General')
+          ? category
+          : (productType != null && productType.isNotEmpty ? productType : null);
+
+      if (filterParam != null) {
+        endpoint += '&category=${Uri.encodeComponent(filterParam)}';
+      }
+
       final res = await http.get(
-        Uri.parse('$_baseUrl/api/products?limit=8'),
+        Uri.parse(endpoint),
         headers: _header,
       ).timeout(const Duration(seconds: 15));
 
@@ -573,6 +584,27 @@ class BhandarApiService {
             ? decoded
             : (decoded['products'] ?? decoded['data'] ?? []);
 
+        if (list is List && list.isNotEmpty) {
+          final matched = list
+              .where((item) => (item['id'] ?? item['_id']).toString() != targetId)
+              .take(8)
+              .map((item) => ProductModel.fromJson(Map<String, dynamic>.from(item)))
+              .toList();
+          if (matched.isNotEmpty) return matched;
+        }
+      }
+
+      // Fallback to top products if category filter returns no other items
+      final fallbackRes = await http.get(
+        Uri.parse('$_baseUrl/api/products?limit=10'),
+        headers: _header,
+      ).timeout(const Duration(seconds: 10));
+
+      if (fallbackRes.statusCode >= 200 && fallbackRes.statusCode < 300) {
+        final decoded = jsonDecode(fallbackRes.body);
+        final list = decoded is List
+            ? decoded
+            : (decoded['products'] ?? decoded['data'] ?? []);
         if (list is List) {
           return list
               .where((item) => (item['id'] ?? item['_id']).toString() != targetId)
