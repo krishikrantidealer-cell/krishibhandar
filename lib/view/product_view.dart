@@ -93,6 +93,10 @@ class _ProductViewState extends State<ProductView>
   List<ReviewModel> _reviews = [];
   bool _isLoadingReviews = true;
   bool _isSubmittingReview = false;
+  bool _isUploadingImages = false;
+  int? _selectedRatingFilter; // null = all
+  bool _filterOnlyPhotos = false;
+  int _visibleReviewLimit = 5;
 
   @override
   void initState() {
@@ -1630,20 +1634,35 @@ class _ProductViewState extends State<ProductView>
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(
         source: source,
-        imageQuality: 70,
-        maxWidth: 1024,
+        imageQuality: 75,
+        maxWidth: 1200,
       );
       if (pickedFile != null && _selectedReviewImages.length < 5) {
+        setState(() => _isUploadingImages = true);
         final bytes = await pickedFile.readAsBytes();
-        final base64String =
-            "data:image/jpeg;base64,${base64Encode(bytes)}";
+        final fileName = pickedFile.name.isNotEmpty
+            ? pickedFile.name
+            : 'review_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+        final uploadedUrl = await ReviewService.uploadReviewImageBytes(
+          bytes: bytes,
+          filename: fileName,
+        );
+
         if (mounted) {
           setState(() {
-            _selectedReviewImages.add(base64String);
+            _isUploadingImages = false;
+            if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+              _selectedReviewImages.add(uploadedUrl);
+            } else {
+              _selectedReviewImages
+                  .add("data:image/jpeg;base64,${base64Encode(bytes)}");
+            }
           });
         }
       }
     } catch (e) {
+      if (mounted) setState(() => _isUploadingImages = false);
       debugPrint("Error picking review image from $source: $e");
     }
   }
@@ -1652,103 +1671,144 @@ class _ProductViewState extends State<ProductView>
     try {
       final picker = ImagePicker();
       final pickedFiles = await picker.pickMultiImage(
-        imageQuality: 70,
-        maxWidth: 1024,
+        imageQuality: 75,
+        maxWidth: 1200,
       );
       if (pickedFiles.isNotEmpty) {
+        setState(() => _isUploadingImages = true);
         for (var file in pickedFiles) {
           if (_selectedReviewImages.length >= 5) break;
           final bytes = await file.readAsBytes();
-          final base64String =
-              "data:image/jpeg;base64,${base64Encode(bytes)}";
+          final fileName = file.name.isNotEmpty
+              ? file.name
+              : 'review_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+          final uploadedUrl = await ReviewService.uploadReviewImageBytes(
+            bytes: bytes,
+            filename: fileName,
+          );
+
           if (mounted) {
             setState(() {
-              _selectedReviewImages.add(base64String);
+              if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+                _selectedReviewImages.add(uploadedUrl);
+              } else {
+                _selectedReviewImages
+                    .add("data:image/jpeg;base64,${base64Encode(bytes)}");
+              }
             });
           }
         }
+        if (mounted) {
+          setState(() => _isUploadingImages = false);
+        }
       }
     } catch (e) {
+      if (mounted) setState(() => _isUploadingImages = false);
       debugPrint("Error picking review gallery images: $e");
     }
   }
 
   String _formatReviewDate(DateTime dt) {
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ];
+    final monthName =
+        (dt.month >= 1 && dt.month <= 12) ? months[dt.month - 1] : "";
+    final dateStr = "${dt.day} $monthName ${dt.year}";
+
     final now = DateTime.now();
     final diff = now.difference(dt);
     if (diff.inMinutes < 60) {
-      return diff.inMinutes <= 1 ? "Just now" : "${diff.inMinutes} mins ago";
+      final m = diff.inMinutes <= 1 ? "Just now" : "${diff.inMinutes} mins ago";
+      return "$dateStr • $m";
     } else if (diff.inHours < 24) {
-      return "${diff.inHours} hours ago";
+      final h = "${diff.inHours} ${diff.inHours == 1 ? 'hr' : 'hrs'} ago";
+      return "$dateStr • $h";
     } else if (diff.inDays < 7) {
-      return "${diff.inDays} days ago";
+      final d = "${diff.inDays} ${diff.inDays == 1 ? 'day' : 'days'} ago";
+      return "$dateStr • $d";
     } else if (diff.inDays < 30) {
       final weeks = (diff.inDays / 7).floor();
-      return "$weeks ${weeks == 1 ? 'week' : 'weeks'} ago";
+      final w = "$weeks ${weeks == 1 ? 'week' : 'weeks'} ago";
+      return "$dateStr • $w";
     } else {
-      const months = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec"
-      ];
-      final monthName =
-          (dt.month >= 1 && dt.month <= 12) ? months[dt.month - 1] : "";
-      return "${dt.day} $monthName ${dt.year}";
+      return dateStr;
     }
   }
 
   Widget _buildWriteReviewSection() {
     final ratingTitles = {
-      5.0: "Excellent Quality",
-      4.0: "Very Good Product",
-      3.0: "Average Experience",
-      2.0: "Below Expectations",
-      1.0: "Poor Experience",
+      5.0: "5.0 - Excellent Quality / उत्कृष्ट गुणवत्ता",
+      4.0: "4.0 - Very Good Product / बहुत अच्छा उत्पाद",
+      3.0: "3.0 - Average Experience / सामान्य अनुभव",
+      2.0: "2.0 - Below Expectations / अपेक्षा से कम",
+      1.0: "1.0 - Poor Experience / खराब अनुभव",
     };
 
-    return Padding(
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: Constants.baseColor.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(Icons.rate_review_rounded,
-                    color: Constants.baseColor, size: 20),
+                    color: Constants.baseColor, size: 22),
               ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    AppLocalizations.of(context)!.writeReview,
-                    style: GoogleFonts.outfit(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 18,
-                      color: const Color(0xFF1E1E1E),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppLocalizations.of(context)!.writeReview,
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 17,
+                        color: const Color(0xFF0F172A),
+                      ),
                     ),
-                  ),
-                  Text(
-                    AppLocalizations.of(context)!.shareExperience,
-                    style: GoogleFonts.inter(
-                        fontSize: 12, color: Colors.grey[600]),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      AppLocalizations.of(context)!.shareExperience,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -1756,14 +1816,16 @@ class _ProductViewState extends State<ProductView>
 
           // Star Rating Input
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF9FAFB),
+              color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: _userRating == 0.0
                     ? const Color(0xFFE2E8F0)
-                    : const Color(0xFFFABE3C).withValues(alpha: 0.3),
+                    : const Color(0xFFFABE3C).withValues(alpha: 0.4),
+                width: 1.2,
               ),
             ),
             child: Column(
@@ -1772,14 +1834,15 @@ class _ProductViewState extends State<ProductView>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(5, (index) {
                     final starVal = index + 1.0;
-                    final isSelected = _userRating > 0 && starVal <= _userRating;
+                    final isSelected =
+                        _userRating > 0 && starVal <= _userRating;
                     return GestureDetector(
                       onTap: () {
                         HapticFeedback.lightImpact();
                         setState(() => _userRating = starVal);
                       },
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
                         child: Icon(
                           isSelected
                               ? Icons.star_rounded
@@ -1793,17 +1856,22 @@ class _ProductViewState extends State<ProductView>
                     );
                   }),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  _userRating == 0.0
-                      ? "Tap to rate / रेटिंग चुनें (1-5 Stars)"
-                      : (ratingTitles[_userRating] ?? "${_userRating.toInt()} Stars"),
-                  style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: _userRating == 0.0
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF2E7D32),
+                const SizedBox(height: 8),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: Text(
+                    _userRating == 0.0
+                        ? "Tap stars to rate / रेटिंग चुनें (1 - 5 Stars)"
+                        : (ratingTitles[_userRating] ??
+                            "${_userRating.toInt()} Stars"),
+                    key: ValueKey(_userRating),
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: _userRating == 0.0
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF15803D),
+                    ),
                   ),
                 ),
               ],
@@ -1815,25 +1883,31 @@ class _ProductViewState extends State<ProductView>
           // Reviewer Name Input
           TextField(
             controller: _reviewNameController,
+            style: GoogleFonts.inter(
+                fontSize: 14, color: const Color(0xFF1E293B)),
             decoration: InputDecoration(
-              hintText: "Your Name / आपका नाम (e.g. Ramesh Patel)",
-              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+              labelText: "Your Name / आपका नाम",
+              labelStyle: GoogleFonts.inter(
+                  fontSize: 13, color: const Color(0xFF64748B)),
+              hintText: "e.g. Ramesh Patel",
+              hintStyle:
+                  TextStyle(color: Colors.grey[400], fontSize: 13),
               filled: true,
-              fillColor: const Color(0xFFF9FAFB),
+              fillColor: const Color(0xFFF8FAFC),
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFEEEEEE)),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFEEEEEE)),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
-                    color: Constants.baseColor.withValues(alpha: 0.6)),
+                    color: Constants.baseColor, width: 1.5),
               ),
             ),
           ),
@@ -1844,25 +1918,28 @@ class _ProductViewState extends State<ProductView>
           TextField(
             controller: _reviewController,
             maxLines: 3,
+            style: GoogleFonts.inter(
+                fontSize: 14, color: const Color(0xFF1E293B), height: 1.4),
             decoration: InputDecoration(
               hintText:
-                  "Write your experience (Crop results, packaging, original quality)...",
-              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+                  "Write your experience (Crop results, dosage, packaging quality)... / अपना अनुभव लिखें",
+              hintStyle:
+                  TextStyle(color: Colors.grey[400], fontSize: 13),
               filled: true,
-              fillColor: const Color(0xFFF9FAFB),
+              fillColor: const Color(0xFFF8FAFC),
               contentPadding: const EdgeInsets.all(16),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFEEEEEE)),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFEEEEEE)),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
-                    color: Constants.baseColor.withValues(alpha: 0.6)),
+                    color: Constants.baseColor, width: 1.5),
               ),
             ),
           ),
@@ -1873,7 +1950,8 @@ class _ProductViewState extends State<ProductView>
           Row(
             children: [
               OutlinedButton.icon(
-                onPressed: _selectedReviewImages.length >= 5
+                onPressed: (_selectedReviewImages.length >= 5 ||
+                        _isUploadingImages)
                     ? null
                     : _pickReviewImages,
                 style: OutlinedButton.styleFrom(
@@ -1881,16 +1959,31 @@ class _ProductViewState extends State<ProductView>
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
-                  side: BorderSide(color: Constants.baseColor, width: 1.2),
+                  side: BorderSide(
+                      color: _isUploadingImages
+                          ? Colors.grey
+                          : Constants.baseColor,
+                      width: 1.2),
                 ),
-                icon: Icon(Icons.add_photo_alternate_rounded,
-                    color: Constants.baseColor, size: 18),
+                icon: _isUploadingImages
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Color(0xFF2E7D32)),
+                      )
+                    : Icon(Icons.add_a_photo_rounded,
+                        color: Constants.baseColor, size: 18),
                 label: Text(
-                  _selectedReviewImages.isEmpty
-                      ? "Add Photos"
-                      : "Add More (${_selectedReviewImages.length}/5)",
+                  _isUploadingImages
+                      ? "Uploading..."
+                      : (_selectedReviewImages.isEmpty
+                          ? "Add Photos"
+                          : "Add More (${_selectedReviewImages.length}/5)"),
                   style: GoogleFonts.outfit(
-                    color: Constants.baseColor,
+                    color: _isUploadingImages
+                        ? Colors.grey
+                        : Constants.baseColor,
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
                   ),
@@ -1899,8 +1992,9 @@ class _ProductViewState extends State<ProductView>
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  "Help other farmers with real photos",
-                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                  "Real field/product photos",
+                  style: GoogleFonts.inter(
+                      fontSize: 11.5, color: const Color(0xFF94A3B8)),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1922,13 +2016,20 @@ class _ProductViewState extends State<ProductView>
                   return Stack(
                     children: [
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: _buildReviewImage(img,
-                            size: 70, fit: BoxFit.cover),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                                color: const Color(0xFFE2E8F0)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: _buildReviewImage(img,
+                              size: 70, fit: BoxFit.cover),
+                        ),
                       ),
                       Positioned(
-                        top: 2,
-                        right: 2,
+                        top: 3,
+                        right: 3,
                         child: GestureDetector(
                           onTap: () {
                             setState(() {
@@ -1936,13 +2037,13 @@ class _ProductViewState extends State<ProductView>
                             });
                           },
                           child: Container(
-                            padding: const EdgeInsets.all(2),
+                            padding: const EdgeInsets.all(3),
                             decoration: const BoxDecoration(
                               color: Colors.black87,
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(Icons.close_rounded,
-                                color: Colors.white, size: 14),
+                                color: Colors.white, size: 13),
                           ),
                         ),
                       ),
@@ -1966,7 +2067,7 @@ class _ProductViewState extends State<ProductView>
                   setState(() => _isSubmitReviewPressed = false),
               onTapCancel: () =>
                   setState(() => _isSubmitReviewPressed = false),
-              onTap: _isSubmittingReview
+              onTap: (_isSubmittingReview || _isUploadingImages)
                   ? null
                   : () async {
                       if (_userRating < 1.0) {
@@ -1992,7 +2093,7 @@ class _ProductViewState extends State<ProductView>
 
                       final name = _reviewNameController.text.trim().isNotEmpty
                           ? _reviewNameController.text.trim()
-                          : (AuthController.currentName ?? 'Verified Farmer');
+                          : (AuthController.currentName ?? 'Verified Buyer');
                       final comment = _reviewController.text.trim();
 
                       final newReview = await ReviewService.postReview(
@@ -2019,8 +2120,8 @@ class _ProductViewState extends State<ProductView>
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: const Text(
-                                "Review posted publicly! Thank you for helping other farmers."),
-                            backgroundColor: Constants.baseColor,
+                                "Review posted successfully! Thank you for helping the farmer community."),
+                            backgroundColor: const Color(0xFF2E7D32),
                             behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
@@ -2029,7 +2130,7 @@ class _ProductViewState extends State<ProductView>
                       }
                     },
               child: AnimatedScale(
-                scale: _isSubmitReviewPressed ? 0.97 : 1.0,
+                scale: _isSubmitReviewPressed ? 0.98 : 1.0,
                 duration: const Duration(milliseconds: 120),
                 child: Container(
                   decoration: BoxDecoration(
@@ -2045,7 +2146,7 @@ class _ProductViewState extends State<ProductView>
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.12),
+                        color: const Color(0xFF2E7D32).withValues(alpha: 0.2),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -2054,10 +2155,10 @@ class _ProductViewState extends State<ProductView>
                   child: Center(
                     child: _isSubmittingReview
                         ? const SizedBox(
-                            width: 20,
-                            height: 20,
+                            width: 22,
+                            height: 22,
                             child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2),
+                                color: Colors.white, strokeWidth: 2.2),
                           )
                         : Text(
                             AppLocalizations.of(context)!.submitReview,
@@ -2080,17 +2181,42 @@ class _ProductViewState extends State<ProductView>
 
   Widget _buildReviewsListSection() {
     double avgRating = 5.0;
+    Map<int, int> starDistribution = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
+    int photoReviewsCount = 0;
+
     if (_reviews.isNotEmpty) {
-      double sum = _reviews.fold(0.0, (prev, r) => prev + r.rating);
+      double sum = 0.0;
+      for (var r in _reviews) {
+        sum += r.rating;
+        int starBucket = r.rating.round().clamp(1, 5);
+        starDistribution[starBucket] = (starDistribution[starBucket] ?? 0) + 1;
+        if (r.images.isNotEmpty) {
+          photoReviewsCount++;
+        }
+      }
       avgRating = sum / _reviews.length;
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
-          child: Row(
+    // Apply filtering
+    List<ReviewModel> filteredReviews = _reviews.where((r) {
+      if (_selectedRatingFilter != null &&
+          r.rating.round().clamp(1, 5) != _selectedRatingFilter) {
+        return false;
+      }
+      if (_filterOnlyPhotos && r.images.isEmpty) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    final visibleReviews = filteredReviews.take(_visibleReviewLimit).toList();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
@@ -2098,204 +2224,561 @@ class _ProductViewState extends State<ProductView>
                 style: GoogleFonts.outfit(
                   fontWeight: FontWeight.w900,
                   fontSize: 18,
-                  color: Colors.black,
+                  color: const Color(0xFF0F172A),
                 ),
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2E7D32).withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.star_rounded,
-                        color: Color(0xFFFABE3C), size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      "${avgRating.toStringAsFixed(1)} / 5.0 (${_reviews.length})",
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                        color: const Color(0xFF2E7D32),
+              if (_reviews.isNotEmpty)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2E7D32).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.star_rounded,
+                          color: Color(0xFFFABE3C), size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        "${avgRating.toStringAsFixed(1)} (${_reviews.length} ${_reviews.length == 1 ? 'Review' : 'Reviews'})",
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                          color: const Color(0xFF2E7D32),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
-        ),
+          const SizedBox(height: 14),
 
-        if (_isLoadingReviews)
-          const Padding(
-            padding: EdgeInsets.all(30),
-            child: Center(child: CircularProgressIndicator()),
-          )
-        else if (_reviews.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Center(
+          if (_isLoadingReviews)
+            const Padding(
+              padding: EdgeInsets.all(30),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_reviews.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
               child: Column(
                 children: [
-                  Icon(Icons.rate_review_outlined,
-                      size: 40, color: Colors.grey[300]),
-                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE2E8F0).withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.rate_review_outlined,
+                        size: 32, color: Color(0xFF94A3B8)),
+                  ),
+                  const SizedBox(height: 12),
                   Text(
-                    "No reviews yet. Be the first to review this product!",
+                    "No reviews yet / अभी कोई समीक्षा नहीं है",
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: const Color(0xFF1E293B),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Be the first verified customer to share experience!",
+                    textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
-                        fontSize: 13, color: Colors.grey[500]),
+                      fontSize: 12.5,
+                      color: const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            // Rating Breakdown summary card
+            Container(
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        avgRating.toStringAsFixed(1),
+                        style: GoogleFonts.outfit(
+                          fontSize: 34,
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFF0F172A),
+                        ),
+                      ),
+                      _buildRatingStars(avgRating, size: 14),
+                      const SizedBox(height: 4),
+                      Text(
+                        "${_reviews.length} ${_reviews.length == 1 ? 'Rating' : 'Ratings'}",
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 20),
+                  Container(
+                    width: 1,
+                    height: 70,
+                    color: const Color(0xFFCBD5E1),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      children: List.generate(5, (idx) {
+                        int star = 5 - idx;
+                        int count = starDistribution[star] ?? 0;
+                        double pct = _reviews.isNotEmpty
+                            ? (count / _reviews.length)
+                            : 0.0;
+                        final isBarSelected = _selectedRatingFilter == star;
+
+                        return GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() {
+                              if (_selectedRatingFilter == star) {
+                                _selectedRatingFilter = null;
+                              } else {
+                                _selectedRatingFilter = star;
+                                _visibleReviewLimit = 5;
+                              }
+                            });
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Row(
+                              children: [
+                                Text(
+                                  "$star★",
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    fontWeight: isBarSelected
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    color: isBarSelected
+                                        ? const Color(0xFF2E7D32)
+                                        : const Color(0xFF475569),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: LinearProgressIndicator(
+                                      value: pct,
+                                      minHeight: 6,
+                                      backgroundColor: const Color(0xFFE2E8F0),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        isBarSelected
+                                            ? const Color(0xFF2E7D32)
+                                            : const Color(0xFFFABE3C),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  width: 20,
+                                  child: Text(
+                                    count.toString(),
+                                    textAlign: TextAlign.end,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10.5,
+                                      fontWeight: isBarSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.normal,
+                                      color: isBarSelected
+                                          ? const Color(0xFF2E7D32)
+                                          : const Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
                   ),
                 ],
               ),
             ),
-          )
-        else
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: _reviews.length,
-            itemBuilder: (context, index) {
-              final review = _reviews[index];
-              final initials = review.userName.trim().isNotEmpty
-                  ? review.userName.trim()[0].toUpperCase()
-                  : 'F';
 
-              return Container(
-                margin: const EdgeInsets.only(bottom: 14),
-                padding: const EdgeInsets.all(16),
+            // Filter Chips Bar (All, 5★, 4★, 3★, 2★, 1★, Photos)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(bottom: 14),
+              child: Row(
+                children: [
+                  _buildReviewFilterChip(
+                    label: "All (${_reviews.length})",
+                    isSelected: _selectedRatingFilter == null && !_filterOnlyPhotos,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _selectedRatingFilter = null;
+                        _filterOnlyPhotos = false;
+                        _visibleReviewLimit = 5;
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  ...List.generate(5, (idx) {
+                    int star = 5 - idx;
+                    int count = starDistribution[star] ?? 0;
+                    if (count == 0) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _buildReviewFilterChip(
+                        label: "$star ★ ($count)",
+                        isSelected: _selectedRatingFilter == star,
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() {
+                            _selectedRatingFilter =
+                                (_selectedRatingFilter == star) ? null : star;
+                            _visibleReviewLimit = 5;
+                          });
+                        },
+                      ),
+                    );
+                  }),
+                  if (photoReviewsCount > 0)
+                    _buildReviewFilterChip(
+                      label: "📷 Photos ($photoReviewsCount)",
+                      isSelected: _filterOnlyPhotos,
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _filterOnlyPhotos = !_filterOnlyPhotos;
+                          _visibleReviewLimit = 5;
+                        });
+                      },
+                    ),
+                ],
+              ),
+            ),
+
+            if (filteredReviews.isEmpty)
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFEEEEEE)),
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundColor:
-                              Constants.baseColor.withValues(alpha: 0.12),
-                          child: Text(
-                            initials,
-                            style: GoogleFonts.outfit(
-                              fontWeight: FontWeight.w800,
-                              color: Constants.baseColor,
-                              fontSize: 15,
-                            ),
-                          ),
+                    const Icon(Icons.filter_alt_off_rounded,
+                        size: 28, color: Color(0xFF94A3B8)),
+                    const SizedBox(height: 8),
+                    Text(
+                      "No reviews match this filter",
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: const Color(0xFF334155),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _selectedRatingFilter = null;
+                          _filterOnlyPhotos = false;
+                        });
+                      },
+                      child: Text(
+                        "Show All ${_reviews.length} Reviews",
+                        style: GoogleFonts.outfit(
+                          color: Constants.baseColor,
+                          fontWeight: FontWeight.w700,
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              // Review Items List
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: visibleReviews.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final review = visibleReviews[index];
+                  final initials = review.userName.trim().isNotEmpty
+                      ? review.userName.trim()[0].toUpperCase()
+                      : 'F';
+
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor:
+                                  Constants.baseColor.withValues(alpha: 0.12),
+                              child: Text(
+                                initials,
+                                style: GoogleFonts.outfit(
+                                  fontWeight: FontWeight.w800,
+                                  color: Constants.baseColor,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Flexible(
-                                    child: Text(
-                                      review.userName,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.outfit(
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 14,
-                                        color: const Color(0xFF1E1E1E),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFE8F5E9),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.check_circle_rounded,
-                                            size: 10, color: Color(0xFF2E7D32)),
-                                        SizedBox(width: 2),
-                                        Text(
-                                          "Verified",
-                                          style: TextStyle(
-                                            fontSize: 9,
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          review.userName,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.outfit(
                                             fontWeight: FontWeight.w800,
-                                            color: Color(0xFF2E7D32),
+                                            fontSize: 14,
+                                            color: const Color(0xFF0F172A),
                                           ),
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFE8F5E9),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.verified_rounded,
+                                                size: 11,
+                                                color: Color(0xFF2E7D32)),
+                                            SizedBox(width: 2),
+                                            Text(
+                                              "Verified Buyer",
+                                              style: TextStyle(
+                                                fontSize: 9.5,
+                                                fontWeight: FontWeight.w800,
+                                                color: Color(0xFF2E7D32),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _formatReviewDate(review.createdAt),
+                                    style: GoogleFonts.inter(
+                                        color: const Color(0xFF64748B),
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 11),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                _formatReviewDate(review.createdAt),
-                                style: GoogleFonts.inter(
-                                    color: Colors.grey[500], fontSize: 11),
-                              ),
-                            ],
-                          ),
+                            ),
+                            _buildRatingStars(review.rating, size: 14),
+                          ],
                         ),
-                        _buildRatingStars(review.rating, size: 14),
+                        if (review.comment.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Text(
+                            review.comment,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF334155),
+                              fontSize: 13,
+                              height: 1.45,
+                            ),
+                          ),
+                        ],
+                        if (review.images.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 70,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: review.images.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 8),
+                              itemBuilder: (context, imgIdx) {
+                                final imgUrl = review.images[imgIdx];
+                                return GestureDetector(
+                                  onTap: () => _openImagePreview(imgUrl),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Container(
+                                      width: 70,
+                                      height: 70,
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                            color: const Color(0xFFE2E8F0)),
+                                        borderRadius:
+                                            BorderRadius.circular(10),
+                                      ),
+                                      child: _buildReviewImage(imgUrl,
+                                          size: 70, fit: BoxFit.cover),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ],
                     ),
-                    if (review.comment.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        review.comment,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF333333),
+                  );
+                },
+              ),
+
+            // Pagination Controls / "Show More" / "View All"
+            if (filteredReviews.length > _visibleReviewLimit ||
+                _visibleReviewLimit > 5) ...[
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (filteredReviews.length > _visibleReviewLimit)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          setState(() {
+                            _visibleReviewLimit += 10;
+                          });
+                        },
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: BorderSide(
+                              color: Constants.baseColor, width: 1.2),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: Text(
+                          "Show More Reviews (${visibleReviews.length}/${filteredReviews.length})",
+                          style: GoogleFonts.outfit(
+                            color: Constants.baseColor,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (filteredReviews.length > _visibleReviewLimit &&
+                      _visibleReviewLimit > 5)
+                    const SizedBox(width: 10),
+                  if (_visibleReviewLimit > 5)
+                    OutlinedButton(
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        setState(() {
+                          _visibleReviewLimit = 5;
+                        });
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        side: const BorderSide(
+                            color: Color(0xFFCBD5E1), width: 1.2),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(
+                        "Show Less",
+                        style: GoogleFonts.outfit(
+                          color: const Color(0xFF64748B),
+                          fontWeight: FontWeight.w600,
                           fontSize: 13,
-                          height: 1.45,
                         ),
                       ),
-                    ],
-                    if (review.images.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        height: 65,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: review.images.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(width: 8),
-                          itemBuilder: (context, imgIdx) {
-                            final imgUrl = review.images[imgIdx];
-                            return GestureDetector(
-                              onTap: () => _openImagePreview(imgUrl),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Container(
-                                  width: 65,
-                                  height: 65,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                        color: Colors.grey[200]!),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: _buildReviewImage(imgUrl,
-                                      size: 65, fit: BoxFit.cover),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            },
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReviewFilterChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Constants.baseColor.withValues(alpha: 0.12)
+              : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? Constants.baseColor : const Color(0xFFE2E8F0),
+            width: isSelected ? 1.4 : 1.0,
           ),
-      ],
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            color: isSelected ? Constants.baseColor : const Color(0xFF475569),
+          ),
+        ),
+      ),
     );
   }
 }
