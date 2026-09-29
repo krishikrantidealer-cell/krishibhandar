@@ -86,7 +86,7 @@ class _ProductViewState extends State<ProductView>
   bool _isSubmitReviewPressed = false;
 
   // Review states
-  double _userRating = 5.0;
+  double _userRating = 0.0;
   final TextEditingController _reviewNameController = TextEditingController();
   final TextEditingController _reviewController = TextEditingController();
   final List<String> _selectedReviewImages = [];
@@ -814,7 +814,7 @@ class _ProductViewState extends State<ProductView>
                               duration: const Duration(milliseconds: 200),
                               curve: Curves.easeInOut,
                               transform: isSelected
-                                  ? (Matrix4.identity()..scale(1.02))
+                                  ? (Matrix4.diagonal3Values(1.02, 1.02, 1.0))
                                   : Matrix4.identity(),
                               transformAlignment: Alignment.center,
                               decoration: BoxDecoration(
@@ -1578,7 +1578,11 @@ class _ProductViewState extends State<ProductView>
             decoration: BoxDecoration(
               color: const Color(0xFFF9FAFB),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFEEEEEE)),
+              border: Border.all(
+                color: _userRating == 0.0
+                    ? const Color(0xFFE2E8F0)
+                    : const Color(0xFFFABE3C).withValues(alpha: 0.3),
+              ),
             ),
             child: Column(
               children: [
@@ -1586,6 +1590,7 @@ class _ProductViewState extends State<ProductView>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(5, (index) {
                     final starVal = index + 1.0;
+                    final isSelected = _userRating > 0 && starVal <= _userRating;
                     return GestureDetector(
                       onTap: () {
                         HapticFeedback.lightImpact();
@@ -1594,10 +1599,12 @@ class _ProductViewState extends State<ProductView>
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 6),
                         child: Icon(
-                          starVal <= _userRating
+                          isSelected
                               ? Icons.star_rounded
                               : Icons.star_outline_rounded,
-                          color: const Color(0xFFFABE3C),
+                          color: isSelected
+                              ? const Color(0xFFFABE3C)
+                              : const Color(0xFFCBD5E1),
                           size: 38,
                         ),
                       ),
@@ -1606,11 +1613,15 @@ class _ProductViewState extends State<ProductView>
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  ratingTitles[_userRating] ?? "${_userRating.toInt()} Stars",
+                  _userRating == 0.0
+                      ? "Tap to rate / रेटिंग चुनें (1-5 Stars)"
+                      : (ratingTitles[_userRating] ?? "${_userRating.toInt()} Stars"),
                   style: GoogleFonts.outfit(
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
-                    color: const Color(0xFF2E7D32),
+                    color: _userRating == 0.0
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF2E7D32),
                   ),
                 ),
               ],
@@ -1776,11 +1787,17 @@ class _ProductViewState extends State<ProductView>
               onTap: _isSubmittingReview
                   ? null
                   : () async {
-                      if (_userRating == 0) {
+                      if (_userRating < 1.0) {
                         HapticFeedback.mediumImpact();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text("Please select a star rating")),
+                          SnackBar(
+                            content: const Text(
+                                "Please select a star rating (1-5 stars) / कृपया स्टार रेटिंग चुनें"),
+                            backgroundColor: const Color(0xFFEF4444),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
                         );
                         return;
                       }
@@ -1813,7 +1830,7 @@ class _ProductViewState extends State<ProductView>
                           _isSubmittingReview = false;
                           _reviewController.clear();
                           _selectedReviewImages.clear();
-                          _userRating = 5.0;
+                          _userRating = 0.0;
                           FocusScope.of(context).unfocus();
                         });
 
