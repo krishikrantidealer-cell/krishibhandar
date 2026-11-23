@@ -1348,6 +1348,88 @@ class Shopify {
     return {"product": <ProductModel>[], "end": null};
   }
 
+  static Future<List<ProductModel>> getProductsByCollectionHandle(
+      BuildContext context,
+      {required String handle, int limit = 10}) async {
+    try {
+      var res = await getGraphQLData(
+        context,
+        body: '''
+          collection(handle: "$handle") {
+            id
+            products(first: $limit) {
+              nodes {
+                  id
+                  title
+                  vendor
+                  productType
+                  handle
+                  featuredImage {
+                      url
+                  }
+                  variants(first: 20) {
+                      nodes {
+                          id
+                          title
+                          price {
+                              amount
+                          }
+                          compareAtPrice {
+                              amount
+                          }                   
+                          quantityAvailable
+                      }
+                  }
+              }
+            }
+          }
+        ''',
+      );
+
+      if (res.isNotEmpty &&
+          res['data'] != null &&
+          res['data']['collection'] != null &&
+          res['data']['collection']['products'] != null) {
+        List<ProductModel> list = [];
+        for (var lis in res['data']['collection']['products']['nodes']) {
+          List<Map<String, dynamic>> variants = [];
+          if (lis['variants'] != null && lis['variants']['nodes'] != null) {
+            for (var variant in lis['variants']['nodes']) {
+              Map<String, dynamic> vari = {
+                "id": variant['id'].toString().replaceAll(_proVarIdPre, ''),
+                "title": variant['title'] ?? '',
+                "price": variant['price']?['amount']?.toString() ?? '0',
+                "compare_at_price":
+                    variant['compareAtPrice']?['amount']?.toString(),
+                "inventory_quantity": variant['quantityAvailable'] ?? 0,
+              };
+              variants.add(vari);
+            }
+          }
+          Map<String, dynamic> li = {
+            "id": lis['id'].toString().replaceAll(_proIdPre, ''),
+            "title": lis["title"] ?? '',
+            "body_html": '',
+            "vendor": lis["vendor"] ?? '',
+            "product_type": lis["productType"] ?? '',
+            "handle": lis["handle"] ?? '',
+            "images": lis["featuredImage"] != null 
+                ? [{"url": lis["featuredImage"]['url']}] 
+                : [],
+            "variants": variants,
+            "image": lis["featuredImage"],
+            "collectionId": res['data']['collection']['id']?.toString().replaceAll(_colIdPre, ''),
+          };
+          list.add(ProductModel.fromJson(li));
+        }
+        return list;
+      }
+    } catch (e) {
+      debugPrint("Error fetching products by handle: $e");
+    }
+    return [];
+  }
+
   static Future<ProductModel?> getProductVariantDetails(BuildContext context,
       {required String variantId}) async {
     try {

@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -7,12 +9,12 @@ import '../../controller/auth_controller.dart';
 import '../../controller/cart_controller.dart';
 import '../../controller/constants.dart';
 import '../../services/attribution_service.dart';
-import '../../services/shopflo_service.dart';
+import '../../services/shiprocket_service.dart';
 import '../../shopify/shopify.dart';
 import '../../utils/firebase_events.dart';
 import 'order_success_view.dart';
 
-class ShopfloCheckoutView extends StatefulWidget {
+class ShiprocketCheckoutView extends StatefulWidget {
   final List<CartItem> cartItems;
   final double totalAmount;
   final String? couponCode;
@@ -20,9 +22,8 @@ class ShopfloCheckoutView extends StatefulWidget {
   final double discountAmount;
   final String customerPhone;
   final String? customerEmail;
-  final String? initialCheckoutUrl;
 
-  const ShopfloCheckoutView({
+  const ShiprocketCheckoutView({
     super.key,
     required this.cartItems,
     required this.totalAmount,
@@ -31,20 +32,19 @@ class ShopfloCheckoutView extends StatefulWidget {
     this.discountAmount = 0.0,
     required this.customerPhone,
     this.customerEmail,
-    this.initialCheckoutUrl,
   });
 
   @override
-  State<ShopfloCheckoutView> createState() => _ShopfloCheckoutViewState();
+  State<ShiprocketCheckoutView> createState() => _ShiprocketCheckoutViewState();
 }
 
-class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
+class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
     with WidgetsBindingObserver {
   late final WebViewController _controller;
   bool _isLoading = true;
   double _progress = 0;
   bool _isRedirecting = false;
-  bool _isSuccessLogged = false;
+  bool _hasCheckoutCompleted = false;
   String? _errorMessage;
   String? _checkoutUrl;
 
@@ -53,14 +53,7 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initController();
-
-    if (widget.initialCheckoutUrl != null &&
-        widget.initialCheckoutUrl!.isNotEmpty) {
-      _checkoutUrl = widget.initialCheckoutUrl;
-      _loadCheckoutUrl(_checkoutUrl!);
-    } else {
-      _initiateShopfloCheckout();
-    }
+    _initiateShiprocketCheckout();
   }
 
   @override
@@ -72,46 +65,42 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && _isRedirecting) {
-      if (mounted) {
-        debugPrint("Returning from payment intent. Popping checkout screen.");
-        Navigator.pop(context);
+      if (mounted && !_hasCheckoutCompleted) {
+        debugPrint("🚀 [SHIPROCKET] Returning from external payment application.");
+        setState(() {
+          _isRedirecting = false;
+        });
       }
     }
   }
 
-  Future<void> _initiateShopfloCheckout() async {
+  Future<void> _initiateShiprocketCheckout() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final customerId = await AuthController.getShopifyCustomerId();
       final attribution = await AttributionService().getAttribution();
 
-      final result = await ShopfloService.createCheckoutToken(
+      final payload = ShiprocketService.buildCheckoutPayload(
         cartItems: widget.cartItems,
         couponCode: widget.couponCode,
+        attributionParams: attribution,
         customerPhone: widget.customerPhone,
         customerEmail: widget.customerEmail,
-        customerToken: customerId,
         shippingAddress: widget.shippingAddress,
-        attributionParams: attribution,
       );
 
-      if (!mounted) return;
+      final html = ShiprocketService.buildBootstrapHtml(payload);
 
-      if (result.isSuccess && result.checkoutUrl != null) {
-        _checkoutUrl = result.checkoutUrl;
-        _loadCheckoutUrl(_checkoutUrl!);
-      } else {
-        setState(() {
-          _isLoading = false;
-          _errorMessage =
-              result.errorMessage ?? 'Failed to initialize checkout';
-        });
+      if (kDebugMode) {
+        debugPrint("🚀 [SHIPROCKET] Loading Bootstrap HTML into WebViewController...");
       }
-    } catch (e) {
+
+      await _controller.loadHtmlString(html);
+    } catch (e, stack) {
+      debugPrint("❌ [SHIPROCKET] Error preparing checkout session: $e\n$stack");
       if (!mounted) return;
       setState(() {
         _isLoading = false;
@@ -120,22 +109,19 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
     }
   }
 
-  void _loadCheckoutUrl(String url) {
-    debugPrint("🛍️ [ShopfloCheckoutView] Loading checkout URL: $url");
-    _controller.loadRequest(Uri.parse(url));
-  }
-
   void _showInstallMessage(String url) {
     String appName = "this UPI app";
-    if (url.contains("paytm")) appName = "Paytm";
-    if (url.contains("phonepe")) appName = "PhonePe";
-    if (url.contains("tez") || url.contains("gpay")) appName = "Google Pay";
+    final lower = url.toLowerCase();
+    if (lower.contains("paytm")) appName = "Paytm";
+    if (lower.contains("phonepe")) appName = "PhonePe";
+    if (lower.contains("tez") || lower.contains("gpay")) appName = "Google Pay";
+    if (lower.contains("bhim")) appName = "BHIM UPI";
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Please first download $appName to continue."),
-          backgroundColor: Colors.red,
+          content: Text("Please install $appName to continue payment."),
+          backgroundColor: Colors.red[600],
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -184,8 +170,8 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
       return true;
     }
 
-    // 3. Shopflo thank you / confirmation pages
-    if (lower.contains("shopflo.co") &&
+    // 3. Fastrr / Shiprocket thank you / confirmation pages
+    if ((lower.contains("fastrr") || lower.contains("pickrr") || lower.contains("shiprocket")) &&
         (lower.contains("thank") ||
             lower.contains("success") ||
             lower.contains("confirmed"))) {
@@ -196,7 +182,8 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
     // after checkout started (and not back to cart or asset file)
     if ((lower.contains("krishibhandar.com") ||
             lower.contains("myshopify.com")) &&
-        !lower.contains("checkout.shopflo.co") &&
+        !lower.contains("fastrr") &&
+        !lower.contains("pickrr") &&
         !lower.contains("/cart") &&
         !lower.contains("/cdn/") &&
         !lower.contains(".js") &&
@@ -214,8 +201,7 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
     if (url.contains("action=backToCart") ||
         url.endsWith("/cart") ||
         url.contains("/cart?")) {
-      debugPrint(
-          "🛍️ [ShopfloCheckoutView] Back to Cart action detected ($url). Popping WebView.");
+      debugPrint("🚀 [SHIPROCKET] Back to Cart action detected ($url). Popping WebView.");
       if (mounted) {
         Navigator.pop(context);
       }
@@ -223,8 +209,8 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
     }
 
     // 2. Order Success Detection
-    if (!_isSuccessLogged && _isSuccessUrl(url)) {
-      _isSuccessLogged = true;
+    if (!_hasCheckoutCompleted && _isSuccessUrl(url)) {
+      _hasCheckoutCompleted = true;
 
       double val = widget.totalAmount;
       String txId = DateTime.now().millisecondsSinceEpoch.toString();
@@ -254,7 +240,7 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
         } catch (_) {}
       }
 
-      debugPrint("✅ [ShopfloCheckoutView] PAYMENT SUCCESS DETECTED via: $url");
+      debugPrint("✅ [SHIPROCKET] PAYMENT SUCCESS DETECTED via: $url");
       debugPrint("💰 Purchase Value: $val");
       debugPrint("🧾 Transaction ID: $txId");
 
@@ -266,22 +252,70 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
   }
 
   void _initController() {
-    debugPrint("🛍️ [ShopfloCheckoutView] Initializing WebViewController");
+    debugPrint("🚀 [SHIPROCKET] Initializing WebViewController");
 
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.white)
+      ..setOnConsoleMessage((JavaScriptConsoleMessage consoleMessage) {
+        debugPrint(
+            "🌐 [SHIPROCKET WEBVIEW CONSOLE] [${consoleMessage.level.name}] ${consoleMessage.message}");
+      })
       ..addJavaScriptChannel(
-        'ShopfloBridge',
+        'ShiprocketBridge',
         onMessageReceived: (JavaScriptMessage message) async {
-          debugPrint('🛍️ [ShopfloBridge] Message: ${message.message}');
-          final msg = message.message.toLowerCase();
-          if (msg.contains('success') ||
-              msg.contains('order_placed') ||
-              msg.contains('completed') ||
-              msg.contains('thank_you') ||
-              msg.contains('orderplaced')) {
-            await _checkAndHandleUrl('https://krishibhandar.com/checkout/success');
+          debugPrint('🚀 [SHIPROCKET] Bridge Message: ${message.message}');
+          try {
+            final data = jsonDecode(message.message);
+            if (data is Map) {
+              if (data['type'] == 'checkout_url' && data['url'] != null) {
+                final generatedUrl = data['url'].toString();
+
+                final validation = ShiprocketService.validateCheckoutUrl(generatedUrl);
+                if (validation.containsKey('error')) {
+                  final err = validation['error']!;
+                  debugPrint('❌ [SHIPROCKET] Checkout URL Validation Failed: $err');
+                  if (mounted) {
+                    setState(() {
+                      _isLoading = false;
+                      _errorMessage = 'Invalid checkout URL: $err';
+                    });
+                  }
+                  return;
+                }
+
+                final uri = Uri.parse(generatedUrl);
+                debugPrint('🚀 [SHIPROCKET] Checkout URL generated & validated:');
+                debugPrint('   - Host: ${uri.host}');
+                debugPrint('   - Path: ${uri.path}');
+                debugPrint('   - Params: ${uri.queryParameters.keys.join(", ")}');
+
+                if (mounted) {
+                  setState(() {
+                    _checkoutUrl = generatedUrl;
+                  });
+                }
+              } else if (data['type'] == 'error' && data['message'] != null) {
+                final err = data['message'].toString();
+                debugPrint('❌ [SHIPROCKET] JS Error: $err');
+                if (mounted && _checkoutUrl == null) {
+                  setState(() {
+                    _isLoading = false;
+                    _errorMessage = err;
+                  });
+                }
+              }
+            }
+          } catch (_) {
+            // String message fallback
+            final msg = message.message.toLowerCase();
+            if (msg.contains('success') ||
+                msg.contains('order_placed') ||
+                msg.contains('completed') ||
+                msg.contains('thank_you') ||
+                msg.contains('orderplaced')) {
+              await _checkAndHandleUrl('https://krishibhandar.com/checkout/success');
+            }
           }
         },
       )
@@ -297,12 +331,26 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
           onUrlChange: (UrlChange change) async {
             final url = change.url;
             if (url != null) {
-              debugPrint("🛍️ [ShopfloCheckoutView] URL Changed: $url");
+              debugPrint("🚀 [SHIPROCKET] URL Changed: $url");
               await _checkAndHandleUrl(url);
             }
           },
           onPageStarted: (String url) async {
-            debugPrint("🛍️ [ShopfloCheckoutView] Navigation Started: $url");
+            debugPrint("🚀 [SHIPROCKET] Navigation Started: $url");
+
+            // Ensure window.Shopify context is present on newly loaded page
+            try {
+              await _controller.runJavaScript('''
+                if (typeof window.Shopify === 'undefined') {
+                  window.Shopify = {
+                    shop: "${ShiprocketService.defaultDomain}",
+                    theme: { name: "MobileApp" },
+                    currency: { active: "INR", rate: "1.0" }
+                  };
+                }
+              ''');
+            } catch (_) {}
+
             if (await _checkAndHandleUrl(url)) {
               return;
             }
@@ -313,27 +361,29 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
             }
           },
           onPageFinished: (String url) async {
-            debugPrint("🛍️ [ShopfloCheckoutView] Navigation Finished: $url");
+            debugPrint("🚀 [SHIPROCKET] Navigation Finished: $url");
             if (await _checkAndHandleUrl(url)) {
               return;
             }
 
-            // Inject window postMessage bridge to capture any Shopflo checkout completion event
-            await _controller.runJavaScript('''
-              (function() {
-                if (!window._shopfloBridgeInjected) {
-                  window._shopfloBridgeInjected = true;
-                  window.addEventListener('message', function(e) {
-                    try {
-                      var data = typeof e.data === 'string' ? e.data : JSON.stringify(e.data);
-                      if (window.ShopfloBridge) {
-                        window.ShopfloBridge.postMessage(data);
-                      }
-                    } catch(err) {}
-                  });
-                }
-              })();
-            ''');
+            // Inject window postMessage bridge to capture any Fastrr completion event
+            try {
+              await _controller.runJavaScript('''
+                (function() {
+                  if (!window._shiprocketBridgeInjected) {
+                    window._shiprocketBridgeInjected = true;
+                    window.addEventListener('message', function(e) {
+                      try {
+                        var data = typeof e.data === 'string' ? e.data : JSON.stringify(e.data);
+                        if (window.ShiprocketBridge) {
+                          window.ShiprocketBridge.postMessage(data);
+                        }
+                      } catch(err) {}
+                    });
+                  }
+                })();
+              ''');
+            } catch (_) {}
 
             if (mounted) {
               setState(() {
@@ -343,13 +393,13 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
           },
           onWebResourceError: (WebResourceError error) async {
             debugPrint(
-                "🛍️ [ShopfloCheckoutView] Resource Error: ${error.description} (Code: ${error.errorCode})");
+                "🚀 [SHIPROCKET] Resource Error: ${error.description} (Code: ${error.errorCode}, Type: ${error.errorType})");
             final failingUrl = error.url;
             if (failingUrl != null &&
                 !failingUrl.startsWith('http://') &&
                 !failingUrl.startsWith('https://')) {
               debugPrint(
-                  "🛍️ [ShopfloCheckoutView] Intercepted custom scheme in onWebResourceError: $failingUrl");
+                  "🚀 [SHIPROCKET] Intercepted custom scheme in onWebResourceError: $failingUrl");
               try {
                 String targetUrl = failingUrl;
                 if (targetUrl.startsWith('tez://')) {
@@ -395,13 +445,13 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
                 """);
               } catch (e) {
                 debugPrint(
-                    "🛍️ [ShopfloCheckoutView] External App Launch Exception in error handler: $e");
+                    "🚀 [SHIPROCKET] External App Launch Exception in error handler: $e");
               }
             }
           },
           onNavigationRequest: (NavigationRequest request) async {
             final url = request.url;
-            debugPrint("🛍️ [ShopfloCheckoutView] Navigation Request: $url");
+            debugPrint("🚀 [SHIPROCKET] Navigation Request: $url");
 
             if (await _checkAndHandleUrl(url)) {
               return NavigationDecision.prevent;
@@ -410,7 +460,7 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
             // Detect payment app schemes (UPI, intent, known payment schemes)
             if (!url.startsWith('http://') && !url.startsWith('https://')) {
               debugPrint(
-                  "🛍️ [ShopfloCheckoutView] Detected External Scheme, Attempting Launch: $url");
+                  "🚀 [SHIPROCKET] Detected External Scheme, Attempting Launch: $url");
               try {
                 String targetUrl = url;
                 if (targetUrl.startsWith('tez://')) {
@@ -448,7 +498,7 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
                 }
               } catch (e) {
                 debugPrint(
-                    "🛍️ [ShopfloCheckoutView] External App Launch Exception: $e");
+                    "🚀 [SHIPROCKET] External App Launch Exception: $e");
               }
               return NavigationDecision.prevent;
             }
@@ -486,7 +536,7 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
   void _handleSuccess(String orderNumber, String successUrl) {
     final paymentId = _resolvePaymentId(successUrl);
     debugPrint(
-        "🛍️ [ShopfloCheckoutView] Success Pattern Detected. Navigating to Native OrderSuccessView for Order: $orderNumber ($paymentId)");
+        "🚀 [SHIPROCKET] Success Pattern Detected. Navigating to Native OrderSuccessView for Order: $orderNumber ($paymentId)");
 
     // Instantly blank the webview so the store website never renders on screen
     try {
@@ -516,7 +566,7 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
 
   Future<void> _runBackgroundSync(
       String orderNumber, String? shippingPhone, List<CartItem> cartItems, double totalAmount) async {
-    debugPrint('🛍️ [ShopfloCheckoutView] Starting sync for $orderNumber');
+    debugPrint('🚀 [SHIPROCKET] Starting sync for $orderNumber');
     String finalOrderId = orderNumber;
 
     // 1. Resolve Shopify Order ID & Update Shopify Order Note Attributes with UTMs
@@ -524,7 +574,7 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
       final resolvedId = await ShopifyAPI.updateOrderAttribution(orderNumber);
       if (resolvedId != null && resolvedId.isNotEmpty) {
         finalOrderId = resolvedId;
-        debugPrint("🎯 [ShopfloCheckoutView] Shopify Order ID resolved: $finalOrderId");
+        debugPrint("🎯 [SHIPROCKET] Shopify Order ID resolved: $finalOrderId");
       }
     } catch (e) {
       debugPrint("Error updating Shopify order notes: $e");
@@ -580,7 +630,7 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
               : normalized;
           if (digits.length == 10) {
             debugPrint(
-                '🛍️ [ShopfloCheckoutView] Fallback — syncing customer by phone: $digits');
+                '🚀 [SHIPROCKET] Fallback — syncing customer by phone: $digits');
             await AuthController.syncWithShopify(digits);
           }
         }
@@ -673,7 +723,7 @@ class _ShopfloCheckoutViewState extends State<ShopfloCheckoutView>
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton.icon(
-                        onPressed: _initiateShopfloCheckout,
+                        onPressed: _initiateShiprocketCheckout,
                         icon: const Icon(Icons.refresh_rounded,
                             color: Colors.white),
                         label: Text(

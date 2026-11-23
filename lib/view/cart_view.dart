@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
@@ -7,12 +6,11 @@ import 'package:kisan_sewa_kendra/l10n/app_localizations.dart';
 import '../components/network_image.dart';
 import '../controller/constants.dart';
 import '../services/attribution_service.dart';
-import '../services/shopflo_service.dart';
 import '../controller/cart_controller.dart';
 import '../controller/auth_controller.dart';
 import 'checkout/address_view.dart';
 import 'checkout/coupons_view.dart';
-import 'checkout/shopflo_checkout_view.dart';
+import 'checkout/shiprocket_checkout_view.dart';
 
 class CartView extends StatefulWidget {
   const CartView({super.key});
@@ -43,7 +41,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Reload cart when returning to foreground — catches the case where
-    // clearCart() was called in ShopfloCheckoutView (underneath in stack)
+    // clearCart() was called in ShiprocketCheckoutView (underneath in stack)
     // and the in-memory _cartItems list still holds stale data.
     if (state == AppLifecycleState.resumed) {
       _init(skipValidation: true);
@@ -1281,7 +1279,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
       // Automatically open checkout after address is saved on first time,
       // so user doesn't have to tap the button again.
       if (mounted) {
-        _openShopfloCheckout();
+        _openShiprocketCheckout();
       }
     } else {
       _loadDefaultAddress();
@@ -1366,7 +1364,7 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
                   onTapCancel: () => setState(() => _isCheckoutPressed = false),
                   onTap: _isProcessingOrder ? null : () {
                     HapticFeedback.lightImpact();
-                    _openShopfloCheckout();
+                    _openShiprocketCheckout();
                   },
                   child: AnimatedScale(
                     scale: _isCheckoutPressed ? 0.97 : 1.0,
@@ -1439,8 +1437,8 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
     );
   }
 
-  /// Opens Shopflo checkout — user completes payment via Shopflo WebView.
-  void _openShopfloCheckout() async {
+  /// Opens Shiprocket/Fastrr checkout — user completes payment via Shiprocket WebView.
+  void _openShiprocketCheckout() async {
     final phone = await AuthController.getSavedPhone();
     final email = await AuthController.getSavedEmail();
 
@@ -1457,7 +1455,6 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
     }
 
     final productIds = _cartItems.map((item) => item.productId ?? item.id).toList();
-    // Fixed: Added await for Meta event tracking
     await AttributionService.logInitiateCheckout(_getFinalTotal(), productIds);
 
     setState(() {
@@ -1465,55 +1462,30 @@ class _CartViewState extends State<CartView> with WidgetsBindingObserver {
     });
 
     try {
-      final customerId = await AuthController.getShopifyCustomerId();
-      final attribution = await AttributionService().getAttribution();
-
-      final result = await ShopfloService.createCheckoutToken(
-        cartItems: _cartItems,
-        couponCode: _appliedDiscount?['code']?.toString(),
-        customerPhone: phone,
-        customerEmail: email,
-        customerToken: customerId,
-        shippingAddress: _selectedAddress,
-        attributionParams: attribution,
-      );
-
       if (!mounted) return;
 
-      if (result.isSuccess && result.checkoutUrl != null) {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ShopfloCheckoutView(
-              cartItems: _cartItems,
-              totalAmount: _getFinalTotal(),
-              couponCode: _appliedDiscount?['code']?.toString(),
-              shippingAddress: _selectedAddress,
-              customerPhone: phone,
-              customerEmail: email,
-              initialCheckoutUrl: result.checkoutUrl,
-              discountAmount: _appliedDiscount != null
-                  ? (double.tryParse(
-                          _appliedDiscount!['value']?.toString() ?? '') ??
-                      0.0)
-                  : 0.0,
-            ),
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ShiprocketCheckoutView(
+            cartItems: _cartItems,
+            totalAmount: _getFinalTotal(),
+            couponCode: _appliedDiscount?['code']?.toString(),
+            shippingAddress: _selectedAddress,
+            customerPhone: phone,
+            customerEmail: email,
+            discountAmount: _appliedDiscount != null
+                ? (double.tryParse(
+                        _appliedDiscount!['value']?.toString() ?? '') ??
+                    0.0)
+                : 0.0,
           ),
-        );
+        ),
+      );
 
-        // Reload cart from SharedPreferences when returning from checkout.
-        if (mounted) {
-          _init(skipValidation: true);
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result.errorMessage ?? "Failed to initiate checkout. Please try again."),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+      // Reload cart from SharedPreferences when returning from checkout.
+      if (mounted) {
+        _init(skipValidation: true);
       }
     } catch (e) {
       if (mounted) {

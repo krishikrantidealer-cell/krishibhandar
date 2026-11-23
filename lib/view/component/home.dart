@@ -19,6 +19,8 @@ import '../product_view.dart';
 import '../search_results_view.dart';
 import '../../model/categories_model.dart';
 import '../../model/product_model.dart';
+import '../../components/diwali_countdown.dart';
+import '../../components/diwali_sale_section.dart';
 import '../../shopify/shopify.dart';
 
 class Home extends StatefulWidget {
@@ -545,6 +547,11 @@ class _HomeState extends State<Home> {
                                 ),
                               )
                             : const SizedBox.shrink(),
+                  ),
+
+                  // --- DIWALI DHAMAKA SALE PRODUCT SECTION ---
+                  const SliverToBoxAdapter(
+                    child: DiwaliSaleSection(),
                   ),
 
                   // --- CATEGORIES HEADER ---

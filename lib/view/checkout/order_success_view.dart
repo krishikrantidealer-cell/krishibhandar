@@ -49,7 +49,7 @@ class _OrderSuccessViewState extends State<OrderSuccessView>
 
   void _trackRevenue() {
     try {
-      // Revenue tracking is now handled in ShopfloCheckoutView 
+      // Revenue tracking is now handled in ShiprocketCheckoutView 
       // before navigation to ensure all product IDs are captured correctly.
       
       // 1. Firebase Revenue Tracking (Keep as is if needed, though likely duplicate)

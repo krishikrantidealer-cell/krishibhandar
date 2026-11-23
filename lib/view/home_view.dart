@@ -12,6 +12,7 @@ import '../components/ksk_appbar.dart';
 import '../controller/constants.dart';
 import '../controller/routers.dart';
 import '../generated/assets.dart';
+import '../components/diwali_countdown.dart';
 import 'component/home.dart';
 import 'component/categories.dart';
 import 'order_view.dart';
@@ -45,6 +46,9 @@ class _MyHomePageState extends State<MyHomePage>
     if (mounted) {
       setState(() {
         _isDataLoaded = true;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        DiwaliPopupManager.showPopupIfNeeded(context);
       });
     }
   }
