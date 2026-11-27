@@ -1,6 +1,11 @@
 # Environment
 .env
 
+# Android Signing
+android/key.properties
+*.jks
+*.keystore
+
 # Miscellaneous
 *.class
 *.log
