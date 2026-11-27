@@ -121,6 +121,7 @@ class AttributionService {
         : (Platform.isAndroid ? 'android' : (Platform.isIOS ? 'ios' : 'other'));
 
     final data = {
+      'channel': 'Mobile App',
       'order_source': 'mobile_app',
       'app_platform': platform,
       'utm_source': prefs.getString('utm_source') ?? 'organic',

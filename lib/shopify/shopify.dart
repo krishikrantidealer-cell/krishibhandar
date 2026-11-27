@@ -969,6 +969,7 @@ class ShopifyAPI {
 
         // 3. Remove any existing attribution keys to avoid duplicates
         const managedKeys = {
+          'channel',
           'order_source',
           'app_platform',
           'utm_source',

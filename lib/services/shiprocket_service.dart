@@ -112,6 +112,7 @@ class ShiprocketService {
         : (Platform.isAndroid ? 'android' : (Platform.isIOS ? 'ios' : 'other'));
 
     final Map<String, dynamic> attributes = {
+      'channel': 'Mobile App',
       'order_source': 'mobile_app',
       'app_platform': platform,
     };
