@@ -228,8 +228,9 @@ class AuthController {
   static Future<void> syncWithShopify(String phone) async {
     isSyncing = true;
 
-    // AppsFlyer Event: Login
+    // Meta SDK: Login & Advanced Matching user data
     AttributionService.logLogin();
+    AttributionService.setUserData(phone: phone);
 
     try {
       const String baseUrl = "https://3b7f20-3.myshopify.com/admin/api/2024-10";

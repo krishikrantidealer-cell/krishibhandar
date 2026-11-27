@@ -47,7 +47,7 @@
 		<key>FacebookDisplayName</key>
 		<string>Krishi Bhandar</string>
 		<key>FacebookAutoLogAppEventsEnabled</key>
-		<false/>
+		<true/>
 		<key>FacebookAdvertiserIDCollectionEnabled</key>
 		<true/>
 		<key>CFBundleURLTypes</key>

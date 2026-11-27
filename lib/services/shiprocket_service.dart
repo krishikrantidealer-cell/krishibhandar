@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import '../controller/cart_controller.dart';
 
@@ -98,13 +99,22 @@ class ShiprocketService {
     return pairs.join('&');
   }
 
-  /// Builds optional checkout attributes Map from available customer and address state
-  static Map<String, dynamic>? buildCartAttributes({
+  /// Builds checkout attributes Map mapped directly by Fastrr into Shopify
+  /// order `note_attributes` (Additional details) at order creation time.
+  static Map<String, dynamic> buildCartAttributes({
     String? customerPhone,
     String? customerEmail,
     Map<String, dynamic>? shippingAddress,
+    Map<String, String>? attributionParams,
   }) {
-    final Map<String, dynamic> attributes = {};
+    final platform = kIsWeb
+        ? 'web'
+        : (Platform.isAndroid ? 'android' : (Platform.isIOS ? 'ios' : 'other'));
+
+    final Map<String, dynamic> attributes = {
+      'order_source': 'mobile_app',
+      'app_platform': platform,
+    };
 
     if (customerPhone != null && customerPhone.trim().isNotEmpty) {
       attributes['customer_phone'] = customerPhone.trim();
@@ -124,7 +134,23 @@ class ShiprocketService {
       }
     }
 
-    return attributes.isNotEmpty ? attributes : null;
+    // Include attribution & UTM parameters directly in cartAttributes so they
+    // are persisted atomically on the Shopify order even if the app closes right
+    // after checkout.
+    if (attributionParams != null && attributionParams.isNotEmpty) {
+      attributionParams.forEach((key, value) {
+        final k = key.trim();
+        final v = value.trim();
+        if (k.isNotEmpty &&
+            v.isNotEmpty &&
+            v.toLowerCase() != 'none' &&
+            v.toLowerCase() != 'null') {
+          attributes[k] = v;
+        }
+      });
+    }
+
+    return attributes;
   }
 
   /// Generates full bootstrap JSON payload object for window.getOneClickCheckoutUrl()
@@ -143,6 +169,7 @@ class ShiprocketService {
       customerPhone: customerPhone,
       customerEmail: customerEmail,
       shippingAddress: shippingAddress,
+      attributionParams: attributionParams,
     );
 
     final Map<String, dynamic> payload = {
@@ -159,7 +186,7 @@ class ShiprocketService {
       payload['utmParams'] = utmString;
     }
 
-    if (cartAttributes != null) {
+    if (cartAttributes.isNotEmpty) {
       payload['cartAttributes'] = cartAttributes;
       payload['encodingRequired'] = true;
     }
@@ -171,6 +198,7 @@ class ShiprocketService {
       debugPrint('   - Items Count: ${itemsPayload.length}');
       debugPrint('   - Coupon: ${payload['couponCode'] ?? "None"}');
       debugPrint('   - UTM Params: ${payload['utmParams'] ?? "None"}');
+      debugPrint('   - Cart Attributes: $cartAttributes');
     }
 
     return payload;

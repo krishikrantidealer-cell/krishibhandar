@@ -36,6 +36,25 @@ class AttributionService {
 
           if (rawReferrer != null && rawReferrer.isNotEmpty) {
             final parsedParams = _parseReferrerString(rawReferrer);
+
+            // Detect Meta's encrypted Google Play Install Referrer payload
+            // (e.g. utm_source=apps.facebook.com or utm_content containing {"source":{"data":...,"nonce":...}})
+            final lowerRaw = rawReferrer.toLowerCase();
+            final utmContent = parsedParams['utm_content'] ?? '';
+            final isMetaEncryptedReferrer =
+                lowerRaw.contains('apps.facebook.com') ||
+                    lowerRaw.contains('apps.instagram.com') ||
+                    (utmContent.contains('source') && utmContent.contains('nonce'));
+
+            if (isMetaEncryptedReferrer) {
+              if (!isValidUtm(parsedParams['utm_source']) ||
+                  parsedParams['utm_source']!.toLowerCase().contains('apps.facebook') ||
+                  parsedParams['utm_source']!.toLowerCase().contains('apps.instagram')) {
+                parsedParams['utm_source'] = 'meta_app_ad';
+              }
+              parsedParams['utm_medium'] ??= 'paid_social';
+            }
+
             if (parsedParams.isNotEmpty) {
               if (kDebugMode) {
                 debugPrint("🎯 [InstallReferrer] Parsed params: $parsedParams");
@@ -94,10 +113,16 @@ class AttributionService {
     return result;
   }
 
-  /// Call this when building checkout — returns all attribution values
+  /// Call this when building checkout — returns last-touch, first-touch, and app platform metadata
   Future<Map<String, String>> getAttribution() async {
     final prefs = await SharedPreferences.getInstance();
+    final platform = kIsWeb
+        ? 'web'
+        : (Platform.isAndroid ? 'android' : (Platform.isIOS ? 'ios' : 'other'));
+
     final data = {
+      'order_source': 'mobile_app',
+      'app_platform': platform,
       'utm_source': prefs.getString('utm_source') ?? 'organic',
       'utm_medium': prefs.getString('utm_medium') ?? 'app',
       'utm_campaign': prefs.getString('utm_campaign') ?? '',
@@ -105,6 +130,9 @@ class AttributionService {
       'utm_content': prefs.getString('utm_content') ?? '',
       'fbclid': prefs.getString('fbclid') ?? '',
       'gclid': prefs.getString('gclid') ?? '',
+      'initial_utm_source': prefs.getString('initial_utm_source') ?? 'organic',
+      'initial_utm_campaign': prefs.getString('initial_utm_campaign') ?? '',
+      'last_push_campaign': prefs.getString('last_push_campaign') ?? '',
     };
     if (kDebugMode) {
       debugPrint("📦 Loaded UTM/Meta Attribution: $data");
@@ -112,87 +140,122 @@ class AttributionService {
     return data;
   }
 
-  /// Call this when a push notification is tapped
+  /// Call this when a push notification is tapped.
+  /// Preserves any active paid-ad click (fbclid/gclid) and first-touch install source.
   Future<void> handlePushNotification(RemoteMessage? message) async {
     if (message == null) return;
 
     final prefs = await SharedPreferences.getInstance();
-    final campaign = message.data['campaign'] ?? 'push_campaign';
-    
-    await prefs.setString('utm_source', 'push_notification');
-    await prefs.setString('utm_medium', 'app');
-    await prefs.setString('utm_campaign', campaign);
-    await prefs.setString('utm_content', message.data['notification_id'] ?? '');
-    await prefs.setString('utm_term', '');
+    final campaign = message.data['campaign']?.toString() ?? 'push_campaign';
+    await prefs.setString('last_push_campaign', campaign);
+
+    final hasActivePaidClick =
+        (prefs.getString('fbclid')?.isNotEmpty ?? false) ||
+            (prefs.getString('gclid')?.isNotEmpty ?? false);
+
+    if (!hasActivePaidClick) {
+      await prefs.setString('utm_source', 'push_notification');
+      await prefs.setString('utm_medium', 'app');
+      await prefs.setString('utm_campaign', campaign);
+      await prefs.setString(
+          'utm_content', message.data['notification_id']?.toString() ?? '');
+      await prefs.setString('utm_term', '');
+    }
 
     if (kDebugMode) {
-      debugPrint("🔔 Captured UTM Push Notification: push_notification | Campaign: $campaign");
+      debugPrint(
+          "🔔 Captured Push Notification: $campaign (activePaidClick=$hasActivePaidClick)");
     }
+  }
+
+  /// Checks if a UTM parameter has a meaningful value (filters out (not set), none, null, organic, etc.)
+  static bool isValidUtm(String? val) {
+    if (val == null) return false;
+    final trimmed = val.trim().toLowerCase();
+    if (trimmed.isEmpty) return false;
+    if (trimmed == 'organic' ||
+        trimmed == 'none' ||
+        trimmed == 'null' ||
+        trimmed == 'undefined' ||
+        trimmed == 'unknown' ||
+        trimmed == '(not set)' ||
+        trimmed == '(notset)' ||
+        trimmed == 'not set' ||
+        trimmed == 'not_set' ||
+        trimmed == 'notset') {
+      return false;
+    }
+    return true;
   }
 
   /// Save UTM parameters directly from map (e.g. from deep link query params or install referrer)
   Future<void> saveAttributionFromMap(Map<String, String> queryParams) async {
     final prefs = await SharedPreferences.getInstance();
-    
-    String? source = queryParams['utm_source'] ?? queryParams['source'];
-    String? medium = queryParams['utm_medium'] ?? queryParams['medium'];
-    String? campaign = queryParams['utm_campaign'] ?? queryParams['campaign'] ?? queryParams['campaign_id'];
-    String? content = queryParams['utm_content'] ?? queryParams['content'] ?? queryParams['ad_id'];
-    String? term = queryParams['utm_term'] ?? queryParams['term'] ?? queryParams['adset_id'];
-    
+
+    String? rawSource = queryParams['utm_source'] ?? queryParams['source'];
+    String? rawMedium = queryParams['utm_medium'] ?? queryParams['medium'];
+    String? rawCampaign = queryParams['utm_campaign'] ??
+        queryParams['campaign'] ??
+        queryParams['campaign_id'];
+    String? rawContent = queryParams['utm_content'] ??
+        queryParams['content'] ??
+        queryParams['ad_id'];
+    String? rawTerm =
+        queryParams['utm_term'] ?? queryParams['term'] ?? queryParams['adset_id'];
+
     final fbclid = queryParams['fbclid'];
     final gclid = queryParams['gclid'];
 
+    String? source = isValidUtm(rawSource) ? rawSource!.trim() : null;
+    String? medium = isValidUtm(rawMedium) ? rawMedium!.trim() : null;
+    String? campaign = isValidUtm(rawCampaign) ? rawCampaign!.trim() : null;
+    String? content = isValidUtm(rawContent) ? rawContent!.trim() : null;
+    String? term = isValidUtm(rawTerm) ? rawTerm!.trim() : null;
+
     // 1. Capture Meta Click ID (fbclid) if present
-    if (fbclid != null && fbclid.isNotEmpty) {
-      await prefs.setString('fbclid', fbclid);
+    if (fbclid != null && isValidUtm(fbclid)) {
+      await prefs.setString('fbclid', fbclid.trim());
       if (kDebugMode) debugPrint("🔵 Captured Meta Click ID (fbclid): $fbclid");
-      
-      // Auto-infer Meta source if utm_source is not explicitly set
-      if (source == null || source.isEmpty || source.toLowerCase() == 'organic' || source.toLowerCase() == 'none') {
+
+      if (source == null) {
         source = 'meta';
         medium = medium ?? 'cpc';
       }
     }
 
     // 2. Capture Google Click ID (gclid) if present
-    if (gclid != null && gclid.isNotEmpty) {
-      await prefs.setString('gclid', gclid);
+    if (gclid != null && isValidUtm(gclid)) {
+      await prefs.setString('gclid', gclid.trim());
       if (kDebugMode) debugPrint("🟢 Captured Google Click ID (gclid): $gclid");
 
-      if (source == null || source.isEmpty || source.toLowerCase() == 'organic' || source.toLowerCase() == 'none') {
+      if (source == null) {
         source = 'google';
         medium = medium ?? 'cpc';
       }
     }
 
-    final normalizedSource = source?.toLowerCase() ?? '';
-    
-    if (source != null && 
-        source.isNotEmpty && 
-        normalizedSource != 'organic' && 
-        normalizedSource != 'none' && 
-        normalizedSource != 'null') {
-      
+    if (source != null && source.isNotEmpty) {
       await prefs.setString('utm_source', source);
       await prefs.setString('utm_medium', medium ?? 'app');
       await prefs.setString('utm_campaign', campaign ?? '');
       await prefs.setString('utm_content', content ?? '');
       await prefs.setString('utm_term', term ?? '');
-      
-      // Store initial acquisition source if not already recorded
+
+      // Store first-touch acquisition source once (never overwritten by later sessions)
       if (!prefs.containsKey('initial_utm_source')) {
         await prefs.setString('initial_utm_source', source);
         await prefs.setString('initial_utm_campaign', campaign ?? '');
       }
 
       if (kDebugMode) {
-        debugPrint("🎯 Stored UTM Attribution: $source | Medium: $medium | Campaign: $campaign | Content: $content");
+        debugPrint(
+            "🎯 Stored UTM Attribution: $source | Medium: $medium | Campaign: $campaign | Content: $content");
       }
     }
   }
 
-  /// Clear attribution after a successful order to prevent multi-order attribution to same click
+  /// Clear session (last-touch) attribution after a successful order.
+  /// First-touch initial_utm_source / initial_utm_campaign are preserved permanently.
   Future<void> clearAttribution() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('utm_source');
@@ -202,9 +265,33 @@ class AttributionService {
     await prefs.remove('utm_content');
     await prefs.remove('fbclid');
     await prefs.remove('gclid');
+    await prefs.remove('last_push_campaign');
     if (kDebugMode) {
-      debugPrint("🧹 Attribution Data Cleared");
+      debugPrint("🧹 Session Attribution Data Cleared (First-Touch Preserved)");
     }
+  }
+
+  /// Sets Advanced Matching user data on Meta SDK to boost Event Match Quality (EMQ).
+  static Future<void> setUserData({
+    String? email,
+    String? phone,
+    String? firstName,
+    String? lastName,
+    String? city,
+    String? state,
+    String? zip,
+    String? externalId,
+  }) async {
+    await MetaEvents.setUserData(
+      email: email,
+      phone: phone,
+      firstName: firstName,
+      lastName: lastName,
+      city: city,
+      state: state,
+      zip: zip,
+      externalId: externalId,
+    );
   }
 
   // Track Purchase/Revenue in Meta SDK

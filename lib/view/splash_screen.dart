@@ -129,9 +129,13 @@ class _SplashScreenState extends State<SplashScreen>
     try {
       debugPrint("Splash: Starting Core I/O Init...");
       
-      // Request App Tracking Transparency for iOS
+      // Request App Tracking Transparency for iOS and sync with Meta SDK
       if (defaultTargetPlatform == TargetPlatform.iOS) {
-        await AppTrackingTransparency.requestTrackingAuthorization();
+        final status =
+            await AppTrackingTransparency.requestTrackingAuthorization();
+        await MetaEvents.setAdvertiserTracking(
+          status == TrackingStatus.authorized,
+        );
       }
 
       // Step 1: Initialize Firebase Core with timeout
@@ -221,36 +225,44 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _initNonCriticalServices() async {
-    // 1. Firebase Messaging (CRITICAL: Handlers must be registered ASAP)
-    try {
-      await NotificationService.init().timeout(const Duration(seconds: 10));
-    } catch (e) {
-      debugPrint("[FCM] Notification Service init timed out/failed: $e");
-    }
-
-    // 2. Firebase App Check
-    try {
-      await FirebaseAppCheck.instance.activate(
-        androidProvider:
-            kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
-      ).timeout(const Duration(seconds: 10));
-    } catch (e) {
-      debugPrint("App Check init error: $e");
-    }
-
-    // 3. Meta Events
-    try {
-      await MetaEvents.init().timeout(const Duration(seconds: 5));
-    } catch (e) {
-      debugPrint("Meta Events init error: $e");
-    }
-
-    // 4. Attribution Service
-    try {
-      await AttributionService().init().timeout(const Duration(seconds: 5));
-    } catch (e) {
-      debugPrint("Attribution Service init error: $e");
-    }
+    // Run attribution and Meta SDK init in parallel with FCM & App Check so
+    // early events don't wait behind 10s FCM/AppCheck timeouts.
+    await Future.wait([
+      (() async {
+        try {
+          await MetaEvents.init().timeout(const Duration(seconds: 5));
+        } catch (e) {
+          debugPrint("Meta Events init error: $e");
+        }
+      })(),
+      (() async {
+        try {
+          await AttributionService().init().timeout(const Duration(seconds: 5));
+        } catch (e) {
+          debugPrint("Attribution Service init error: $e");
+        }
+      })(),
+      (() async {
+        try {
+          await NotificationService.init().timeout(const Duration(seconds: 10));
+        } catch (e) {
+          debugPrint("[FCM] Notification Service init timed out/failed: $e");
+        }
+      })(),
+      (() async {
+        try {
+          await FirebaseAppCheck.instance
+              .activate(
+                androidProvider: kDebugMode
+                    ? AndroidProvider.debug
+                    : AndroidProvider.playIntegrity,
+              )
+              .timeout(const Duration(seconds: 10));
+        } catch (e) {
+          debugPrint("App Check init error: $e");
+        }
+      })(),
+    ]);
   }
 
   @override

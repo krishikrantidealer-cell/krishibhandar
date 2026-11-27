@@ -81,6 +81,15 @@ class _ShiprocketCheckoutViewState extends State<ShiprocketCheckoutView>
     });
 
     try {
+      // Update Meta Advanced Matching user data before checkout & Purchase
+      await AttributionService.setUserData(
+        email: widget.customerEmail,
+        phone: widget.customerPhone,
+        city: widget.shippingAddress?['city']?.toString(),
+        state: widget.shippingAddress?['state']?.toString(),
+        zip: widget.shippingAddress?['pincode']?.toString(),
+      );
+
       final attribution = await AttributionService().getAttribution();
 
       final payload = ShiprocketService.buildCheckoutPayload(

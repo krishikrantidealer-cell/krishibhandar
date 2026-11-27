@@ -4,20 +4,83 @@ import '../services/attribution_service.dart';
 
 class MetaEvents {
   static final FacebookAppEvents _facebookAppEvents = FacebookAppEvents();
+  static final Set<String> _loggedPurchaseOrders = {};
 
-  /// Initialize and disable auto-logging to ensure only manual events are sent.
+  /// Initialize Meta SDK with auto-logging enabled so App Install / App Launch
+  /// (fb_mobile_activate_app) and Play Install Referrer attribution work natively.
   static Future<void> init() async {
     try {
       if (kDebugMode) print("[Meta][INIT] Starting...");
-      // Official configuration for manual logging only
-      await _facebookAppEvents.setAutoLogAppEventsEnabled(false);
+      await _facebookAppEvents.setAutoLogAppEventsEnabled(true);
       if (kDebugMode) {
-        print("[Meta][INIT] Completed successfully (Auto-log disabled)");
+        print("[Meta][INIT] Completed successfully (Auto-log enabled)");
       }
     } catch (e) {
       if (kDebugMode) {
         print("[Meta][INIT] Failed: $e");
       }
+    }
+  }
+
+  /// Aligns Meta SDK advertiser ID collection with iOS ATT / user consent.
+  static Future<void> setAdvertiserTracking(bool enabled) async {
+    try {
+      await _facebookAppEvents.setAdvertiserIdCollectionEnabled(enabled);
+      if (kDebugMode) {
+        print("[Meta][ATT] setAdvertiserIdCollectionEnabled($enabled)");
+      }
+    } catch (e) {
+      debugPrint("[Meta][ATT] Failed to set advertiser tracking: $e");
+    }
+  }
+
+  /// Sets hashed Advanced Matching user data to improve Meta Event Match Quality (EMQ).
+  static Future<void> setUserData({
+    String? email,
+    String? phone,
+    String? firstName,
+    String? lastName,
+    String? city,
+    String? state,
+    String? zip,
+    String? country = 'in',
+    String? externalId,
+  }) async {
+    try {
+      final cleanEmail = email?.trim().toLowerCase();
+      final cleanPhoneDigits = phone?.replaceAll(RegExp(r'[^\d]'), '');
+      final normalizedPhone = (cleanPhoneDigits != null && cleanPhoneDigits.length == 10)
+          ? '91$cleanPhoneDigits'
+          : cleanPhoneDigits;
+
+      await _facebookAppEvents.setUserData(
+        email: (cleanEmail != null && cleanEmail.isNotEmpty) ? cleanEmail : null,
+        phone: (normalizedPhone != null && normalizedPhone.isNotEmpty)
+            ? normalizedPhone
+            : null,
+        firstName: (firstName != null && firstName.trim().isNotEmpty)
+            ? firstName.trim().toLowerCase()
+            : null,
+        lastName: (lastName != null && lastName.trim().isNotEmpty)
+            ? lastName.trim().toLowerCase()
+            : null,
+        city: (city != null && city.trim().isNotEmpty)
+            ? city.trim().toLowerCase()
+            : null,
+        state: (state != null && state.trim().isNotEmpty)
+            ? state.trim().toLowerCase()
+            : null,
+        zip: (zip != null && zip.trim().isNotEmpty) ? zip.trim() : null,
+        country: country,
+        externalId: (externalId != null && externalId.trim().isNotEmpty)
+            ? externalId.trim()
+            : null,
+      );
+      if (kDebugMode) {
+        print("[Meta][UserData] Advanced Matching data updated");
+      }
+    } catch (e) {
+      debugPrint("[Meta][UserData] Failed: $e");
     }
   }
 
@@ -145,17 +208,29 @@ class MetaEvents {
     String? orderId,
   }) async {
     try {
+      // Prevent duplicate Purchase events for the same orderId (e.g. WebView reload)
+      final dedupeKey = orderId?.trim();
+      if (dedupeKey != null && dedupeKey.isNotEmpty) {
+        if (_loggedPurchaseOrders.contains(dedupeKey)) {
+          if (kDebugMode) {
+            print("[Meta][Purchase] Skipping duplicate for OrderID: $dedupeKey");
+          }
+          return;
+        }
+        _loggedPurchaseOrders.add(dedupeKey);
+      }
+
       final attribution = await _getAttributionParams();
       
       final parameters = {
         'fb_content_id': contentIds.join(','),
         'fb_content_type': 'product',
-        if (orderId != null) 'fb_order_id': orderId,
+        if (dedupeKey != null && dedupeKey.isNotEmpty) 'fb_order_id': dedupeKey,
         ...attribution,
       };
 
       if (kDebugMode) {
-        print("[Meta][Purchase] Value: $totalValue | OrderID: $orderId | Attr: $attribution");
+        print("[Meta][Purchase] Value: $totalValue | OrderID: $dedupeKey | Attr: $attribution");
       }
 
       // Official logPurchase supports parameters enrichment natively

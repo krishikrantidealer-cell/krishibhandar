@@ -933,34 +933,9 @@ class ShopifyAPI {
           }
         }
 
-        // B. Fallback: Search latest order in the system if created in the last 10 minutes
-        if (numericId == null) {
-          var res = await http.get(
-            Uri.parse('$_baseUrl/orders.json?limit=1&status=any'),
-            headers: _header,
-          );
-          if (res.statusCode == 200) {
-            final orders = jsonDecode(res.body)['orders'] as List?;
-            if (orders != null && orders.isNotEmpty) {
-              final latestOrder = orders.first;
-              final createdAtStr = latestOrder['created_at']?.toString();
-              if (createdAtStr != null) {
-                final createdAt = DateTime.tryParse(createdAtStr);
-                if (createdAt != null) {
-                  final difference = DateTime.now()
-                      .toUtc()
-                      .difference(createdAt.toUtc())
-                      .inMinutes;
-                  if (difference.abs() <= 10) {
-                    numericId = latestOrder['id']?.toString();
-                    debugPrint(
-                        "🎯 Matched order based on latest order fallback (created $difference min ago): $numericId");
-                  }
-                }
-              }
-            }
-          }
-        }
+        // NOTE: Do NOT fall back to "latest order in the store" (orders.json?limit=1).
+        // Under concurrent website/app traffic that corrupts other customers' orders.
+        // Attribution & mobile_app metadata are already written atomically via Fastrr cartAttributes.
       }
 
       if (numericId != null) {
@@ -992,33 +967,48 @@ class ShopifyAPI {
           }
         }
 
-        // 3. Remove any existing UTM attributes to avoid duplicates
-        existingAttributes.removeWhere((attr) =>
-            attr['name'] == 'utm_source' ||
-            attr['name'] == 'utm_medium' ||
-            attr['name'] == 'utm_campaign' ||
-            attr['name'] == 'utm_term' ||
-            attr['name'] == 'utm_content' ||
-            attr['name'] == 'fbclid' ||
-            attr['name'] == 'gclid');
+        // 3. Remove any existing attribution keys to avoid duplicates
+        const managedKeys = {
+          'order_source',
+          'app_platform',
+          'utm_source',
+          'utm_medium',
+          'utm_campaign',
+          'utm_term',
+          'utm_content',
+          'fbclid',
+          'gclid',
+          'initial_utm_source',
+          'initial_utm_campaign',
+          'last_push_campaign',
+        };
+        existingAttributes.removeWhere((attr) => managedKeys.contains(attr['name']));
 
-        // 4. Add the new UTM attributes
+        // 4. Add the new attribution attributes
         existingAttributes.addAll(attribution.entries
             .where((e) => e.value.isNotEmpty)
             .map((e) => {"name": e.key, "value": e.value})
             .toList());
 
-        // 5. Update Order Tags for easy filtering in Shopify Admin and reporting apps
+        // 5. Update Order Tags — always tag mobile_app + platform so app orders
+        // are cleanly separable from website Fastrr orders even when organic.
         tagSet.removeWhere((tag) =>
             tag.startsWith('utm_source:') ||
             tag.startsWith('source:') ||
             tag.startsWith('utm_medium:') ||
             tag.startsWith('utm_campaign:') ||
             tag.startsWith('utm:') ||
-            tag.startsWith('fbclid:'));
+            tag.startsWith('fbclid:') ||
+            tag.startsWith('platform:'));
+
+        tagSet.add('mobile_app');
+        final appPlatform = attribution['app_platform'];
+        if (appPlatform != null && appPlatform.isNotEmpty) {
+          tagSet.add('platform:$appPlatform');
+        }
 
         final utmSource = attribution['utm_source'];
-        if (utmSource != null && utmSource.isNotEmpty && utmSource != 'organic') {
+        if (utmSource != null && utmSource.isNotEmpty) {
           tagSet.add('utm_source:$utmSource');
           tagSet.add('source:$utmSource');
         }
@@ -1027,7 +1017,7 @@ class ShopifyAPI {
           tagSet.add('utm_campaign:$utmCampaign');
         }
         final utmMedium = attribution['utm_medium'];
-        if (utmMedium != null && utmMedium.isNotEmpty && utmMedium != 'app') {
+        if (utmMedium != null && utmMedium.isNotEmpty) {
           tagSet.add('utm_medium:$utmMedium');
         }
         final fbclid = attribution['fbclid'];
