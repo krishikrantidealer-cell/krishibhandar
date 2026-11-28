@@ -125,4 +125,19 @@ void main() {
     expect(cartAttrs['customer_phone'], '9876543210');
     expect(payload['utmParams'].toString(), contains('utm_source=meta'));
   });
+
+  test('Sanitizes legacy "(not set)" values from SharedPreferences', () async {
+    SharedPreferences.setMockInitialValues({
+      'utm_source': '(not set)',
+      'utm_medium': '(not set)',
+      'initial_utm_source': '(not set)',
+      'utm_campaign': 'none',
+    });
+
+    final attribution = await AttributionService().getAttribution();
+    expect(attribution['utm_source'], 'organic');
+    expect(attribution['utm_medium'], 'app');
+    expect(attribution['initial_utm_source'], 'organic');
+    expect(attribution['utm_campaign'], '');
+  });
 }

@@ -120,20 +120,28 @@ class AttributionService {
         ? 'web'
         : (Platform.isAndroid ? 'android' : (Platform.isIOS ? 'ios' : 'other'));
 
+    String cleanOrFallback(String? val, String fallback) {
+      if (isValidUtm(val)) return val!.trim();
+      return fallback;
+    }
+
     final data = {
       'channel': 'Mobile App',
       'order_source': 'mobile_app',
       'app_platform': platform,
-      'utm_source': prefs.getString('utm_source') ?? 'organic',
-      'utm_medium': prefs.getString('utm_medium') ?? 'app',
-      'utm_campaign': prefs.getString('utm_campaign') ?? '',
-      'utm_term': prefs.getString('utm_term') ?? '',
-      'utm_content': prefs.getString('utm_content') ?? '',
-      'fbclid': prefs.getString('fbclid') ?? '',
-      'gclid': prefs.getString('gclid') ?? '',
-      'initial_utm_source': prefs.getString('initial_utm_source') ?? 'organic',
-      'initial_utm_campaign': prefs.getString('initial_utm_campaign') ?? '',
-      'last_push_campaign': prefs.getString('last_push_campaign') ?? '',
+      'utm_source': cleanOrFallback(prefs.getString('utm_source'), 'organic'),
+      'utm_medium': cleanOrFallback(prefs.getString('utm_medium'), 'app'),
+      'utm_campaign': cleanOrFallback(prefs.getString('utm_campaign'), ''),
+      'utm_term': cleanOrFallback(prefs.getString('utm_term'), ''),
+      'utm_content': cleanOrFallback(prefs.getString('utm_content'), ''),
+      'fbclid': cleanOrFallback(prefs.getString('fbclid'), ''),
+      'gclid': cleanOrFallback(prefs.getString('gclid'), ''),
+      'initial_utm_source':
+          cleanOrFallback(prefs.getString('initial_utm_source'), 'organic'),
+      'initial_utm_campaign':
+          cleanOrFallback(prefs.getString('initial_utm_campaign'), ''),
+      'last_push_campaign':
+          cleanOrFallback(prefs.getString('last_push_campaign'), ''),
     };
     if (kDebugMode) {
       debugPrint("📦 Loaded UTM/Meta Attribution: $data");
